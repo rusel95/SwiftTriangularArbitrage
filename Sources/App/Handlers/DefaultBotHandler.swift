@@ -30,7 +30,7 @@ final class DefaultBotHandlers {
             switch self {
             case .logging: return 900
             case .trading: return 30
-            case .alerting: return 60
+            case .alerting: return 300
             case .suspended: return 0
             }
         }
@@ -53,7 +53,7 @@ final class DefaultBotHandlers {
     private var tradingJob: Job?
     private var alertingJob: Job?
     
-    let resultsFormatDescription = "платежный способ - возможная цена Продажи / Покупки - спред грязный / чистый - чистый профит в %"
+    let resultsFormatDescription = "платежный способ | возможная цена Продажи - Покупки | спред грязный - чистый | чистый профит в %"
     
     // MARK: - METHODS
     
@@ -78,7 +78,10 @@ private extension DefaultBotHandlers {
             let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
             self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases, bot: bot, update: update)
+                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases,
+                                              paymentMethods: [.privatbank, .monobank],
+                                              bot: bot,
+                                              update: update)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -93,7 +96,10 @@ private extension DefaultBotHandlers {
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
             
             self.alertingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases, bot: bot, update: update)
+                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases,
+                                              paymentMethods: [.privatbank, .monobank],
+                                              bot: bot,
+                                              update: update)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -102,6 +108,8 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_alerting"
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
+            let text = "Start handling Extra opportinuties:\n Binance - Mono - WhiteBit - Binance\n Binance - WhiteBit - Any Bank - Binance"
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             self?.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                 self?.checkWhiteBitArbitrage(for: bot, update: update)
             }
@@ -115,18 +123,22 @@ private extension DefaultBotHandlers {
             self?.loggingJob?.stop()
             self?.tradingJob?.stop()
             self?.alertingJob?.stop()
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text:  "Now bot will have some rest"))
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Now bot will have some rest"))
         }
         bot.connection.dispatcher.add(handler)
     }
     
-    func printMarketPosibilities(for cryptos: [BinanceService.Crypto], bot: TGBotPrtcl, update: TGUpdate) {
+    func printMarketPosibilities(
+        for cryptos: [BinanceService.Crypto],
+        paymentMethods: [BinanceService.PaymentMethod],
+        bot: TGBotPrtcl,
+        update: TGUpdate) {
         let cryptoGroup = DispatchGroup()
         var totalDescriptioon: String = ""
         
         cryptos.forEach { crypto in
             cryptoGroup.enter()
-            getSpreadDescription(for: crypto) { description in
+            getSpreadDescription(for: crypto, paymentMethods: paymentMethods) { description in
                 totalDescriptioon.append("\(description)\n")
                 cryptoGroup.leave()
             }
@@ -138,11 +150,14 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func getSpreadDescription(for crypto: BinanceService.Crypto, completion: @escaping(String) -> Void) {
+    func getSpreadDescription(
+        for crypto: BinanceService.Crypto,
+        paymentMethods: [BinanceService.PaymentMethod],
+        completion: @escaping(String) -> Void) {
         let spreadGroup = DispatchGroup()
         
         var message: String = "\(crypto.rawValue):\n"
-        BinanceService.PaymentMethod.allCases.forEach { paymentMethod in
+        paymentMethods.forEach { paymentMethod in
             spreadGroup.enter()
             getSpread(for: paymentMethod, crypto: crypto) { pricesInfo in
                 guard let pricesInfo = pricesInfo else {
@@ -158,7 +173,7 @@ private extension DefaultBotHandlers {
                 let cleanSpreadString = String(format: "%.2f", cleanSpread)
                 let cleanSpreadPercentString = String(format: "%.2f", (cleanSpread / pricesInfo.possibleBuyPrice * 100))
                 
-                message.append("\(paymentMethod.rawValue) - \(buyPriceString) / \(sellPriceString) - \(dirtySpreadString) / \(cleanSpreadString) - \(cleanSpreadPercentString)%\n")
+                message.append("\(paymentMethod.rawValue) | \(buyPriceString) - \(sellPriceString) | \(dirtySpreadString) - \(cleanSpreadString) | \(cleanSpreadPercentString)%\n")
                 spreadGroup.leave()
             }
         }
@@ -216,20 +231,30 @@ private extension DefaultBotHandlers {
         }
         
         arbitrageGroup.notify(queue: .global()) {
-            guard let whiteBitAsks = whiteBitAsks,
-                  let whiteBitBids = whiteBitBids,
+            guard let whiteBitBuy = whiteBitAsks?.first,
+                  let whiteBitSell = whiteBitBids?.first,
                   let monoPricesInfo = monoPricesInfo else {
                 return
             }
 
-            let whiteBitBuyDescription = whiteBitAsks.first.map { String($0) } ?? "no prices"
-            let monoSellDescription = String(format: "%.2f", monoPricesInfo.possibleBuyPrice)
-            var text = "WhiteBit buy: \(whiteBitBuyDescription) Mono Sell: \(monoSellDescription)\n"
-            let whiteBitSellDescription = whiteBitBids.first.map { String($0) } ?? "no prices"
-            let monoBuyDescription = String(format: "%.2f", monoPricesInfo.possibleSellPrice)
-            text.append("WhiteBit sell: \(whiteBitSellDescription) Mono Buy: \(monoBuyDescription)")
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+            if monoPricesInfo.possibleSellPrice - whiteBitBuy > 0.3 {
+                // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
+                let text = "Mono Sell: \(monoPricesInfo.possibleBuyPrice.prettyPrinted) - WhiteBit buy: \(whiteBitBuy.prettyPrinted) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).prettyPrinted)"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+            } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > 0.3 {
+                // If prices for Selling on White bit much more lower then prices for buying on Monobank
+                let text = "WhiteBit sell: \(whiteBitSell.prettyPrinted) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.prettyPrinted) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).prettyPrinted)"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+            }
         }
+    }
+    
+}
+
+extension Double {
+    
+    var prettyPrinted: String {
+        String(format: "%.2f", self)
     }
     
 }
