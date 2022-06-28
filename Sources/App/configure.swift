@@ -1,10 +1,14 @@
 import Vapor
+import telegram_vapor_bot
 
-// configures your application
 public func configure(_ app: Application) throws {
-    // uncomment to serve files from /Public folder
-    // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-
-    // register routes
+    
+    let connection: TGConnectionPrtcl = TGLongPollingConnection()
+    TGBot.configure(connection: connection, botId: readToken(from: "token"), vaporClient: app.client)
+    try TGBot.shared.start()
+    TGBot.log.logLevel = .error
+    
+    DefaultBotHandlers.shared.addHandlers(app: app, bot: TGBot.shared)
+    
     try routes(app)
 }
