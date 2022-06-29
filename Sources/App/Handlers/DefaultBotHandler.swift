@@ -20,34 +20,62 @@ final class DefaultBotHandlers {
         case abankUSDT
         case pumbUSDT
         case wiseUSDT
-        case monobankBUSD
-        case privatbankBUSD
+        case monobankBUSD_monobankUSDT
+        case privatbankBUSD_privatbankUSDT
         
-        var crypto: Binance.Crypto {
+        var sellCrypto: Binance.Crypto {
             switch self {
             case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return .usdt
-            case .monobankBUSD, .privatbankBUSD: return .busd
+            case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return .busd
             }
         }
         
-        var paymentMethod: Binance.PaymentMethod {
+        var buyCrypto: Binance.Crypto {
             switch self {
-            case .monobankUSDT, .monobankBUSD: return .monobank
-            case .privatbankUSDT, .privatbankBUSD: return .privatbank
+            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return .usdt
+            case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return .usdt
+            }
+        }
+        
+        var sellPaymentMethod: Binance.PaymentMethod {
+            switch self {
+            case .monobankUSDT, .monobankBUSD_monobankUSDT: return .monobank
+            case .privatbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbank
             case .abankUSDT: return .abank
             case .pumbUSDT: return .pumb
             case .wiseUSDT: return .wise
             }
         }
         
-        var numbersOfAdvsToConsider: UInt8 {
+        var buyPaymentMethod: Binance.PaymentMethod {
+            switch self {
+            case .monobankUSDT, .monobankBUSD_monobankUSDT: return .monobank
+            case .privatbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbank
+            case .abankUSDT: return .monobank
+            case .pumbUSDT: return .monobank
+            case .wiseUSDT: return .wise
+            }
+        }
+        
+        var sellNumbersOfAdvsToConsider: UInt8 {
             switch self {
             case .monobankUSDT: return 10
             case .privatbankUSDT: return 10
             case .abankUSDT: return 3
             case .pumbUSDT: return 3
             case .wiseUSDT: return 3
-            case .privatbankBUSD, .monobankBUSD: return 2
+            case .privatbankBUSD_privatbankUSDT, .monobankBUSD_monobankUSDT: return 10
+            }
+        }
+        
+        var buyNumbersOfAdvsToConsider: UInt8 {
+            switch self {
+            case .monobankUSDT: return 10
+            case .privatbankUSDT: return 10
+            case .abankUSDT: return 10
+            case .pumbUSDT: return 10
+            case .wiseUSDT: return 3
+            case .privatbankBUSD_privatbankUSDT, .monobankBUSD_monobankUSDT: return 10
             }
         }
         
@@ -145,7 +173,15 @@ private extension DefaultBotHandlers {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 
                 self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                    self?.printP2P(opportunities: [.monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT],
+                    let tradingOpportunities: [Opportunity] = [
+                        .monobankUSDT,
+                        .privatbankUSDT,
+                        .abankUSDT,
+                        .pumbUSDT,
+                        .monobankBUSD_monobankUSDT,
+                        .privatbankBUSD_privatbankUSDT
+                    ]
+                    self?.printP2P(opportunities: tradingOpportunities,
                                    bot: bot,
                                    update: update)
                 }
@@ -183,8 +219,11 @@ private extension DefaultBotHandlers {
     func commandStopHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
             self?.loggingJob?.stop()
+            self?.loggingJob = nil
             self?.tradingJob?.stop()
+            self?.tradingJob = nil
             self?.alertingJob?.stop()
+            self?.alertingJob = nil
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Now bot will have some rest.."))
         }
         bot.connection.dispatcher.add(handler)
@@ -214,7 +253,7 @@ private extension DefaultBotHandlers {
     }
     
     func getSpreadDescription(for opportunity: Opportunity, completion: @escaping(String) -> Void) {
-        var message: String = "\(opportunity.crypto.rawValue): "
+        var message: String = "\(opportunity.sellCrypto.rawValue)/\(opportunity.buyCrypto.rawValue): "
         getPricesInfo(for: opportunity) { pricesInfo in
             guard let pricesInfo = pricesInfo else {
                 completion("No PricesInfo for\(opportunity)")
@@ -225,37 +264,87 @@ private extension DefaultBotHandlers {
             let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
             let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
             
-            message.append("\(opportunity.paymentMethod.description) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
+            message.append("\(opportunity.sellPaymentMethod.description) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
             completion(message)
         }
     }
     
     func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
-        BinanceAPIService.shared.loadAdvertisements(
-            for: opportunity.paymentMethod,
-            crypto: opportunity.crypto,
-            numbersOfAdvsToConsider: opportunity.numbersOfAdvsToConsider
-        ) { buyAdvs, sellAdvs, error in
-            guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
-                completion(nil)
-                return
+        if opportunity.buyPaymentMethod == opportunity.sellPaymentMethod {
+            BinanceAPIService.shared.loadAdvertisements(
+                for: opportunity.sellPaymentMethod,
+                crypto: opportunity.sellCrypto,
+                numbersOfAdvsToConsider: opportunity.sellNumbersOfAdvsToConsider
+            ) { buyAdvs, sellAdvs, error in
+                guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
+                    completion(nil)
+                    return
+                }
+                
+                let buyPrices = buyAdvs
+                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
+                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+                
+                let averageBuyPrice = buyPrices.reduce(0.0, +) / Double(buyPrices.count)
+                
+                let sellPrices = sellAdvs
+                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
+                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+                let averageSellPrice = sellPrices.reduce(0.0, +) / Double(sellPrices.count)
+                completion(PricesInfo(possibleBuyPrice: averageBuyPrice, possibleSellPrice: averageSellPrice))
+            }
+        } else {
+            var averageSellPrice: Double = 0
+            var averageBuyPrice: Double = 0
+            
+            let priceInfoGroup = DispatchGroup()
+            
+            priceInfoGroup.enter()
+            BinanceAPIService.shared.loadAdvertisements(
+                for: opportunity.sellPaymentMethod,
+                crypto: opportunity.sellCrypto,
+                numbersOfAdvsToConsider: opportunity.buyNumbersOfAdvsToConsider
+            ) { _, sellAdvs, _ in
+                guard let sellAdvs = sellAdvs else {
+                    priceInfoGroup.leave()
+                    return
+                }
+                
+                let sellPrices = sellAdvs
+                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
+                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+                averageSellPrice = sellPrices.reduce(0.0, +) / Double(sellPrices.count)
+                priceInfoGroup.leave()
+            }
+            priceInfoGroup.enter()
+            BinanceAPIService.shared.loadAdvertisements(
+                for: opportunity.sellPaymentMethod,
+                crypto: opportunity.buyCrypto,
+                numbersOfAdvsToConsider: opportunity.buyNumbersOfAdvsToConsider
+            ) { buyAdvs, _, _ in
+                guard let buyAdvs = buyAdvs else {
+                    priceInfoGroup.leave()
+                    return
+                }
+                let buyPrices = buyAdvs
+                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
+                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+                
+                averageBuyPrice = buyPrices.reduce(0.0, +) / Double(buyPrices.count)
+                priceInfoGroup.leave()
             }
             
-            let buyPrices = buyAdvs
-                .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                .compactMap { Double($0.price) }
-                .compactMap { $0 }
-            
-            let averageBuyPrice = buyPrices.reduce(0.0, +) / Double(buyPrices.count)
-            
-            let sellPrices = sellAdvs
-                .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                .compactMap { Double($0.price) }
-                .compactMap { $0 }
-            let averageSellPrice = sellPrices.reduce(0.0, +) / Double(sellPrices.count)
-            completion(PricesInfo(possibleBuyPrice: averageBuyPrice, possibleSellPrice: averageSellPrice))
+            priceInfoGroup.notify(queue: .global()) {
+                completion(PricesInfo(possibleBuyPrice: averageBuyPrice, possibleSellPrice: averageSellPrice))
+            }
         }
     }
     
