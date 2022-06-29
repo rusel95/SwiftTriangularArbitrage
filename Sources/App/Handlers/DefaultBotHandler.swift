@@ -108,11 +108,7 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_alerting"
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
-            let text = """
-            Start handling Extra opportinuties:
-            1) Binance - Mono - WhiteBit - Binance  (>= 0.3 UAH)
-            2) Binance - WhiteBit - Any Bank - Binance  (>= 0.3 UAH)
-            """
+            let text = "Start handling Extra opportinuties: "
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             self?.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                 self?.checkWhiteBitArbitrage(for: bot, update: update)
@@ -215,6 +211,10 @@ private extension DefaultBotHandlers {
     }
     
     func checkWhiteBitArbitrage(for bot: TGBotPrtcl, update: TGUpdate) {
+        let worthOfProfitSpread = 0.3
+        let opportinityDescription = "Binance - Mono - WhiteBit - Binance  (>= \(worthOfProfitSpread.toLocalCurrency()))\nBinance - WhiteBit - MonoBank(Any Bank) - Binance  (>= \(worthOfProfitSpread.toLocalCurrency()))"
+        _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: opportinityDescription))
+        
         var whiteBitAsks: [Double]?
         var whiteBitBids: [Double]?
         var monoPricesInfo: PricesInfo? = nil
@@ -239,14 +239,13 @@ private extension DefaultBotHandlers {
                 return
             }
 
-            let worthOfProfitSpread = 0.3
             if monoPricesInfo.possibleSellPrice - whiteBitBuy > worthOfProfitSpread {
                 // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
-                let text = "Mono Sell: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).toLocalCurrency())"
+                let text = "OPPORTINITY!    Mono Sell: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > worthOfProfitSpread {
                 // If prices for Selling on White bit much more lower then prices for buying on Monobank
-                let text = "WhiteBit sell: \(whiteBitSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
+                let text = "OPPORTINITY!    WhiteBit sell: \(whiteBitSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }

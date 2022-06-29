@@ -21,6 +21,7 @@ extension NSNumber {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.maximumFractionDigits = fractDigits
+        formatter.locale = Locale(identifier: "ua_UA")
         return formatter.string(from: self)
     }
 
