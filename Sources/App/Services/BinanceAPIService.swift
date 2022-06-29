@@ -19,6 +19,18 @@ enum Binance {
         case abank = "ABank"
         case wise = "Wise"
         case binancePayUAH = "UAHfiatbalance"
+        
+        var description: String {
+            switch self {
+            case .privatbank:    return "Privatbank       "
+            case .monobank:      return "Monobank       "
+            case .pumb:          return "PUMBBank      "
+            case .abank:         return "ABank              "
+            case .wise:          return "Wise                 "
+            case .binancePayUAH: return "UAHfiatbalance "
+            }
+        }
+        
     }
 
     enum Crypto: String, CaseIterable {
@@ -29,8 +41,6 @@ enum Binance {
 }
 
 final class BinanceAPIService {
-    
-  
     
     // MARK: - PROPERTIES
     
