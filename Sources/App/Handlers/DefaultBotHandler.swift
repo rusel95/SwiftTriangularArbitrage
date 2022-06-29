@@ -108,7 +108,11 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_alerting"
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
-            let text = "Start handling Extra opportinuties:\n Binance - Mono - WhiteBit - Binance\n Binance - WhiteBit - Any Bank - Binance"
+            let text = """
+            Start handling Extra opportinuties:
+            1) Binance - Mono - WhiteBit - Binance  (>= 0.3 UAH)
+            2) Binance - WhiteBit - Any Bank - Binance  (>= 0.3 UAH)
+            """
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             self?.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                 self?.checkWhiteBitArbitrage(for: bot, update: update)
@@ -165,15 +169,11 @@ private extension DefaultBotHandlers {
                     return
                 }
 
-                let buyPriceString = String(format: "%.2f", pricesInfo.possibleBuyPrice)
-                let sellPriceString = String(format: "%.2f", pricesInfo.possibleSellPrice)
                 let dirtySpread = pricesInfo.possibleBuyPrice - pricesInfo.possibleSellPrice
-                let dirtySpreadString = String(format: "%.2f", dirtySpread)
-                let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2
-                let cleanSpreadString = String(format: "%.2f", cleanSpread)
-                let cleanSpreadPercentString = String(format: "%.2f", (cleanSpread / pricesInfo.possibleBuyPrice * 100))
+                let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
+                let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
                 
-                message.append("\(paymentMethod.rawValue) | \(buyPriceString) - \(sellPriceString) | \(dirtySpreadString) - \(cleanSpreadString) | \(cleanSpreadPercentString)%\n")
+                message.append("\(paymentMethod.rawValue) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
                 spreadGroup.leave()
             }
         }
@@ -237,24 +237,17 @@ private extension DefaultBotHandlers {
                 return
             }
 
-            if monoPricesInfo.possibleSellPrice - whiteBitBuy > 0.3 {
+            let worthOfProfitSpread = 0.3
+            if monoPricesInfo.possibleSellPrice - whiteBitBuy > worthOfProfitSpread {
                 // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
-                let text = "Mono Sell: \(monoPricesInfo.possibleBuyPrice.prettyPrinted) - WhiteBit buy: \(whiteBitBuy.prettyPrinted) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).prettyPrinted)"
+                let text = "Mono Sell: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
-            } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > 0.3 {
+            } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > worthOfProfitSpread {
                 // If prices for Selling on White bit much more lower then prices for buying on Monobank
-                let text = "WhiteBit sell: \(whiteBitSell.prettyPrinted) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.prettyPrinted) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).prettyPrinted)"
+                let text = "WhiteBit sell: \(whiteBitSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }
-    }
-    
-}
-
-extension Double {
-    
-    var prettyPrinted: String {
-        String(format: "%.2f", self)
     }
     
 }
