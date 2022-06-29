@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  DefaultBotHandler.swift
 //  
 //
 //  Created by Ruslan Popesku on 22.06.2022.
@@ -12,6 +12,46 @@ import Jobs
 final class DefaultBotHandlers {
     
     typealias PricesInfo = (possibleBuyPrice: Double, possibleSellPrice: Double)
+    
+    enum Opportunity: CaseIterable {
+        
+        case monobankUSDT
+        case privatbankUSDT
+        case abankUSDT
+        case pumbUSDT
+        case wiseUSDT
+        case monobankBUSD
+        case privatbankBUSD
+        
+        var crypto: Binance.Crypto {
+            switch self {
+            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return .usdt
+            case .monobankBUSD, .privatbankBUSD: return .busd
+            }
+        }
+        
+        var paymentMethod: Binance.PaymentMethod {
+            switch self {
+            case .monobankUSDT, .monobankBUSD: return .monobank
+            case .privatbankUSDT, .privatbankBUSD: return .privatbank
+            case .abankUSDT: return .abank
+            case .pumbUSDT: return .pumb
+            case .wiseUSDT: return .wise
+            }
+        }
+        
+        var numbersOfAdvsToConsider: UInt8 {
+            switch self {
+            case .monobankUSDT: return 10
+            case .privatbankUSDT: return 10
+            case .abankUSDT: return 3
+            case .pumbUSDT: return 3
+            case .wiseUSDT: return 3
+            case .privatbankBUSD, .monobankBUSD: return 2
+            }
+        }
+        
+    }
     
     // MARK: - ENUMERATIONS
     
@@ -53,7 +93,8 @@ final class DefaultBotHandlers {
     private var tradingJob: Job?
     private var alertingJob: Job?
     
-    let resultsFormatDescription = "платежный способ | возможная цена Продажи - Покупки | спред грязный - чистый | чистый профит в %"
+    private let resultsFormatDescription = "платежный способ | возможная цена Продажи - Покупки | спред грязный - чистый | чистый профит в %"
+    
     
     // MARK: - METHODS
     
@@ -82,10 +123,9 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.printMarketPosibilities(for: BinanceAPIService.Crypto.allCases,
-                                                  paymentMethods: [.privatbank, .monobank],
-                                                  bot: bot,
-                                                  update: update)
+                    self?.printP2P(opportunities: Opportunity.allCases,
+                                   bot: bot,
+                                   update: update)
                 }
             }
         }
@@ -105,10 +145,9 @@ private extension DefaultBotHandlers {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 
                 self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                    self?.printMarketPosibilities(for: BinanceAPIService.Crypto.allCases,
-                                                  paymentMethods: [.privatbank, .monobank],
-                                                  bot: bot,
-                                                  update: update)
+                    self?.printP2P(opportunities: [.monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT],
+                                   bot: bot,
+                                   update: update)
                 }
             }
         }
@@ -146,70 +185,57 @@ private extension DefaultBotHandlers {
             self?.loggingJob?.stop()
             self?.tradingJob?.stop()
             self?.alertingJob?.stop()
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Now bot will have some rest"))
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Now bot will have some rest.."))
         }
         bot.connection.dispatcher.add(handler)
     }
     
-    func printMarketPosibilities(
-        for cryptos: [BinanceAPIService.Crypto],
-        paymentMethods: [BinanceAPIService.PaymentMethod],
-        bot: TGBotPrtcl,
-        update: TGUpdate)
-    {
-        let cryptoGroup = DispatchGroup()
+}
+
+// MARK: - Helpers
+private extension DefaultBotHandlers {
+    
+    func printP2P(opportunities: [Opportunity], bot: TGBotPrtcl, update: TGUpdate) {
+        let opportunitiesGroup = DispatchGroup()
         var totalDescriptioon: String = ""
         
-        cryptos.forEach { crypto in
-            cryptoGroup.enter()
-            getSpreadDescription(for: crypto, paymentMethods: paymentMethods) { description in
-                totalDescriptioon.append("\(description)\n")
-                cryptoGroup.leave()
+        opportunities.forEach { opportunity in
+            opportunitiesGroup.enter()
+            getSpreadDescription(for: opportunity) { description in
+                totalDescriptioon.append("\(description)")
+                opportunitiesGroup.leave()
             }
         }
         
-        cryptoGroup.notify(queue: .global()) {
+        opportunitiesGroup.notify(queue: .global()) {
             let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
             _ = try? bot.sendMessage(params: params)
         }
     }
     
-    func getSpreadDescription(
-        for crypto: BinanceAPIService.Crypto,
-        paymentMethods: [BinanceAPIService.PaymentMethod],
-        completion: @escaping(String) -> Void)
-    {
-        let spreadGroup = DispatchGroup()
-        
-        var message: String = "\(crypto.rawValue):\n"
-        paymentMethods.forEach { paymentMethod in
-            spreadGroup.enter()
-            getSpread(for: paymentMethod, crypto: crypto) { pricesInfo in
-                guard let pricesInfo = pricesInfo else {
-                    spreadGroup.leave()
-                    return
-                }
-
-                let dirtySpread = pricesInfo.possibleBuyPrice - pricesInfo.possibleSellPrice
-                let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
-                let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
-                
-                message.append("\(paymentMethod.rawValue) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
-                spreadGroup.leave()
+    func getSpreadDescription(for opportunity: Opportunity, completion: @escaping(String) -> Void) {
+        var message: String = "\(opportunity.crypto.rawValue): "
+        getPricesInfo(for: opportunity) { pricesInfo in
+            guard let pricesInfo = pricesInfo else {
+                completion("No PricesInfo for\(opportunity)")
+                return
             }
-        }
-        
-        spreadGroup.notify(queue: .global()) {
+            
+            let dirtySpread = pricesInfo.possibleBuyPrice - pricesInfo.possibleSellPrice
+            let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
+            let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
+            
+            message.append("\(opportunity.paymentMethod.rawValue) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
             completion(message)
         }
     }
     
-    func getSpread(
-        for paymentMethod: BinanceAPIService.PaymentMethod,
-        crypto: BinanceAPIService.Crypto,
-        completion: @escaping(PricesInfo?) -> Void
-    ) {
-        BinanceAPIService.shared.loadAdvertisements(for: paymentMethod, crypto: crypto) { buyAdvs, sellAdvs, error in
+    func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
+        BinanceAPIService.shared.loadAdvertisements(
+            for: opportunity.paymentMethod,
+            crypto: opportunity.crypto,
+            numbersOfAdvsToConsider: opportunity.numbersOfAdvsToConsider
+        ) { buyAdvs, sellAdvs, error in
             guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                 completion(nil)
                 return
@@ -240,7 +266,7 @@ private extension DefaultBotHandlers {
         let arbitrageGroup = DispatchGroup()
         
         arbitrageGroup.enter()
-        getSpread(for: .monobank, crypto: .usdt) { pricesInfo in
+        getPricesInfo(for: Opportunity.monobankUSDT) { pricesInfo in
             monoPricesInfo = pricesInfo
             arbitrageGroup.leave()
         }

@@ -10,7 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
-final class BinanceAPIService {
+enum Binance {
     
     enum PaymentMethod: String, CaseIterable {
         case privatbank = "Privatbank"
@@ -26,6 +26,12 @@ final class BinanceAPIService {
         case busd = "BUSD"
     }
     
+}
+
+final class BinanceAPIService {
+    
+  
+    
     // MARK: - PROPERTIES
     
     static let shared = BinanceAPIService()
@@ -33,8 +39,9 @@ final class BinanceAPIService {
     // MARK: - METHODS
     
     func loadAdvertisements(
-        for paymentMethod: PaymentMethod,
-        crypto: Crypto,
+        for paymentMethod: Binance.PaymentMethod,
+        crypto: Binance.Crypto,
+        numbersOfAdvsToConsider: UInt8,
         completion: @escaping(_ buyAdvs: [Adv]?, _ sellAdvs: [Adv]?, _ error: Error?) -> Void
     ) {
         var finalError: Error?
@@ -58,7 +65,7 @@ final class BinanceAPIService {
             "fiat": "UAH",
             "page": 1,
             "payTypes": [paymentMethod.rawValue],
-            "rows": 10,
+            "rows": numbersOfAdvsToConsider,
 //            "transAmount": "20000.00"
         ]
         
