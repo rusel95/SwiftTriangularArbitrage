@@ -1,5 +1,5 @@
 //
-//  AdvertisementsService.swift
+//  BinanceAPIService.swift
 //  
 //
 //  Created by Ruslan Popesku on 23.06.2022.
@@ -10,7 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
-final class BinanceService {
+final class BinanceAPIService {
     
     enum PaymentMethod: String, CaseIterable {
         case privatbank = "Privatbank"
@@ -28,7 +28,7 @@ final class BinanceService {
     
     // MARK: - PROPERTIES
     
-    static let shared = BinanceService()
+    static let shared = BinanceAPIService()
 
     // MARK: - METHODS
     

@@ -1,5 +1,5 @@
 //
-//  WhiteBitService.swift
+//  WhiteBitAPIService.swift
 //  
 //
 //  Created by Ruslan Popesku on 27.06.2022.
@@ -10,7 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
-final class WhiteBitService {
+final class WhiteBitAPIService {
     
     enum Asset: String {
         case usdtuah = "USDT_UAH"
@@ -26,7 +26,7 @@ final class WhiteBitService {
     
     // MARK: - PROPERTIES
     
-    static let shared = WhiteBitService()
+    static let shared = WhiteBitAPIService()
 
     // MARK: - METHODS
     

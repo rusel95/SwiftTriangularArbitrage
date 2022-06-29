@@ -78,7 +78,7 @@ private extension DefaultBotHandlers {
             let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
             self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases,
+                self?.printMarketPosibilities(for: BinanceAPIService.Crypto.allCases,
                                               paymentMethods: [.privatbank, .monobank],
                                               bot: bot,
                                               update: update)
@@ -96,7 +96,7 @@ private extension DefaultBotHandlers {
             _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
             
             self.alertingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                self?.printMarketPosibilities(for: BinanceService.Crypto.allCases,
+                self?.printMarketPosibilities(for: BinanceAPIService.Crypto.allCases,
                                               paymentMethods: [.privatbank, .monobank],
                                               bot: bot,
                                               update: update)
@@ -133,10 +133,11 @@ private extension DefaultBotHandlers {
     }
     
     func printMarketPosibilities(
-        for cryptos: [BinanceService.Crypto],
-        paymentMethods: [BinanceService.PaymentMethod],
+        for cryptos: [BinanceAPIService.Crypto],
+        paymentMethods: [BinanceAPIService.PaymentMethod],
         bot: TGBotPrtcl,
-        update: TGUpdate) {
+        update: TGUpdate)
+    {
         let cryptoGroup = DispatchGroup()
         var totalDescriptioon: String = ""
         
@@ -155,9 +156,10 @@ private extension DefaultBotHandlers {
     }
     
     func getSpreadDescription(
-        for crypto: BinanceService.Crypto,
-        paymentMethods: [BinanceService.PaymentMethod],
-        completion: @escaping(String) -> Void) {
+        for crypto: BinanceAPIService.Crypto,
+        paymentMethods: [BinanceAPIService.PaymentMethod],
+        completion: @escaping(String) -> Void)
+    {
         let spreadGroup = DispatchGroup()
         
         var message: String = "\(crypto.rawValue):\n"
@@ -184,11 +186,11 @@ private extension DefaultBotHandlers {
     }
     
     func getSpread(
-        for paymentMethod: BinanceService.PaymentMethod,
-        crypto: BinanceService.Crypto,
+        for paymentMethod: BinanceAPIService.PaymentMethod,
+        crypto: BinanceAPIService.Crypto,
         completion: @escaping(PricesInfo?) -> Void
     ) {
-        BinanceService.shared.loadAdvertisements(for: paymentMethod, crypto: crypto) { buyAdvs, sellAdvs, error in
+        BinanceAPIService.shared.loadAdvertisements(for: paymentMethod, crypto: crypto) { buyAdvs, sellAdvs, error in
             guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                 completion(nil)
                 return
@@ -224,7 +226,7 @@ private extension DefaultBotHandlers {
             arbitrageGroup.leave()
         }
         arbitrageGroup.enter()
-        WhiteBitService.shared.getOrderbook(for: .usdtuah) { asks, bids, error in
+        WhiteBitAPIService.shared.getOrderbook(for: .usdtuah) { asks, bids, error in
             whiteBitAsks = asks
             whiteBitBids = bids
             arbitrageGroup.leave()
