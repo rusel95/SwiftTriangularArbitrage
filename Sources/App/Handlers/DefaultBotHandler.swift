@@ -13,70 +13,67 @@ final class DefaultBotHandlers {
     
     typealias PricesInfo = (possibleBuyPrice: Double, possibleSellPrice: Double)
     
-    enum Opportunity: CaseIterable {
+    enum EarningScheme: CaseIterable {
         
-        case monobankUSDT
-        case privatbankUSDT
-        case abankUSDT
-        case pumbUSDT
-        case wiseUSDT
+        case monobankUSDT_monobankUSDT
+        case privatbankUSDT_privabbankUSDT
+        case abankUSDT_monobankUSDT
+        case pumbUSDT_monobankUSDT
+        case wiseUSDT_wiseUSDT
         case monobankBUSD_monobankUSDT
         case privatbankBUSD_privatbankUSDT
+//        case binancePayUAH_binancePayUAH // + have to add Spot prices handling
         
-        var sellCrypto: Binance.Crypto {
+        struct Opportunity {
+            
+            let crypto: Binance.Crypto
+            let paymentMethod: Binance.PaymentMethod
+            let numberOfAdvsToConsider: UInt8
+            
+            static let monobankUSDT = Opportunity(crypto: .usdt, paymentMethod: .monobank, numberOfAdvsToConsider: 10)
+            static let monobankBUSD = Opportunity(crypto: .busd, paymentMethod: .monobank, numberOfAdvsToConsider: 3)
+            static let privatbankUSDT = Opportunity(crypto: .usdt, paymentMethod: .privatbank, numberOfAdvsToConsider: 10)
+            static let privatbankBUSD = Opportunity(crypto: .busd, paymentMethod: .privatbank, numberOfAdvsToConsider: 3)
+            static let abankUSDT = Opportunity(crypto: .usdt, paymentMethod: .abank, numberOfAdvsToConsider: 3)
+            static let pumbUSDT = Opportunity(crypto: .usdt, paymentMethod: .pumb, numberOfAdvsToConsider: 2)
+            static let wiseUSDT = Opportunity(crypto: .usdt, paymentMethod: .wise, numberOfAdvsToConsider: 3)
+//            static let binancePayUSDT = Opportunity(crypto: .usdt, paymentMethod: .binancePayUAH, numberOfAdvsToConsider: 2)
+            
+        }
+        
+        var sellOpportunity: Opportunity {
             switch self {
-            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return .usdt
-            case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return .busd
+            case .monobankUSDT_monobankUSDT: return .monobankUSDT
+            case .monobankBUSD_monobankUSDT: return .monobankBUSD
+            case .privatbankUSDT_privabbankUSDT: return .privatbankUSDT
+            case .privatbankBUSD_privatbankUSDT: return .privatbankBUSD
+            case .abankUSDT_monobankUSDT: return .abankUSDT
+            case .pumbUSDT_monobankUSDT: return .pumbUSDT
+            case .wiseUSDT_wiseUSDT: return .wiseUSDT
+//            case .binancePayUAH_binancePayUAH: return .binancePayUSDT
             }
         }
         
-        var buyCrypto: Binance.Crypto {
+        var buyOpportunity: Opportunity {
             switch self {
-            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return .usdt
-            case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return .usdt
+            case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT: return .monobankUSDT
+            case .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbankUSDT
+            case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return .monobankUSDT
+            case .wiseUSDT_wiseUSDT: return .wiseUSDT
+//            case .binancePayUAH_binancePayUAH: return .binancePayUSDT
             }
         }
         
-        var sellPaymentMethod: Binance.PaymentMethod {
+        var description: String {
+            let basicDescription = "\(sellOpportunity.crypto.rawValue)(\(sellOpportunity.paymentMethod.rawValue)) / \(buyOpportunity.crypto.rawValue) (\(buyOpportunity.paymentMethod.rawValue)) "
+            var spacedMessage = basicDescription
             switch self {
-            case .monobankUSDT, .monobankBUSD_monobankUSDT: return .monobank
-            case .privatbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbank
-            case .abankUSDT: return .abank
-            case .pumbUSDT: return .pumb
-            case .wiseUSDT: return .wise
+            case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT, .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT, .pumbUSDT_monobankUSDT: break
+            case .abankUSDT_monobankUSDT: spacedMessage.append("        ")
+            case .wiseUSDT_wiseUSDT: spacedMessage.append("                    ")
+//            case .binancePayUAH_binancePayUAH: spacedMessage.append("")
             }
-        }
-        
-        var buyPaymentMethod: Binance.PaymentMethod {
-            switch self {
-            case .monobankUSDT, .monobankBUSD_monobankUSDT: return .monobank
-            case .privatbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbank
-            case .abankUSDT: return .monobank
-            case .pumbUSDT: return .monobank
-            case .wiseUSDT: return .wise
-            }
-        }
-        
-        var sellNumbersOfAdvsToConsider: UInt8 {
-            switch self {
-            case .monobankUSDT: return 10
-            case .privatbankUSDT: return 10
-            case .abankUSDT: return 3
-            case .pumbUSDT: return 3
-            case .wiseUSDT: return 3
-            case .privatbankBUSD_privatbankUSDT, .monobankBUSD_monobankUSDT: return 10
-            }
-        }
-        
-        var buyNumbersOfAdvsToConsider: UInt8 {
-            switch self {
-            case .monobankUSDT: return 10
-            case .privatbankUSDT: return 10
-            case .abankUSDT: return 10
-            case .pumbUSDT: return 10
-            case .wiseUSDT: return 3
-            case .privatbankBUSD_privatbankUSDT, .monobankBUSD_monobankUSDT: return 10
-            }
+            return spacedMessage
         }
         
     }
@@ -121,7 +118,7 @@ final class DefaultBotHandlers {
     private var tradingJob: Job?
     private var alertingJob: Job?
     
-    private let resultsFormatDescription = "платежный способ | возможная цена Продажи - Покупки | спред грязный - чистый | чистый профит в %"
+    private let resultsFormatDescription = "crypto(payment method) sell - buy | possible price Sell - Buy | spread Mad - Clean | Clean Profit in %"
     
     
     // MARK: - METHODS
@@ -151,7 +148,7 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.printP2P(opportunities: Opportunity.allCases,
+                    self?.printP2P(opportunities: EarningScheme.allCases,
                                    bot: bot,
                                    update: update)
                 }
@@ -173,11 +170,11 @@ private extension DefaultBotHandlers {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 
                 self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                    let tradingOpportunities: [Opportunity] = [
-                        .monobankUSDT,
-                        .privatbankUSDT,
-                        .abankUSDT,
-                        .pumbUSDT,
+                    let tradingOpportunities: [EarningScheme] = [
+                        .monobankUSDT_monobankUSDT,
+                        .privatbankUSDT_privabbankUSDT,
+                        .abankUSDT_monobankUSDT,
+                        .pumbUSDT_monobankUSDT,
                         .monobankBUSD_monobankUSDT,
                         .privatbankBUSD_privatbankUSDT
                     ]
@@ -234,7 +231,7 @@ private extension DefaultBotHandlers {
 // MARK: - Helpers
 private extension DefaultBotHandlers {
     
-    func printP2P(opportunities: [Opportunity], bot: TGBotPrtcl, update: TGUpdate) {
+    func printP2P(opportunities: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
         let opportunitiesGroup = DispatchGroup()
         var totalDescriptioon: String = ""
         
@@ -252,11 +249,10 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func getSpreadDescription(for opportunity: Opportunity, completion: @escaping(String) -> Void) {
-        var message: String = "\(opportunity.sellCrypto.rawValue)/\(opportunity.buyCrypto.rawValue): "
-        getPricesInfo(for: opportunity) { pricesInfo in
+    func getSpreadDescription(for earningScheme: EarningScheme, completion: @escaping(String) -> Void) {
+        getPricesInfo(for: earningScheme) { pricesInfo in
             guard let pricesInfo = pricesInfo else {
-                completion("No PricesInfo for\(opportunity)")
+                completion("No PricesInfo for \(earningScheme)")
                 return
             }
             
@@ -264,17 +260,17 @@ private extension DefaultBotHandlers {
             let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
             let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
             
-            message.append("\(opportunity.sellPaymentMethod.description) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
+            let message = ("\(earningScheme.description) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
             completion(message)
         }
     }
     
-    func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
-        if opportunity.buyPaymentMethod == opportunity.sellPaymentMethod {
+    func getPricesInfo(for earningScheme: EarningScheme, completion: @escaping(PricesInfo?) -> Void) {
+        if earningScheme.buyOpportunity.paymentMethod == earningScheme.sellOpportunity.paymentMethod {
             BinanceAPIService.shared.loadAdvertisements(
-                for: opportunity.sellPaymentMethod,
-                crypto: opportunity.sellCrypto,
-                numbersOfAdvsToConsider: opportunity.sellNumbersOfAdvsToConsider
+                for: earningScheme.sellOpportunity.paymentMethod,
+                crypto: earningScheme.sellOpportunity.crypto,
+                numberOfAdvsToConsider: earningScheme.sellOpportunity.numberOfAdvsToConsider
             ) { buyAdvs, sellAdvs, error in
                 guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                     completion(nil)
@@ -305,9 +301,9 @@ private extension DefaultBotHandlers {
             
             priceInfoGroup.enter()
             BinanceAPIService.shared.loadAdvertisements(
-                for: opportunity.sellPaymentMethod,
-                crypto: opportunity.sellCrypto,
-                numbersOfAdvsToConsider: opportunity.buyNumbersOfAdvsToConsider
+                for: earningScheme.sellOpportunity.paymentMethod,
+                crypto: earningScheme.sellOpportunity.crypto,
+                numberOfAdvsToConsider: earningScheme.sellOpportunity.numberOfAdvsToConsider
             ) { _, sellAdvs, _ in
                 guard let sellAdvs = sellAdvs else {
                     priceInfoGroup.leave()
@@ -324,9 +320,9 @@ private extension DefaultBotHandlers {
             }
             priceInfoGroup.enter()
             BinanceAPIService.shared.loadAdvertisements(
-                for: opportunity.sellPaymentMethod,
-                crypto: opportunity.buyCrypto,
-                numbersOfAdvsToConsider: opportunity.buyNumbersOfAdvsToConsider
+                for: earningScheme.buyOpportunity.paymentMethod,
+                crypto: earningScheme.buyOpportunity.crypto,
+                numberOfAdvsToConsider: earningScheme.buyOpportunity.numberOfAdvsToConsider
             ) { buyAdvs, _, _ in
                 guard let buyAdvs = buyAdvs else {
                     priceInfoGroup.leave()
@@ -355,7 +351,7 @@ private extension DefaultBotHandlers {
         let arbitrageGroup = DispatchGroup()
         
         arbitrageGroup.enter()
-        getPricesInfo(for: Opportunity.monobankUSDT) { pricesInfo in
+        getPricesInfo(for: EarningScheme.monobankUSDT_monobankUSDT) { pricesInfo in
             monoPricesInfo = pricesInfo
             arbitrageGroup.leave()
         }

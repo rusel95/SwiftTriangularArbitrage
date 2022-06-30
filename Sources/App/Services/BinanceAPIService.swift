@@ -19,18 +19,7 @@ enum Binance {
         case abank = "ABank"
         case wise = "Wise"
         case binancePayUAH = "UAHfiatbalance"
-        
-        var description: String {
-            switch self {
-            case .privatbank:    return "Privatbank       "
-            case .monobank:      return "Monobank       "
-            case .pumb:          return "PUMBBank      "
-            case .abank:         return "ABank              "
-            case .wise:          return "Wise                 "
-            case .binancePayUAH: return "UAHfiatbalance "
-            }
-        }
-        
+    
     }
 
     enum Crypto: String, CaseIterable {
@@ -51,7 +40,7 @@ final class BinanceAPIService {
     func loadAdvertisements(
         for paymentMethod: Binance.PaymentMethod,
         crypto: Binance.Crypto,
-        numbersOfAdvsToConsider: UInt8,
+        numberOfAdvsToConsider: UInt8,
         completion: @escaping(_ buyAdvs: [Adv]?, _ sellAdvs: [Adv]?, _ error: Error?) -> Void
     ) {
         var finalError: Error?
@@ -75,7 +64,7 @@ final class BinanceAPIService {
             "fiat": "UAH",
             "page": 1,
             "payTypes": [paymentMethod.rawValue],
-            "rows": numbersOfAdvsToConsider,
+            "rows": numberOfAdvsToConsider,
 //            "transAmount": "20000.00"
         ]
         
