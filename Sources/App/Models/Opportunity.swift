@@ -77,7 +77,7 @@ enum Opportunity: Equatable {
         case .binance(let opportunity):
             return opportunity.paymentMethod.apiDescription
         case .huobi(let opportunity):
-            return opportunity.paymentMethod.apiDescription
+            return opportunity.paymentMethod.description
         }
     }
     

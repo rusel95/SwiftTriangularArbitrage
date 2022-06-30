@@ -15,7 +15,7 @@ enum Crypto: Equatable {
     }
     
     enum Huobi: String {
-        case usdt = "usdt"
+        case usdt = "USDT"
     }
     
     case binance(Binance)
@@ -46,6 +46,12 @@ enum PaymentMethod: Equatable {
     
     enum Huobi: String {
         case usdtuahSpot = "usdtuah"
+        
+        var description: String {
+            switch self {
+            case .usdtuahSpot: return "Huobi Spot"
+            }
+        }
     }
     
     case binance(Binance)
@@ -57,6 +63,15 @@ enum PaymentMethod: Equatable {
             return paymentMethod.rawValue
         case .huobi(let paymentMethod):
             return paymentMethod.rawValue
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .binance(let paymentMethod):
+            return paymentMethod.rawValue
+        case .huobi(let paymentMethod):
+            return paymentMethod.description
         }
     }
     
