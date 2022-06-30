@@ -11,7 +11,7 @@ import Jobs
 
 final class DefaultBotHandlers {
     
-    typealias PricesInfo = (possibleBuyPrice: Double, possibleSellPrice: Double)
+    typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
     
     enum EarningScheme: CaseIterable {
         
@@ -24,7 +24,7 @@ final class DefaultBotHandlers {
         case privatbankBUSD_privatbankUSDT
 //        case binancePayUAH_binancePayUAH // + have to add Spot prices handling
         
-        struct Opportunity {
+        struct Opportunity: Equatable {
             
             let crypto: Binance.Crypto
             let paymentMethod: Binance.PaymentMethod
@@ -206,6 +206,7 @@ private extension DefaultBotHandlers {
                                                        text: "Started handling Extra opportinuties:\n\(extraOpportunities)"))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                     self?.checkWhiteBitArbitrage(profitableSpread: profitableSpread, bot: bot, update: update)
+                    self?.checkHuobiArbitrage(profitableSpread: profitableSpread, bot: bot, update: update)
                 }
             }
         }
@@ -228,7 +229,8 @@ private extension DefaultBotHandlers {
     
 }
 
-// MARK: - Helpers
+// MARK: - P2P
+
 private extension DefaultBotHandlers {
     
     func printP2P(opportunities: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
@@ -256,17 +258,17 @@ private extension DefaultBotHandlers {
                 return
             }
             
-            let dirtySpread = pricesInfo.possibleBuyPrice - pricesInfo.possibleSellPrice
-            let cleanSpread = dirtySpread - pricesInfo.possibleBuyPrice * 0.001 * 2 // 0.1 % Binance Commission
-            let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleBuyPrice * 100).toLocalCurrency()
+            let dirtySpread = pricesInfo.possibleSellPrice - pricesInfo.possibleBuyPrice
+            let cleanSpread = dirtySpread - pricesInfo.possibleSellPrice * 0.001 * 2 // 0.1 % Binance Commission
+            let cleanSpreadPercentString = (cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
             
-            let message = ("\(earningScheme.description) | \(pricesInfo.possibleBuyPrice.toLocalCurrency()) - \(pricesInfo.possibleSellPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
+            let message = ("\(earningScheme.description) | \(pricesInfo.possibleSellPrice.toLocalCurrency()) - \(pricesInfo.possibleBuyPrice.toLocalCurrency()) | \(dirtySpread.toLocalCurrency()) - \(cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
             completion(message)
         }
     }
     
     func getPricesInfo(for earningScheme: EarningScheme, completion: @escaping(PricesInfo?) -> Void) {
-        if earningScheme.buyOpportunity.paymentMethod == earningScheme.sellOpportunity.paymentMethod {
+        if earningScheme.sellOpportunity == earningScheme.buyOpportunity {
             BinanceAPIService.shared.loadAdvertisements(
                 for: earningScheme.sellOpportunity.paymentMethod,
                 crypto: earningScheme.sellOpportunity.crypto,
@@ -277,25 +279,26 @@ private extension DefaultBotHandlers {
                     return
                 }
                 
-                let buyPrices = buyAdvs
+                let makersBuyPrices = sellAdvs
                     .filter { Double($0.surplusAmount) ?? 0 >= 200 }
                     .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }
                 
-                let averageBuyPrice = buyPrices.reduce(0.0, +) / Double(buyPrices.count)
+                let averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
                 
-                let sellPrices = sellAdvs
+                let makersSellPrices = buyAdvs
                     .filter { Double($0.surplusAmount) ?? 0 >= 200 }
                     .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }
-                let averageSellPrice = sellPrices.reduce(0.0, +) / Double(sellPrices.count)
-                completion(PricesInfo(possibleBuyPrice: averageBuyPrice, possibleSellPrice: averageSellPrice))
+                let averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
+                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
+                                      possibleBuyPrice: averagePossibleBuyPrice))
             }
         } else {
-            var averageSellPrice: Double = 0
-            var averageBuyPrice: Double = 0
+            var averagePossibleSellPrice: Double = 0
+            var averagePossibleBuyPrice: Double = 0
             
             let priceInfoGroup = DispatchGroup()
             
@@ -304,18 +307,18 @@ private extension DefaultBotHandlers {
                 for: earningScheme.sellOpportunity.paymentMethod,
                 crypto: earningScheme.sellOpportunity.crypto,
                 numberOfAdvsToConsider: earningScheme.sellOpportunity.numberOfAdvsToConsider
-            ) { _, sellAdvs, _ in
-                guard let sellAdvs = sellAdvs else {
+            ) { buyAdvs, _, _ in
+                guard let buyAdvs = buyAdvs else {
                     priceInfoGroup.leave()
                     return
                 }
                 
-                let sellPrices = sellAdvs
+                let makersSellPrices = buyAdvs
                     .filter { Double($0.surplusAmount) ?? 0 >= 200 }
                     .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }
-                averageSellPrice = sellPrices.reduce(0.0, +) / Double(sellPrices.count)
+                averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
                 priceInfoGroup.leave()
             }
             priceInfoGroup.enter()
@@ -323,26 +326,33 @@ private extension DefaultBotHandlers {
                 for: earningScheme.buyOpportunity.paymentMethod,
                 crypto: earningScheme.buyOpportunity.crypto,
                 numberOfAdvsToConsider: earningScheme.buyOpportunity.numberOfAdvsToConsider
-            ) { buyAdvs, _, _ in
-                guard let buyAdvs = buyAdvs else {
+            ) { _, sellAdvs, _ in
+                guard let sellAdvs = sellAdvs else {
                     priceInfoGroup.leave()
                     return
                 }
-                let buyPrices = buyAdvs
+                let makersBuyPrices = sellAdvs
                     .filter { Double($0.surplusAmount) ?? 0 >= 200 }
                     .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }
                 
-                averageBuyPrice = buyPrices.reduce(0.0, +) / Double(buyPrices.count)
+                averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
                 priceInfoGroup.leave()
             }
             
             priceInfoGroup.notify(queue: .global()) {
-                completion(PricesInfo(possibleBuyPrice: averageBuyPrice, possibleSellPrice: averageSellPrice))
+                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
+                                      possibleBuyPrice: averagePossibleBuyPrice))
             }
         }
     }
+    
+}
+
+// MARK: - ARBITRAGE
+
+private extension DefaultBotHandlers {
     
     func checkWhiteBitArbitrage(profitableSpread: Double, bot: TGBotPrtcl, update: TGUpdate) {
         var whiteBitAsks: [Double]?
@@ -371,11 +381,48 @@ private extension DefaultBotHandlers {
 
             if monoPricesInfo.possibleSellPrice - whiteBitBuy > profitableSpread {
                 // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
-                let text = "OPPORTINITY!    Mono Sell: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleBuyPrice - whiteBitBuy).toLocalCurrency())"
+                let text = "OPPORTINITY!    Mono Sell: \(monoPricesInfo.possibleSellPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleSellPrice - whiteBitBuy).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > profitableSpread {
                 // If prices for Selling on White bit much more lower then prices for buying on Monobank
                 let text = "OPPORTINITY!    WhiteBit sell: \(whiteBitSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+            }
+        }
+    }
+    
+    func checkHuobiArbitrage(profitableSpread: Double, bot: TGBotPrtcl, update: TGUpdate) {
+        var huobiAsks: [Double]?
+        var huobiBids: [Double]?
+        var monoPricesInfo: PricesInfo? = nil
+        let arbitrageGroup = DispatchGroup()
+
+        arbitrageGroup.enter()
+        getPricesInfo(for: EarningScheme.monobankUSDT_monobankUSDT) { pricesInfo in
+            monoPricesInfo = pricesInfo
+            arbitrageGroup.leave()
+        }
+        arbitrageGroup.enter()
+        HuobiAPIService.shared.getOrderbook { asks, bids, error in
+            huobiAsks = asks
+            huobiBids = bids
+            arbitrageGroup.leave()
+        }
+        
+        arbitrageGroup.notify(queue: .global()) {
+            guard let huobiBuy = huobiAsks?.first,
+                  let huobiSell = huobiBids?.first,
+                  let monoPricesInfo = monoPricesInfo else {
+                return
+            }
+
+            if monoPricesInfo.possibleSellPrice - huobiBuy > profitableSpread {
+                // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
+                let text = "OPPORTINITY!    Mono Sell: \(monoPricesInfo.possibleSellPrice.toLocalCurrency()) - Huobi buy: \(huobiBuy.toLocalCurrency()) = \((monoPricesInfo.possibleSellPrice - huobiBuy).toLocalCurrency())"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+            } else if huobiSell - monoPricesInfo.possibleBuyPrice > profitableSpread {
+                // If prices for Selling on White bit much more lower then prices for buying on Monobank
+                let text = "OPPORTINITY!    Huobi sell: \(huobiSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((huobiSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }
