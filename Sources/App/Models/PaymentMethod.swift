@@ -5,33 +5,6 @@
 //  Created by Ruslan Popesku on 30.06.2022.
 //
 
-import Foundation
-   
-enum Crypto: Equatable {
-    
-    enum Binance: String {
-        case usdt = "USDT"
-        case busd = "BUSD"
-    }
-    
-    enum Huobi: String {
-        case usdt = "USDT"
-    }
-    
-    case binance(Binance)
-    case huobi(Huobi)
-    
-    var apiDescription: String {
-        switch self {
-        case .binance(let crypto):
-            return crypto.rawValue
-        case .huobi(let crypto):
-            return crypto.rawValue
-        }
-    }
-    
-}
-
 enum PaymentMethod: Equatable {
     
     enum Binance: String {
@@ -42,6 +15,16 @@ enum PaymentMethod: Equatable {
         case wise = "Wise"
         case binancePayUAH = "UAHfiatbalance"
 
+    }
+    
+    enum WhiteBit: String {
+        case usdtuahSpot = "USDT_UAH"
+        
+        var description: String {
+            switch self {
+            case .usdtuahSpot: return "WhiteBit Spot"
+            }
+        }
     }
     
     enum Huobi: String {
@@ -56,10 +39,13 @@ enum PaymentMethod: Equatable {
     
     case binance(Binance)
     case huobi(Huobi)
+    case whiteBit(WhiteBit)
     
     var apiDescription: String {
         switch self {
         case .binance(let paymentMethod):
+            return paymentMethod.rawValue
+        case .whiteBit(let paymentMethod):
             return paymentMethod.rawValue
         case .huobi(let paymentMethod):
             return paymentMethod.rawValue
@@ -70,6 +56,8 @@ enum PaymentMethod: Equatable {
         switch self {
         case .binance(let paymentMethod):
             return paymentMethod.rawValue
+        case .whiteBit(let paymentMethod):
+            return paymentMethod.description
         case .huobi(let paymentMethod):
             return paymentMethod.description
         }

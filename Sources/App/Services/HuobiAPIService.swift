@@ -11,12 +11,6 @@ import FoundationNetworking
 #endif
 
 final class HuobiAPIService {
-    
-    // MARK: - ENUMERATIONS
-    
-    enum Symbol: String {
-        case usdtuah
-    }
 
     // MARK: - Structs
     
@@ -39,12 +33,12 @@ final class HuobiAPIService {
     // MARK: - METHODS
     
     func getOrderbook(
-        symbol: Symbol = .usdtuah,
+        paymentMethod: String,
         completion: @escaping(_ asks: [Double], _ bids: [Double], _ error: Error?) -> Void
     ) {
         var urlComponents = URLComponents(string: "https://api.huobi.pro/market/depth")!
         urlComponents.queryItems = [
-            URLQueryItem(name: "symbol", value: symbol.rawValue),
+            URLQueryItem(name: "symbol", value: paymentMethod),
             URLQueryItem(name: "type", value: "step0")
         ]
         let request = URLRequest(url: urlComponents.url!)

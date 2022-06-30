@@ -12,10 +12,6 @@ import FoundationNetworking
 
 final class WhiteBitAPIService {
     
-    enum Asset: String {
-        case usdtuah = "USDT_UAH"
-    }
-    
     struct OrderbookData: Codable {
         
         let timestamp: Int
@@ -31,10 +27,10 @@ final class WhiteBitAPIService {
     // MARK: - METHODS
     
     func getOrderbook(
-        for asset: Asset,
+        paymentMethod: String,
         completion: @escaping(_ asks: [Double]?, _ bids: [Double]?, _ error: Error?) -> Void
     ) {
-        var urlComponents = URLComponents(string: "https://whitebit.com/api/v4/public/orderbook/\(asset.rawValue)")!
+        var urlComponents = URLComponents(string: "https://whitebit.com/api/v4/public/orderbook/\(paymentMethod)")!
         urlComponents.queryItems = [
             URLQueryItem(name: "limit", value: "5")
         ]

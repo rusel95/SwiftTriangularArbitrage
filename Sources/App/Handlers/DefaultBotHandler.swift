@@ -31,7 +31,7 @@ final class DefaultBotHandlers {
             switch self {
             case .logging: return 900
             case .trading: return 30
-            case .alerting: return 300
+            case .alerting: return 60
             case .suspended: return 0
             }
         }
@@ -128,22 +128,17 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self else { return }
             
-            let profitableSpread = 0.3
-            let extraOpportunities = """
-            Binance - Mono - WhiteBit - Binance  (with spread >= \(profitableSpread.toLocalCurrency()))
-            Binance - WhiteBit - MonoBank(Any Bank) - Binance  (with spread >= \(profitableSpread.toLocalCurrency()))
-            """
-            
             if self.alertingJob?.isRunning != nil {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id),
-                                                       text: "Already handling Extra opportinuties:\n\(extraOpportunities)"))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Already handling Extra opportinuties.."))
             } else {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id),
-                                                       text: "Started handling Extra opportinuties:\n\(extraOpportunities)"))
+                let schemesForAlerting = EarningScheme.allCases
+                let schemesFullDescription = schemesForAlerting.map { "\($0.description) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
+                _ = try? bot.sendMessage(params: .init(
+                    chatId: .chat(update.message!.chat.id),
+                    text: "Started handling Extra opportinuties for Schemes:\n\(schemesFullDescription)"
+                ))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
-                    self?.checkWhiteBitArbitrage(profitableSpread: profitableSpread, bot: bot, update: update)
-                    self?.alertAboutProfitability(earningSchemes: EarningScheme.allCases,
-                                                  bot: bot, update: update)
+                    self?.alertAboutProfitability(earningSchemes: schemesForAlerting, bot: bot, update: update)
                 }
             }
         }
@@ -257,8 +252,12 @@ private extension DefaultBotHandlers {
                 completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
                                       possibleBuyPrice: averagePossibleBuyPrice))
             }
-        case .huobi:
-            HuobiAPIService.shared.getOrderbook { asks, bids, error in
+        case .whiteBit(let opportunity):
+            WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
+                completion(PricesInfo(possibleSellPrice: bids?.first ?? 0, possibleBuyPrice: asks?.first ?? 0))
+            }
+        case .huobi(let opportunity):
+            HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
                 completion(PricesInfo(possibleSellPrice: bids.first ?? 0, possibleBuyPrice: asks.first ?? 0))
             }
         }
@@ -271,50 +270,13 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func checkWhiteBitArbitrage(profitableSpread: Double, bot: TGBotPrtcl, update: TGUpdate) {
-        var whiteBitAsks: [Double]?
-        var whiteBitBids: [Double]?
-        var monoPricesInfo: PricesInfo? = nil
-        let arbitrageGroup = DispatchGroup()
-        
-        arbitrageGroup.enter()
-        getPricesInfo(for: EarningScheme.monobankUSDT_monobankUSDT) { pricesInfo in
-            monoPricesInfo = pricesInfo
-            arbitrageGroup.leave()
-        }
-        arbitrageGroup.enter()
-        WhiteBitAPIService.shared.getOrderbook(for: .usdtuah) { asks, bids, error in
-            whiteBitAsks = asks
-            whiteBitBids = bids
-            arbitrageGroup.leave()
-        }
-        
-        arbitrageGroup.notify(queue: .global()) {
-            guard let whiteBitBuy = whiteBitAsks?.first,
-                  let whiteBitSell = whiteBitBids?.first,
-                  let monoPricesInfo = monoPricesInfo else {
-                return
-            }
-
-            if monoPricesInfo.possibleSellPrice - whiteBitBuy > profitableSpread {
-                // If prices for Buying on WhiteBit is Much more lower then prices for selling on Monobank
-                let text = "OPPORTINITY!    Mono Sell: \(monoPricesInfo.possibleSellPrice.toLocalCurrency()) - WhiteBit buy: \(whiteBitBuy.toLocalCurrency()) = \((monoPricesInfo.possibleSellPrice - whiteBitBuy).toLocalCurrency())"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
-            } else if whiteBitSell - monoPricesInfo.possibleBuyPrice > profitableSpread {
-                // If prices for Selling on White bit much more lower then prices for buying on Monobank
-                let text = "OPPORTINITY!    WhiteBit sell: \(whiteBitSell.toLocalCurrency()) - Mono Buy: \(monoPricesInfo.possibleBuyPrice.toLocalCurrency()) = \((whiteBitSell - monoPricesInfo.possibleBuyPrice).toLocalCurrency())"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
-            }
-        }
-    }
-    
     func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
-        earningSchemes.forEach { earningSheme in
-            getPricesInfo(for: earningSheme) { pricesInfo in
+        earningSchemes.forEach { earningScheme in
+            getPricesInfo(for: earningScheme) { pricesInfo in
                 guard let pricesInfo = pricesInfo else { return }
                 
-                if pricesInfo.possibleSellPrice - pricesInfo.possibleBuyPrice > earningSheme.profitableSpread {
-                    let text = "ALERT!!! ProfitableOpportunity: \(earningSheme.getPrettyDescription(with: pricesInfo))"
+                if earningScheme.getSpreads(for: pricesInfo).cleanSpread > earningScheme.profitableSpread {
+                    let text = "Profitable Opportunity!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
                     _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
                 }
             }

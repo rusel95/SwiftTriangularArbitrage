@@ -44,12 +44,39 @@ enum Opportunity: Equatable {
         }
         
         // in percents
-        var extraCommission: Float {
+        var extraCommission: Double {
             switch self {
-            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return 0.1
-            case .monobankBUSD, .privatbankBUSD: return 0.0
+            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return 0.1
+            case .monobankBUSD, .privatbankBUSD: return 0.2
+            case .binancePayUSDT: return 0.0
             }
         }
+    
+    }
+    
+    enum WhiteBit {
+        
+        case usdtSpot
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usdtSpot: return .whiteBit(.usdtuahSpot)
+            }
+        }
+        
+        var crypto: Crypto {
+            switch self {
+            case .usdtSpot: return .huobi(.usdt)
+            }
+        }
+        
+        // in percents
+        var extraCommission: Double {
+            switch self {
+            case .usdtSpot: return 0.5
+            }
+        }
+        
     }
     
     enum Huobi {
@@ -67,15 +94,25 @@ enum Opportunity: Equatable {
             case .usdtSpot: return .huobi(.usdt)
             }
         }
+        
+        // in percents
+        var extraCommission: Double {
+            switch self {
+            case .usdtSpot: return 1
+            }
+        }
     }
     
     case binance(Binance)
     case huobi(Huobi)
+    case whiteBit(WhiteBit)
     
     var paymentMethodDescription: String {
         switch self {
         case .binance(let opportunity):
             return opportunity.paymentMethod.apiDescription
+        case .whiteBit(let opportunity):
+            return opportunity.paymentMethod.description
         case .huobi(let opportunity):
             return opportunity.paymentMethod.description
         }
@@ -85,8 +122,22 @@ enum Opportunity: Equatable {
         switch self {
         case .binance(let opportunity):
             return opportunity.crypto.apiDescription
+        case .whiteBit(let opportunity):
+            return opportunity.crypto.apiDescription
         case .huobi(let opportunity):
             return opportunity.crypto.apiDescription
+        }
+    }
+    
+    // in percents
+    var extraCommission: Double {
+        switch self {
+        case .binance(let opportunity):
+            return opportunity.extraCommission
+        case .whiteBit(let opportunity):
+            return opportunity.extraCommission
+        case .huobi(let opportunity):
+            return opportunity.extraCommission
         }
     }
     
