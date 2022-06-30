@@ -10,25 +10,6 @@ import Foundation
 import FoundationNetworking
 #endif
 
-enum Binance {
-    
-    enum PaymentMethod: String, CaseIterable {
-        case privatbank = "Privatbank"
-        case monobank = "Monobank"
-        case pumb = "PUMBBank"
-        case abank = "ABank"
-        case wise = "Wise"
-        case binancePayUAH = "UAHfiatbalance"
-    
-    }
-
-    enum Crypto: String, CaseIterable {
-        case usdt = "USDT"
-        case busd = "BUSD"
-    }
-    
-}
-
 final class BinanceAPIService {
     
     // MARK: - PROPERTIES
@@ -38,8 +19,8 @@ final class BinanceAPIService {
     // MARK: - METHODS
     
     func loadAdvertisements(
-        for paymentMethod: Binance.PaymentMethod,
-        crypto: Binance.Crypto,
+        paymentMethod: String,
+        crypto: String,
         numberOfAdvsToConsider: UInt8,
         completion: @escaping(_ buyAdvs: [Adv]?, _ sellAdvs: [Adv]?, _ error: Error?) -> Void
     ) {
@@ -60,10 +41,10 @@ final class BinanceAPIService {
         sellRequest.setValue("Trailers", forHTTPHeaderField: "TE")
 
         let parametersDictionary: [String : Any] = [
-            "asset": crypto.rawValue,
+            "asset": crypto,
             "fiat": "UAH",
             "page": 1,
-            "payTypes": [paymentMethod.rawValue],
+            "payTypes": [paymentMethod],
             "rows": numberOfAdvsToConsider,
 //            "transAmount": "20000.00"
         ]

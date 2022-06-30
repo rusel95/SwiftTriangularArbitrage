@@ -13,71 +13,6 @@ final class DefaultBotHandlers {
     
     typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
     
-    enum EarningScheme: CaseIterable {
-        
-        case monobankUSDT_monobankUSDT
-        case privatbankUSDT_privabbankUSDT
-        case abankUSDT_monobankUSDT
-        case pumbUSDT_monobankUSDT
-        case wiseUSDT_wiseUSDT
-        case monobankBUSD_monobankUSDT
-        case privatbankBUSD_privatbankUSDT
-//        case binancePayUAH_binancePayUAH // + have to add Spot prices handling
-        
-        struct Opportunity: Equatable {
-            
-            let crypto: Binance.Crypto
-            let paymentMethod: Binance.PaymentMethod
-            let numberOfAdvsToConsider: UInt8
-            
-            static let monobankUSDT = Opportunity(crypto: .usdt, paymentMethod: .monobank, numberOfAdvsToConsider: 10)
-            static let monobankBUSD = Opportunity(crypto: .busd, paymentMethod: .monobank, numberOfAdvsToConsider: 3)
-            static let privatbankUSDT = Opportunity(crypto: .usdt, paymentMethod: .privatbank, numberOfAdvsToConsider: 10)
-            static let privatbankBUSD = Opportunity(crypto: .busd, paymentMethod: .privatbank, numberOfAdvsToConsider: 3)
-            static let abankUSDT = Opportunity(crypto: .usdt, paymentMethod: .abank, numberOfAdvsToConsider: 3)
-            static let pumbUSDT = Opportunity(crypto: .usdt, paymentMethod: .pumb, numberOfAdvsToConsider: 2)
-            static let wiseUSDT = Opportunity(crypto: .usdt, paymentMethod: .wise, numberOfAdvsToConsider: 3)
-//            static let binancePayUSDT = Opportunity(crypto: .usdt, paymentMethod: .binancePayUAH, numberOfAdvsToConsider: 2)
-            
-        }
-        
-        var sellOpportunity: Opportunity {
-            switch self {
-            case .monobankUSDT_monobankUSDT: return .monobankUSDT
-            case .monobankBUSD_monobankUSDT: return .monobankBUSD
-            case .privatbankUSDT_privabbankUSDT: return .privatbankUSDT
-            case .privatbankBUSD_privatbankUSDT: return .privatbankBUSD
-            case .abankUSDT_monobankUSDT: return .abankUSDT
-            case .pumbUSDT_monobankUSDT: return .pumbUSDT
-            case .wiseUSDT_wiseUSDT: return .wiseUSDT
-//            case .binancePayUAH_binancePayUAH: return .binancePayUSDT
-            }
-        }
-        
-        var buyOpportunity: Opportunity {
-            switch self {
-            case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT: return .monobankUSDT
-            case .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: return .privatbankUSDT
-            case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return .monobankUSDT
-            case .wiseUSDT_wiseUSDT: return .wiseUSDT
-//            case .binancePayUAH_binancePayUAH: return .binancePayUSDT
-            }
-        }
-        
-        var description: String {
-            let basicDescription = "\(sellOpportunity.crypto.rawValue)(\(sellOpportunity.paymentMethod.rawValue)) / \(buyOpportunity.crypto.rawValue) (\(buyOpportunity.paymentMethod.rawValue)) "
-            var spacedMessage = basicDescription
-            switch self {
-            case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT, .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT, .pumbUSDT_monobankUSDT: break
-            case .abankUSDT_monobankUSDT: spacedMessage.append("        ")
-            case .wiseUSDT_wiseUSDT: spacedMessage.append("                    ")
-//            case .binancePayUAH_binancePayUAH: spacedMessage.append("")
-            }
-            return spacedMessage
-        }
-        
-    }
-    
     // MARK: - ENUMERATIONS
     
     private enum Mode {
@@ -269,10 +204,39 @@ private extension DefaultBotHandlers {
     
     func getPricesInfo(for earningScheme: EarningScheme, completion: @escaping(PricesInfo?) -> Void) {
         if earningScheme.sellOpportunity == earningScheme.buyOpportunity {
+            getPricesInfo(for: earningScheme.sellOpportunity) { pricesInfo in
+                completion(pricesInfo)
+            }
+        } else {
+            var averagePossibleSellPrice: Double = 0
+            var averagePossibleBuyPrice: Double = 0
+
+            let priceInfoGroup = DispatchGroup()
+            priceInfoGroup.enter()
+            getPricesInfo(for: earningScheme.sellOpportunity) { pricesInfo in
+                averagePossibleSellPrice = pricesInfo?.possibleSellPrice ?? 0
+                priceInfoGroup.leave()
+            }
+            
+            priceInfoGroup.enter()
+            getPricesInfo(for: earningScheme.buyOpportunity) { pricesInfo in
+                averagePossibleBuyPrice = pricesInfo?.possibleBuyPrice ?? 0
+                priceInfoGroup.leave()
+            }
+            priceInfoGroup.notify(queue: .global()) {
+                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
+                                      possibleBuyPrice: averagePossibleBuyPrice))
+            }
+        }
+    }
+    
+    func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
+        switch opportunity {
+        case .binance(let binance):
             BinanceAPIService.shared.loadAdvertisements(
-                for: earningScheme.sellOpportunity.paymentMethod,
-                crypto: earningScheme.sellOpportunity.crypto,
-                numberOfAdvsToConsider: earningScheme.sellOpportunity.numberOfAdvsToConsider
+                paymentMethod: binance.paymentMethod.apiDescription,
+                crypto: binance.crypto.apiDescription,
+                numberOfAdvsToConsider: binance.numberOfAdvsToConsider
             ) { buyAdvs, sellAdvs, error in
                 guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                     completion(nil)
@@ -296,56 +260,12 @@ private extension DefaultBotHandlers {
                 completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
                                       possibleBuyPrice: averagePossibleBuyPrice))
             }
-        } else {
-            var averagePossibleSellPrice: Double = 0
-            var averagePossibleBuyPrice: Double = 0
-            
-            let priceInfoGroup = DispatchGroup()
-            
-            priceInfoGroup.enter()
-            BinanceAPIService.shared.loadAdvertisements(
-                for: earningScheme.sellOpportunity.paymentMethod,
-                crypto: earningScheme.sellOpportunity.crypto,
-                numberOfAdvsToConsider: earningScheme.sellOpportunity.numberOfAdvsToConsider
-            ) { buyAdvs, _, _ in
-                guard let buyAdvs = buyAdvs else {
-                    priceInfoGroup.leave()
-                    return
-                }
-                
-                let makersSellPrices = buyAdvs
-                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
-                averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
-                priceInfoGroup.leave()
-            }
-            priceInfoGroup.enter()
-            BinanceAPIService.shared.loadAdvertisements(
-                for: earningScheme.buyOpportunity.paymentMethod,
-                crypto: earningScheme.buyOpportunity.crypto,
-                numberOfAdvsToConsider: earningScheme.buyOpportunity.numberOfAdvsToConsider
-            ) { _, sellAdvs, _ in
-                guard let sellAdvs = sellAdvs else {
-                    priceInfoGroup.leave()
-                    return
-                }
-                let makersBuyPrices = sellAdvs
-                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
-                
-                averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
-                priceInfoGroup.leave()
-            }
-            
-            priceInfoGroup.notify(queue: .global()) {
-                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
-                                      possibleBuyPrice: averagePossibleBuyPrice))
+        case .huobi:
+            HuobiAPIService.shared.getOrderbook { asks, bids, error in
+                completion(PricesInfo(possibleSellPrice: bids.first ?? 0, possibleBuyPrice: asks.first ?? 0))
             }
         }
+        
     }
     
 }
