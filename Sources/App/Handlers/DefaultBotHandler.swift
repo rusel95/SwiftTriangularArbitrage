@@ -29,7 +29,7 @@ final class DefaultBotHandlers {
         var jobInterval: Double { // in seconds
             switch self {
             case .logging: return 900
-            case .trading: return 30
+            case .trading: return 15
             case .alerting: return 60
             case .suspended: return 0
             }
@@ -71,6 +71,41 @@ final class DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
+    /// add handler for command "/start_trading"
+    func commandStartTradingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
+        let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
+            guard let self = self else { return }
+            
+            if self.tradingJob?.isRunning != nil {
+                let infoMessage = "Trading Updates already running!"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+            } else {
+                let infoMessage = "Now you will see market updates in Real Time (with update interval \(Int(Mode.trading.jobInterval)) seconds) \n\(self.resultsFormatDescription)"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                
+                let future = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Wait a sec.."))
+                future?.whenComplete({ result in
+                    let messageIdForEditing = try? result.get().messageId
+                    self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
+                        let tradingOpportunities: [EarningScheme] = [
+                            .monobankUSDT_monobankUSDT,
+                            .privatbankUSDT_privabbankUSDT,
+                            .abankUSDT_monobankUSDT,
+                            .pumbUSDT_monobankUSDT,
+                            .monobankBUSD_monobankUSDT,
+                            .privatbankBUSD_privatbankUSDT
+                        ]
+                        self?.print(earningShemes: tradingOpportunities,
+                                       editMessageId: messageIdForEditing,
+                                       update: update,
+                                       bot: bot)
+                    }
+                })
+            }
+        }
+        bot.connection.dispatcher.add(handler)
+    }
+    
     /// add handler for command "/start_logging"
     func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
@@ -83,39 +118,9 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.printP2P(opportunities: EarningScheme.allCases,
-                                   bot: bot,
-                                   update: update)
-                }
-            }
-        }
-        bot.connection.dispatcher.add(handler)
-    }
-    
-    /// add handler for command "/start_trading"
-    func commandStartTradingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
-            guard let self = self else { return }
-            
-            if self.tradingJob?.isRunning != nil {
-                let infoMessage = "Trading Updates already running!"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
-            } else {
-                let infoMessage = "Now you will see market updates every \(Int(Mode.trading.jobInterval)) seconds \n\(self.resultsFormatDescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
-                
-                self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                    let tradingOpportunities: [EarningScheme] = [
-                        .monobankUSDT_monobankUSDT,
-                        .privatbankUSDT_privabbankUSDT,
-                        .abankUSDT_monobankUSDT,
-                        .pumbUSDT_monobankUSDT,
-                        .monobankBUSD_monobankUSDT,
-                        .privatbankBUSD_privatbankUSDT
-                    ]
-                    self?.printP2P(opportunities: tradingOpportunities,
-                                   bot: bot,
-                                   update: update)
+                    self?.print(earningShemes: EarningScheme.allCases,
+                                   update: update,
+                                   bot: bot)
                 }
             }
         }
@@ -164,21 +169,25 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func printP2P(opportunities: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
-        let opportunitiesGroup = DispatchGroup()
+    func print(earningShemes: [EarningScheme], editMessageId: Int? = nil, update: TGUpdate, bot: TGBotPrtcl) {
+        let earningShemesGroup = DispatchGroup()
         var totalDescriptioon: String = ""
-        
-        opportunities.forEach { opportunity in
-            opportunitiesGroup.enter()
-            getSpreadDescription(for: opportunity) { description in
+        earningShemes.forEach { earningSheme in
+            earningShemesGroup.enter()
+            getSpreadDescription(for: earningSheme) { description in
                 totalDescriptioon.append("\(description)")
-                opportunitiesGroup.leave()
+                earningShemesGroup.leave()
             }
         }
         
-        opportunitiesGroup.notify(queue: .global()) {
-            let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
-            _ = try? bot.sendMessage(params: params)
+        earningShemesGroup.notify(queue: .global()) {
+            if let editMessageId = editMessageId {
+                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: totalDescriptioon, parseMode: nil, entities: nil, disableWebPagePreview: nil, replyMarkup: nil)
+                _ = try? bot.editMessageText(params: params)
+            } else {
+                let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
+                _ = try? bot.sendMessage(params: params)
+            }
         }
     }
     
