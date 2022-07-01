@@ -9,7 +9,6 @@ import Vapor
 import telegram_vapor_bot
 import Jobs
 
-
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 
 final class DefaultBotHandlers {

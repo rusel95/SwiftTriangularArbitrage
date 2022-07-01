@@ -14,7 +14,7 @@ enum EarningScheme: CaseIterable {
     case wiseUSDT_wiseUSDT
     case monobankBUSD_monobankUSDT
     case privatbankBUSD_privatbankUSDT
-    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
+//    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
     
     case huobiUSDT_monobankUSDT
     case monobankUSDT_huobiUSDT
@@ -31,7 +31,7 @@ enum EarningScheme: CaseIterable {
         case .abankUSDT_monobankUSDT: return .binance(.abankUSDT)
         case .pumbUSDT_monobankUSDT: return .binance(.pumbUSDT)
         case .wiseUSDT_wiseUSDT: return .binance(.wiseUSDT)
-        case .binancePayUAH_binancePayUAH: return .binance(.binancePayUSDT)
+//        case .binancePayUAH_binancePayUAH: return .binance(.binancePayUSDT)
         case .huobiUSDT_monobankUSDT: return .huobi(.usdtSpot)
         case .monobankUSDT_huobiUSDT: return .binance(.monobankUSDT)
         case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdtSpot)
@@ -45,7 +45,7 @@ enum EarningScheme: CaseIterable {
         case .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: return Opportunity.binance(.privatbankUSDT)
         case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return Opportunity.binance(.monobankUSDT)
         case .wiseUSDT_wiseUSDT: return Opportunity.binance(.wiseUSDT)
-        case .binancePayUAH_binancePayUAH: return Opportunity.binance(.binancePayUSDT)
+//        case .binancePayUAH_binancePayUAH: return Opportunity.binance(.binancePayUSDT)
         case .huobiUSDT_monobankUSDT: return .binance(.monobankUSDT)
         case .monobankUSDT_huobiUSDT: return .huobi(.usdtSpot)
         case .whiteBitUSDT_monobankUSDT: return .binance(.monobankUSDT)
@@ -61,7 +61,7 @@ enum EarningScheme: CaseIterable {
         case .abankUSDT_monobankUSDT: spacedMessage.append("        ")
         case .pumbUSDT_monobankUSDT: spacedMessage.append("")
         case .wiseUSDT_wiseUSDT: spacedMessage.append("                    ")
-        case .binancePayUAH_binancePayUAH: spacedMessage.append("")
+//        case .binancePayUAH_binancePayUAH: spacedMessage.append("")
         case .huobiUSDT_monobankUSDT: spacedMessage.append("")
         case .monobankUSDT_huobiUSDT: spacedMessage.append(" ")
         case .whiteBitUSDT_monobankUSDT: spacedMessage.append("  ")
@@ -76,7 +76,7 @@ enum EarningScheme: CaseIterable {
         case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return 0.4
         case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return 0.35
         case .wiseUSDT_wiseUSDT: return 0.6
-        case .binancePayUAH_binancePayUAH: return 0.6
+//        case .binancePayUAH_binancePayUAH: return 0.6
         case .huobiUSDT_monobankUSDT: return 0.5
         case .monobankUSDT_huobiUSDT: return 0.5
         case .whiteBitUSDT_monobankUSDT: return 0.5
