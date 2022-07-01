@@ -18,12 +18,7 @@ import Foundation
 extension NSNumber {
     
     func toLocalCurrency(fractDigits: Int = 2) -> String? {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.maximumFractionDigits = fractDigits
-        formatter.locale = Locale(identifier: "ua_UA")
-        formatter.currencySymbol = "" 
-        return formatter.string(from: self)
+        String(format: "%.2f", Double(truncating: self))
     }
 
 }

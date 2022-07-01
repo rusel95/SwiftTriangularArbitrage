@@ -5,22 +5,25 @@
 //  Created by Ruslan Popesku on 30.06.2022.
 //
 
-enum EarningScheme: CaseIterable {
+enum EarningScheme: Int, CaseIterable {
     
     case monobankUSDT_monobankUSDT
     case privatbankUSDT_privabbankUSDT
-    case abankUSDT_monobankUSDT
-    case pumbUSDT_monobankUSDT
-    case wiseUSDT_wiseUSDT
     case monobankBUSD_monobankUSDT
     case privatbankBUSD_privatbankUSDT
-//    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
+    
+    case abankUSDT_monobankUSDT
+    case pumbUSDT_monobankUSDT
+    
+    case wiseUSDT_wiseUSDT
     
     case huobiUSDT_monobankUSDT
     case monobankUSDT_huobiUSDT
     
     case whiteBitUSDT_monobankUSDT
     case monobankUSDT_whiteBitUSDT
+    
+//    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
     
     var sellOpportunity: Opportunity {
         switch self {
@@ -53,12 +56,12 @@ enum EarningScheme: CaseIterable {
         }
     }
     
-    var description: String {
-        let basicDescription = "\(sellOpportunity.cryptoDescription)(\(sellOpportunity.paymentMethodDescription)) / \(buyOpportunity.cryptoDescription) (\(buyOpportunity.paymentMethodDescription)) "
+    var shortDescription: String {
+        let basicDescription = "\(sellOpportunity.cryptoDescription)(\(sellOpportunity.paymentMethodDescription))-\(buyOpportunity.cryptoDescription)(\(buyOpportunity.paymentMethodDescription))"
         var spacedMessage = basicDescription
         switch self {
         case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT, .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: break
-        case .abankUSDT_monobankUSDT: spacedMessage.append("        ")
+        case .abankUSDT_monobankUSDT: spacedMessage.append("")
         case .pumbUSDT_monobankUSDT: spacedMessage.append("")
         case .wiseUSDT_wiseUSDT: spacedMessage.append("                    ")
 //        case .binancePayUAH_binancePayUAH: spacedMessage.append("")
@@ -84,7 +87,6 @@ enum EarningScheme: CaseIterable {
         }
     }
     
-    
     func getSpreads(for pricesInfo: PricesInfo) -> (dirtySpread: Double, cleanSpread: Double) {
         let dirtySpread = pricesInfo.possibleSellPrice - pricesInfo.possibleBuyPrice
         let buyCommissionAmount = pricesInfo.possibleBuyPrice * self.buyOpportunity.extraCommission / 100.0
@@ -97,7 +99,7 @@ enum EarningScheme: CaseIterable {
         let spreads = getSpreads(for: pricesInfo)
         let cleanSpreadPercentString = (spreads.cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
         
-        return ("\(self.description) | \(pricesInfo.possibleSellPrice.toLocalCurrency()) - \(pricesInfo.possibleBuyPrice.toLocalCurrency()) | \(spreads.dirtySpread.toLocalCurrency()) - \(spreads.cleanSpread.toLocalCurrency()) | \(cleanSpreadPercentString)%\n")
+        return ("\(self.shortDescription)|\(pricesInfo.possibleSellPrice.toLocalCurrency()) -\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency()) -\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
     }
     
 }

@@ -15,6 +15,16 @@ enum PaymentMethod: Equatable {
         case wise = "Wise"
         case binancePayUAH = "UAHfiatbalance"
 
+        var shortDescription: String {
+            switch self {
+            case .privatbank: return "Privat"
+            case .monobank: return "Mono"
+            case .pumb: return "PUMB"
+            case .abank: return "ABank"
+            case .wise: return "Wise"
+            case .binancePayUAH: return "Fiat"
+            }
+        }
     }
     
     enum WhiteBit: String {
@@ -55,7 +65,7 @@ enum PaymentMethod: Equatable {
     var description: String {
         switch self {
         case .binance(let paymentMethod):
-            return paymentMethod.rawValue
+            return paymentMethod.shortDescription
         case .whiteBit(let paymentMethod):
             return paymentMethod.description
         case .huobi(let paymentMethod):

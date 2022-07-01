@@ -29,7 +29,7 @@ final class DefaultBotHandlers {
         var jobInterval: Double { // in seconds
             switch self {
             case .logging: return 900
-            case .trading: return 15
+            case .trading: return 10
             case .alerting: return 60
             case .suspended: return 0
             }
@@ -53,7 +53,7 @@ final class DefaultBotHandlers {
     private var tradingJob: Job?
     private var alertingJob: Job?
     
-    private let resultsFormatDescription = "crypto(payment method) sell - buy | possible price Sell - Buy | spread Mad - Clean | Clean Profit in %"
+    private let resultsFormatDescription = "Sell crypto(payment method) - Buy crypto(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %"
     
     
     // MARK: - METHODS
@@ -81,25 +81,26 @@ private extension DefaultBotHandlers {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
             } else {
                 let infoMessage = "Now you will see market updates in Real Time (with update interval \(Int(Mode.trading.jobInterval)) seconds) \n\(self.resultsFormatDescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
-                
-                let future = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Wait a sec.."))
-                future?.whenComplete({ result in
-                    let messageIdForEditing = try? result.get().messageId
-                    self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
-                        let tradingOpportunities: [EarningScheme] = [
-                            .monobankUSDT_monobankUSDT,
-                            .privatbankUSDT_privabbankUSDT,
-                            .abankUSDT_monobankUSDT,
-                            .pumbUSDT_monobankUSDT,
-                            .monobankBUSD_monobankUSDT,
-                            .privatbankBUSD_privatbankUSDT
-                        ]
-                        self?.print(earningShemes: tradingOpportunities,
-                                       editMessageId: messageIdForEditing,
-                                       update: update,
-                                       bot: bot)
-                    }
+                let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                explanationMessageFutute?.whenComplete({ _ in
+                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Wait a sec.."))
+                    editMessageFuture?.whenComplete({ result in
+                        let messageIdForEditing = try? result.get().messageId
+                        self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
+                            let tradingOpportunities: [EarningScheme] = [
+                                .monobankUSDT_monobankUSDT,
+                                .privatbankUSDT_privabbankUSDT,
+                                .abankUSDT_monobankUSDT,
+                                .pumbUSDT_monobankUSDT,
+                                .monobankBUSD_monobankUSDT,
+                                .privatbankBUSD_privatbankUSDT
+                            ]
+                            self?.printDescription(earningShemes: tradingOpportunities,
+                                           editMessageId: messageIdForEditing,
+                                           update: update,
+                                           bot: bot)
+                        }
+                    })
                 })
             }
         }
@@ -118,7 +119,7 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.print(earningShemes: EarningScheme.allCases,
+                    self?.printDescription(earningShemes: EarningScheme.allCases,
                                    update: update,
                                    bot: bot)
                 }
@@ -136,7 +137,7 @@ private extension DefaultBotHandlers {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Already handling Extra opportinuties.."))
             } else {
                 let schemesForAlerting = EarningScheme.allCases
-                let schemesFullDescription = schemesForAlerting.map { "\($0.description) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
+                let schemesFullDescription = schemesForAlerting.map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
                 _ = try? bot.sendMessage(params: .init(
                     chatId: .chat(update.message!.chat.id),
                     text: "Started handling Extra opportinuties for Schemes:\n\(schemesFullDescription)"
@@ -169,20 +170,24 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func print(earningShemes: [EarningScheme], editMessageId: Int? = nil, update: TGUpdate, bot: TGBotPrtcl) {
+    func printDescription(earningShemes: [EarningScheme], editMessageId: Int? = nil, update: TGUpdate, bot: TGBotPrtcl) {
         let earningShemesGroup = DispatchGroup()
-        var totalDescriptioon: String = ""
+        var potentialEarningResults: [(scheme: EarningScheme, description: String)] = []
         earningShemes.forEach { earningSheme in
             earningShemesGroup.enter()
             getSpreadDescription(for: earningSheme) { description in
-                totalDescriptioon.append("\(description)")
+                potentialEarningResults.append((earningSheme, description))
                 earningShemesGroup.leave()
             }
         }
         
         earningShemesGroup.notify(queue: .global()) {
+            let totalDescriptioon = potentialEarningResults
+                .sorted { $0.scheme.rawValue < $1.scheme.rawValue }
+                .map { $0.description }
+                .joined(separator: "\n")
             if let editMessageId = editMessageId {
-                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: totalDescriptioon, parseMode: nil, entities: nil, disableWebPagePreview: nil, replyMarkup: nil)
+                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: totalDescriptioon)
                 _ = try? bot.editMessageText(params: params)
             } else {
                 let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)

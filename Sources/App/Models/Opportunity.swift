@@ -110,7 +110,7 @@ enum Opportunity: Equatable {
     var paymentMethodDescription: String {
         switch self {
         case .binance(let opportunity):
-            return opportunity.paymentMethod.apiDescription
+            return opportunity.paymentMethod.description
         case .whiteBit(let opportunity):
             return opportunity.paymentMethod.description
         case .huobi(let opportunity):
