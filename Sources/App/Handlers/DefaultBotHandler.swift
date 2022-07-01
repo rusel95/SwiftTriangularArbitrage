@@ -278,7 +278,7 @@ private extension DefaultBotHandlers {
                     .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }
-            case .btc:
+            case .btc, .bnb:
                 return advs
                     .compactMap { Double($0.price) }
                     .compactMap { $0 }

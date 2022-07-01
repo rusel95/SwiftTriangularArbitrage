@@ -11,6 +11,7 @@ enum Crypto: Equatable {
         case usdt = "USDT"
         case busd = "BUSD"
         case btc = "BTC"
+        case bnb = "BNB"
     }
     
     enum WhiteBit: String {
@@ -19,6 +20,12 @@ enum Crypto: Equatable {
     
     enum Huobi: String {
         case usdt = "USDT_UAH"
+        
+        var description: String {
+            switch self {
+            case .usdt: return "USDT"
+            }
+        }
     }
     
     case binance(Binance)
@@ -32,7 +39,7 @@ enum Crypto: Equatable {
         case .whiteBit(let crypto):
             return crypto.rawValue
         case .huobi(let crypto):
-            return crypto.rawValue
+            return crypto.description
         }
     }
     

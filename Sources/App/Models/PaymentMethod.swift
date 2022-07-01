@@ -32,7 +32,7 @@ enum PaymentMethod: Equatable {
         
         var description: String {
             switch self {
-            case .usdtuahSpot: return "WhiteBit Spot"
+            case .usdtuahSpot: return "wb_Sp"
             }
         }
     }
@@ -42,7 +42,7 @@ enum PaymentMethod: Equatable {
         
         var description: String {
             switch self {
-            case .usdtuahSpot: return "Huobi Spot"
+            case .usdtuahSpot: return "hu_Sp"
             }
         }
     }

@@ -18,12 +18,14 @@ enum Opportunity: Equatable {
         case binancePayUSDT
         
         case monobankBTC
+        case monobankBNB
         
         var crypto: Crypto {
             switch self {
             case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return .binance(.usdt)
             case .monobankBUSD, .privatbankBUSD: return .binance(.busd)
             case .monobankBTC: return .binance(.btc)
+            case .monobankBNB: return .binance(.bnb)
             }
         }
         
@@ -36,6 +38,7 @@ enum Opportunity: Equatable {
             case .wiseUSDT: return .binance(.wise)
             case .binancePayUSDT: return .binance(.binancePayUAH)
             case .monobankBTC: return .binance(.monobank)
+            case .monobankBNB: return .binance(.monobank)
             }
         }
     
@@ -44,7 +47,7 @@ enum Opportunity: Equatable {
             case .monobankUSDT, .privatbankUSDT: return 10
             case .monobankBUSD, .privatbankBUSD: return 2
             case .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return 2
-            case .monobankBTC: return 1
+            case .monobankBTC, .monobankBNB: return 1
             }
         }
         
@@ -54,7 +57,7 @@ enum Opportunity: Equatable {
             case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return 0.1
             case .monobankBUSD, .privatbankBUSD: return 0.2
             case .binancePayUSDT: return 0.0
-            case .monobankBTC: return 0.1
+            case .monobankBTC, .monobankBNB: return 0.1
             }
         }
     
@@ -72,7 +75,7 @@ enum Opportunity: Equatable {
         
         var crypto: Crypto {
             switch self {
-            case .usdtSpot: return .huobi(.usdt)
+            case .usdtSpot: return .whiteBit(.usdt)
             }
         }
         

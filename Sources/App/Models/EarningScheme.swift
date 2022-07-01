@@ -24,6 +24,7 @@ enum EarningScheme: Int, CaseIterable {
     case monobankUSDT_whiteBitUSDT
     
     case monobankBTC_monobankBTC
+    case monobankBNB_monobankBNB
     
 //    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
     
@@ -42,6 +43,7 @@ enum EarningScheme: Int, CaseIterable {
         case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdtSpot)
         case .monobankUSDT_whiteBitUSDT: return .binance(.monobankUSDT)
         case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
+        case .monobankBNB_monobankBNB: return .binance(.monobankBNB)
         }
     }
     
@@ -60,6 +62,7 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_whiteBitUSDT: return .whiteBit(.usdtSpot)
             
         case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
+        case .monobankBNB_monobankBNB: return .binance(.monobankBNB)
         }
     }
     
@@ -73,15 +76,16 @@ enum EarningScheme: Int, CaseIterable {
         case .wiseUSDT_wiseUSDT: spacedMessage.append("    ")
 //        case .binancePayUAH_binancePayUAH: spacedMessage.append("")
         case .huobiUSDT_monobankUSDT: spacedMessage.append("")
-        case .monobankUSDT_huobiUSDT: spacedMessage.append(" ")
-        case .whiteBitUSDT_monobankUSDT: spacedMessage.append("  ")
-        case .monobankUSDT_whiteBitUSDT: spacedMessage.append("  ")
-        case .monobankBTC_monobankBTC: spacedMessage.append("    ")
+        case .monobankUSDT_huobiUSDT: spacedMessage.append("")
+        case .whiteBitUSDT_monobankUSDT: spacedMessage.append("")
+        case .monobankUSDT_whiteBitUSDT: spacedMessage.append("")
+        case .monobankBTC_monobankBTC: spacedMessage.append("       ")
+        case .monobankBNB_monobankBNB: spacedMessage.append("       ")
         }
         return spacedMessage
     }
     
-    // In
+    // In UAH
     var profitableSpread: Double {
         switch self {
         case .monobankUSDT_monobankUSDT, .privatbankUSDT_privabbankUSDT: return 0.3
@@ -93,7 +97,8 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_huobiUSDT: return 0.5
         case .whiteBitUSDT_monobankUSDT: return 0.5
         case .monobankUSDT_whiteBitUSDT: return 0.5
-        case .monobankBTC_monobankBTC: return 10000
+        case .monobankBTC_monobankBTC: return 20000
+        case .monobankBNB_monobankBNB: return 400
         }
     }
     
