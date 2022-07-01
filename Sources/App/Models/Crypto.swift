@@ -10,6 +10,7 @@ enum Crypto: Equatable {
     enum Binance: String {
         case usdt = "USDT"
         case busd = "BUSD"
+        case btc = "BTC"
     }
     
     enum WhiteBit: String {

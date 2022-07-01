@@ -5,14 +5,6 @@
 //  Created by Ruslan Popesku on 29.06.2022.
 //
 
-//extension FloatingPoint {
-//
-//    var prettyPrinted: String {
-//        String(format: "%.2f", self)
-//    }
-//
-//}
-
 import Foundation
 
 extension NSNumber {

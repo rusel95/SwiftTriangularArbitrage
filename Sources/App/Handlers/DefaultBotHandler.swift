@@ -242,28 +242,19 @@ private extension DefaultBotHandlers {
                 paymentMethod: binance.paymentMethod.apiDescription,
                 crypto: binance.crypto.apiDescription,
                 numberOfAdvsToConsider: binance.numberOfAdvsToConsider
-            ) { buyAdvs, sellAdvs, error in
-                guard let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
+            ) { [weak self] buyAdvs, sellAdvs, error in
+                guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                     completion(nil)
                     return
                 }
                 
-                let makersBuyPrices = sellAdvs
-                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
+                let makersBuyPrices = self.getFilteredPrices(for: sellAdvs, crypto: binance.crypto)
                 
                 let averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
                 
-                let makersSellPrices = buyAdvs
-                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
+                let makersSellPrices = self.getFilteredPrices(for: buyAdvs, crypto: binance.crypto)
                 let averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
-                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
-                                      possibleBuyPrice: averagePossibleBuyPrice))
+                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice, possibleBuyPrice: averagePossibleBuyPrice))
             }
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
@@ -275,6 +266,25 @@ private extension DefaultBotHandlers {
             }
         }
         
+    }
+    
+    func getFilteredPrices(for advs: [Adv], crypto: Crypto) -> [Double] {
+        switch crypto {
+        case .binance(let binanceCrypto):
+            switch binanceCrypto {
+            case .usdt, .busd:
+                return advs
+                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
+                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+            case .btc:
+                return advs
+                    .compactMap { Double($0.price) }
+                    .compactMap { $0 }
+            }
+        default: return []
+        }
     }
     
 }

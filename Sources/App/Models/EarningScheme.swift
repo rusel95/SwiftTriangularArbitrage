@@ -23,6 +23,8 @@ enum EarningScheme: Int, CaseIterable {
     case whiteBitUSDT_monobankUSDT
     case monobankUSDT_whiteBitUSDT
     
+    case monobankBTC_monobankBTC
+    
 //    case binancePayUAH_binancePayUAH // + have to add Spot prices handling
     
     var sellOpportunity: Opportunity {
@@ -39,6 +41,7 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_huobiUSDT: return .binance(.monobankUSDT)
         case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdtSpot)
         case .monobankUSDT_whiteBitUSDT: return .binance(.monobankUSDT)
+        case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
         }
     }
     
@@ -49,10 +52,14 @@ enum EarningScheme: Int, CaseIterable {
         case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return Opportunity.binance(.monobankUSDT)
         case .wiseUSDT_wiseUSDT: return Opportunity.binance(.wiseUSDT)
 //        case .binancePayUAH_binancePayUAH: return Opportunity.binance(.binancePayUSDT)
+            
         case .huobiUSDT_monobankUSDT: return .binance(.monobankUSDT)
         case .monobankUSDT_huobiUSDT: return .huobi(.usdtSpot)
+            
         case .whiteBitUSDT_monobankUSDT: return .binance(.monobankUSDT)
         case .monobankUSDT_whiteBitUSDT: return .whiteBit(.usdtSpot)
+            
+        case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
         }
     }
     
@@ -63,16 +70,18 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT, .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: break
         case .abankUSDT_monobankUSDT: spacedMessage.append("")
         case .pumbUSDT_monobankUSDT: spacedMessage.append("")
-        case .wiseUSDT_wiseUSDT: spacedMessage.append("                    ")
+        case .wiseUSDT_wiseUSDT: spacedMessage.append("    ")
 //        case .binancePayUAH_binancePayUAH: spacedMessage.append("")
         case .huobiUSDT_monobankUSDT: spacedMessage.append("")
         case .monobankUSDT_huobiUSDT: spacedMessage.append(" ")
         case .whiteBitUSDT_monobankUSDT: spacedMessage.append("  ")
         case .monobankUSDT_whiteBitUSDT: spacedMessage.append("  ")
+        case .monobankBTC_monobankBTC: spacedMessage.append("    ")
         }
         return spacedMessage
     }
     
+    // In
     var profitableSpread: Double {
         switch self {
         case .monobankUSDT_monobankUSDT, .privatbankUSDT_privabbankUSDT: return 0.3
@@ -84,6 +93,7 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_huobiUSDT: return 0.5
         case .whiteBitUSDT_monobankUSDT: return 0.5
         case .monobankUSDT_whiteBitUSDT: return 0.5
+        case .monobankBTC_monobankBTC: return 10000
         }
     }
     
@@ -99,7 +109,7 @@ enum EarningScheme: Int, CaseIterable {
         let spreads = getSpreads(for: pricesInfo)
         let cleanSpreadPercentString = (spreads.cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
         
-        return ("\(self.shortDescription)|\(pricesInfo.possibleSellPrice.toLocalCurrency()) -\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency()) -\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
+        return ("\(self.shortDescription)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency()) -\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
     }
     
 }
