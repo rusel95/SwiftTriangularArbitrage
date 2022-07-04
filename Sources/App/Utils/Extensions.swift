@@ -10,7 +10,7 @@ import Foundation
 extension NSNumber {
     
     func toLocalCurrency(fractDigits: Int = 2) -> String? {
-        String(format: "%.2f", Double(truncating: self))
+        String(format: "%.\(fractDigits)f", Double(truncating: self))
     }
 
 }
@@ -21,4 +21,12 @@ extension Numeric {
         (self as? NSNumber)?.toLocalCurrency(fractDigits: fractDigits) ?? "NaN"
     }
     
+}
+
+extension Date {
+                    
+    static func - (lhs: Date, rhs: Date) -> TimeInterval {
+        return lhs.timeIntervalSinceReferenceDate - rhs.timeIntervalSinceReferenceDate
+    }
+                    
 }

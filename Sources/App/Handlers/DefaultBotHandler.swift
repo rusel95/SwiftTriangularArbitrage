@@ -53,6 +53,9 @@ final class DefaultBotHandlers {
     private var tradingJob: Job?
     private var alertingJob: Job?
     
+    // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
+    private var lastAlertingEvents: [EarningScheme: Date] = [:]
+    
     private let resultsFormatDescription = "Sell crypto(payment method) - Buy crypto(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %"
     
     
@@ -151,7 +154,7 @@ private extension DefaultBotHandlers {
                 let schemesFullDescription = wellKnownSchemesForAlerting.map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
                 _ = try? bot.sendMessage(params: .init(
                     chatId: .chat(update.message!.chat.id),
-                    text: "Started handling Extra opportinuties for Schemes:\n\(schemesFullDescription)"
+                    text: "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
                 ))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                     self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
@@ -306,13 +309,16 @@ private extension DefaultBotHandlers {
     
     func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
         earningSchemes.forEach { earningScheme in
+            guard (Date() - (self.lastAlertingEvents[earningScheme] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
+                self.lastAlertingEvents[earningScheme] == nil
+            else { return }
+            
             getPricesInfo(for: earningScheme) { pricesInfo in
-                guard let pricesInfo = pricesInfo else { return }
+                guard let pricesInfo = pricesInfo, earningScheme.getSpreads(for: pricesInfo).cleanSpread > earningScheme.profitableSpread  else { return }
                 
-                if earningScheme.getSpreads(for: pricesInfo).cleanSpread > earningScheme.profitableSpread {
-                    let text = "Profitable Opportunity!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
-                    _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
-                }
+                self.lastAlertingEvents[earningScheme] = Date()
+                let text = "Profitable Opportunity!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }
     }
