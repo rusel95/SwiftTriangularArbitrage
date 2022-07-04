@@ -67,7 +67,7 @@ final class DefaultBotHandlers {
 
 }
 
-// MARK: - HELPERS
+// MARK: - HANDLERS
 
 private extension DefaultBotHandlers {
     
@@ -136,14 +136,25 @@ private extension DefaultBotHandlers {
             if self.alertingJob?.isRunning != nil {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Already handling Extra opportinuties.."))
             } else {
-                let schemesForAlerting = EarningScheme.allCases
-                let schemesFullDescription = schemesForAlerting.map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
+                let wellKnownSchemesForAlerting: [EarningScheme] = [
+                    .monobankUSDT_monobankUSDT,
+                    .privatbankUSDT_privabbankUSDT,
+                    .monobankBUSD_monobankUSDT,
+                    .privatbankBUSD_privatbankUSDT,
+                    .abankUSDT_monobankUSDT,
+                    .pumbUSDT_monobankUSDT,
+                    .huobiUSDT_monobankUSDT,
+                    .monobankUSDT_huobiUSDT,
+                    .whiteBitUSDT_monobankUSDT,
+                    .monobankUSDT_whiteBitUSDT
+                ]
+                let schemesFullDescription = wellKnownSchemesForAlerting.map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }.joined(separator: "\n")
                 _ = try? bot.sendMessage(params: .init(
                     chatId: .chat(update.message!.chat.id),
                     text: "Started handling Extra opportinuties for Schemes:\n\(schemesFullDescription)"
                 ))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
-                    self?.alertAboutProfitability(earningSchemes: schemesForAlerting, bot: bot, update: update)
+                    self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
                 }
             }
         }

@@ -15,6 +15,7 @@ enum Opportunity: Equatable {
         case abankUSDT
         case pumbUSDT
         case wiseUSDT
+        case wiseBUSD
         case binancePayUSDT
         
         case monobankBTC
@@ -23,7 +24,7 @@ enum Opportunity: Equatable {
         var crypto: Crypto {
             switch self {
             case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return .binance(.usdt)
-            case .monobankBUSD, .privatbankBUSD: return .binance(.busd)
+            case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return .binance(.busd)
             case .monobankBTC: return .binance(.btc)
             case .monobankBNB: return .binance(.bnb)
             }
@@ -35,7 +36,7 @@ enum Opportunity: Equatable {
             case .privatbankUSDT, .privatbankBUSD: return .binance(.privatbank)
             case .abankUSDT: return .binance(.abank)
             case .pumbUSDT: return .binance(.pumb)
-            case .wiseUSDT: return .binance(.wise)
+            case .wiseUSDT, .wiseBUSD: return .binance(.wise)
             case .binancePayUSDT: return .binance(.binancePayUAH)
             case .monobankBTC: return .binance(.monobank)
             case .monobankBNB: return .binance(.monobank)
@@ -47,7 +48,7 @@ enum Opportunity: Equatable {
             case .monobankUSDT, .privatbankUSDT: return 10
             case .monobankBUSD, .privatbankBUSD: return 2
             case .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return 2
-            case .monobankBTC, .monobankBNB: return 1
+            case .monobankBTC, .monobankBNB, .wiseBUSD: return 1
             }
         }
         
@@ -55,7 +56,7 @@ enum Opportunity: Equatable {
         var extraCommission: Double {
             switch self {
             case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT: return 0.1
-            case .monobankBUSD, .privatbankBUSD: return 0.2
+            case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return 0.2
             case .binancePayUSDT: return 0.0
             case .monobankBTC, .monobankBNB: return 0.1
             }
