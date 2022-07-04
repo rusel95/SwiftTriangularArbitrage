@@ -8,6 +8,7 @@
 enum Opportunity: Equatable {
     
     enum Binance {
+        
         case monobankUSDT
         case monobankBUSD
         case privatbankUSDT
@@ -21,12 +22,12 @@ enum Opportunity: Equatable {
         case monobankBTC
         case monobankBNB
         
-        var crypto: Crypto {
+        var crypto: Crypto.Binance {
             switch self {
-            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return .binance(.usdt)
-            case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return .binance(.busd)
-            case .monobankBTC: return .binance(.btc)
-            case .monobankBNB: return .binance(.bnb)
+            case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return .usdt
+            case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return .busd
+            case .monobankBTC: return .btc
+            case .monobankBNB: return .bnb
             }
         }
         
@@ -43,12 +44,11 @@ enum Opportunity: Equatable {
             }
         }
     
-        var numberOfAdvsToConsider: UInt8 {
+        var numberOfAdvsToConsider: Int {
             switch self {
             case .monobankUSDT, .privatbankUSDT: return 10
-            case .monobankBUSD, .privatbankBUSD: return 2
-            case .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return 2
-            case .monobankBTC, .monobankBNB, .wiseBUSD: return 1
+            case .monobankBUSD, .privatbankBUSD: return 1
+            case .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT, .monobankBTC, .monobankBNB, .wiseBUSD: return 2
             }
         }
         
@@ -59,6 +59,36 @@ enum Opportunity: Equatable {
             case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return 0.2
             case .binancePayUSDT: return 0.0
             case .monobankBTC, .monobankBNB: return 0.1
+            }
+        }
+        
+        // minimum adv size (in Asset's currency)
+        var minSurplusAmount: Double {
+            switch self {
+            case .monobankUSDT, .privatbankUSDT: return 200 // ±200 USDT
+            case .abankUSDT, .pumbUSDT, .wiseUSDT, .monobankBUSD, .privatbankBUSD, .wiseBUSD: return 100 // ± 100 USDT
+            case .binancePayUSDT: return 500 // ± 500 UAH
+            case .monobankBTC: return 0.005 // ± 1000 UAH
+            case .monobankBNB: return 0.1 // ± 1000 UAH
+            }
+        }
+        
+        // (in Fiat's currency - UAH)
+        var minSingleTransAmount: Double {
+            switch self {
+            case .monobankUSDT: return 3000
+            case .privatbankUSDT: return 5000
+            case .abankUSDT, .pumbUSDT, .wiseUSDT, .monobankBUSD, .privatbankBUSD, .wiseBUSD: return 500
+            case .binancePayUSDT, .monobankBTC, .monobankBNB: return 500
+            }
+        }
+        
+        // (in Fiat's currency - UAH)
+        var maxSingleTransAmount: Double {
+            switch self {
+            case .monobankUSDT, .privatbankUSDT: return 100000
+            case .abankUSDT, .pumbUSDT, .wiseUSDT, .monobankBUSD, .privatbankBUSD, .wiseBUSD: return 30000
+            case .binancePayUSDT, .monobankBTC, .monobankBNB: return 15000
             }
         }
     
@@ -131,7 +161,7 @@ enum Opportunity: Equatable {
     var cryptoDescription: String {
         switch self {
         case .binance(let opportunity):
-            return opportunity.crypto.apiDescription
+            return opportunity.crypto.rawValue
         case .whiteBit(let opportunity):
             return opportunity.crypto.apiDescription
         case .huobi(let opportunity):

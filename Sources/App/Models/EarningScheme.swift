@@ -75,7 +75,7 @@ enum EarningScheme: Int, CaseIterable {
         case .abankUSDT_monobankUSDT: spacedMessage.append("")
         case .pumbUSDT_monobankUSDT: spacedMessage.append("")
         case .wiseUSDT_wiseUSDT, .wiseBUSD_wiseUSDT: spacedMessage.append("    ")
-        case .binancePayUAH_binancePayUAH: spacedMessage.append("   ")
+        case .binancePayUAH_binancePayUAH: spacedMessage.append("        ")
         case .huobiUSDT_monobankUSDT: spacedMessage.append("")
         case .monobankUSDT_huobiUSDT: spacedMessage.append("")
         case .whiteBitUSDT_monobankUSDT: spacedMessage.append("")
@@ -115,7 +115,7 @@ enum EarningScheme: Int, CaseIterable {
         let spreads = getSpreads(for: pricesInfo)
         let cleanSpreadPercentString = (spreads.cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
         
-        return ("\(self.shortDescription)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency()) -\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
+        return ("\(self.shortDescription)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency())-\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
     }
     
 }

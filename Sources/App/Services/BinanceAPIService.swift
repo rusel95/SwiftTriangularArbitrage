@@ -21,7 +21,7 @@ final class BinanceAPIService {
     func loadAdvertisements(
         paymentMethod: String,
         crypto: String,
-        numberOfAdvsToConsider: UInt8,
+        numberOfAdvsToConsider: UInt8 = 10,
         completion: @escaping(_ buyAdvs: [Adv]?, _ sellAdvs: [Adv]?, _ error: Error?) -> Void
     ) {
         var finalError: Error?

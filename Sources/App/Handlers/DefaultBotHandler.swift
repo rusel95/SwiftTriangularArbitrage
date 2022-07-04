@@ -252,22 +252,18 @@ private extension DefaultBotHandlers {
     func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
         switch opportunity {
         case .binance(let binance):
-            BinanceAPIService.shared.loadAdvertisements(
-                paymentMethod: binance.paymentMethod.apiDescription,
-                crypto: binance.crypto.apiDescription,
-                numberOfAdvsToConsider: binance.numberOfAdvsToConsider
-            ) { [weak self] buyAdvs, sellAdvs, error in
+            BinanceAPIService.shared.loadAdvertisements(paymentMethod: binance.paymentMethod.apiDescription, crypto: binance.crypto.apiDescription) { [weak self] buyAdvs, sellAdvs, error in
                 guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                     completion(nil)
                     return
                 }
                 
-                let makersBuyPrices = self.getFilteredPrices(for: sellAdvs, crypto: binance.crypto)
-                
+                let makersBuyPrices = self.getFilteredPrices(advs: sellAdvs, binanceOpportunity: binance)
                 let averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
                 
-                let makersSellPrices = self.getFilteredPrices(for: buyAdvs, crypto: binance.crypto)
+                let makersSellPrices = self.getFilteredPrices(advs: buyAdvs, binanceOpportunity: binance)
                 let averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
+                
                 completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice, possibleBuyPrice: averagePossibleBuyPrice))
             }
         case .whiteBit(let opportunity):
@@ -282,23 +278,15 @@ private extension DefaultBotHandlers {
         
     }
     
-    func getFilteredPrices(for advs: [Adv], crypto: Crypto) -> [Double] {
-        switch crypto {
-        case .binance(let binanceCrypto):
-            switch binanceCrypto {
-            case .usdt, .busd:
-                return advs
-                    .filter { Double($0.surplusAmount) ?? 0 >= 200 }
-                    .filter { Double($0.minSingleTransAmount) ?? 0 >= 2000 && Double($0.minSingleTransAmount) ?? 0 <= 100000 }
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
-            case .btc, .bnb:
-                return advs
-                    .compactMap { Double($0.price) }
-                    .compactMap { $0 }
-            }
-        default: return []
-        }
+    func getFilteredPrices(advs: [Adv], binanceOpportunity: Opportunity.Binance) -> [Double] {
+        let arraySlice = advs
+            .filter { Double($0.surplusAmount) ?? 0 >= binanceOpportunity.minSurplusAmount }
+            .filter { Double($0.minSingleTransAmount) ?? 0 >= binanceOpportunity.minSingleTransAmount }
+            .filter { Double($0.minSingleTransAmount) ?? 0 <= binanceOpportunity.maxSingleTransAmount }
+            .compactMap { Double($0.price) }
+            .compactMap { $0 }
+            .prefix(binanceOpportunity.numberOfAdvsToConsider)
+        return Array(arraySlice)
     }
     
 }

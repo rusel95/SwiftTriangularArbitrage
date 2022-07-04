@@ -12,6 +12,10 @@ enum Crypto: Equatable {
         case busd = "BUSD"
         case btc = "BTC"
         case bnb = "BNB"
+        
+        var apiDescription: String {
+            return self.rawValue
+        }
     }
     
     enum WhiteBit: String {
