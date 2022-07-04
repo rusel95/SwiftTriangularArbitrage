@@ -113,7 +113,7 @@ enum Opportunity: Equatable {
         // in percents
         var extraCommission: Double {
             switch self {
-            case .usdtSpot: return 0.5
+            case .usdtSpot: return 0.1
             }
         }
         
