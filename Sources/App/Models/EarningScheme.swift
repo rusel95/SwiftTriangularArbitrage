@@ -68,8 +68,7 @@ enum EarningScheme: Int, CaseIterable {
     }
     
     var shortDescription: String {
-        let basicDescription = "\(sellOpportunity.cryptoDescription)(\(sellOpportunity.paymentMethodDescription))-\(buyOpportunity.cryptoDescription)(\(buyOpportunity.paymentMethodDescription))"
-        var spacedMessage = basicDescription
+        var spacedMessage = "\(sellOpportunity.description)-\(buyOpportunity.description))"
         switch self {
         case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT, .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: break
         case .abankUSDT_monobankUSDT: spacedMessage.append("")

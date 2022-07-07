@@ -54,7 +54,7 @@ final class DefaultBotHandlers {
     private var alertingJob: Job? = nil
     
     // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
-    private var lastAlertingEvents: [EarningScheme: Date] = [:]
+    private var lastAlertingEvents: [String: Date] = [:]
     
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %" //"crypto Sell(payment method) - Buy(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %\n" +
     
@@ -127,10 +127,10 @@ private extension DefaultBotHandlers {
                                 .monobankBUSD_monobankUSDT,
                                 .privatbankBUSD_privatbankUSDT
                             ]
-                            self?.printDescription(earningShemes: tradingOpportunities,
-                                           editMessageId: messageIdForEditing,
-                                           update: update,
-                                           bot: bot)
+                            self?.printDescription(earningSchemes: tradingOpportunities,
+                                                   editMessageId: messageIdForEditing,
+                                                   update: update,
+                                                   bot: bot)
                         }
                     })
                 })
@@ -151,9 +151,7 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)" //"Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.printDescription(earningShemes: EarningScheme.allCases,
-                                   update: update,
-                                   bot: bot)
+                    self?.printDescription(earningSchemes: EarningScheme.allCases, update: update, bot: bot)
                 }
             }
         }
@@ -190,6 +188,7 @@ private extension DefaultBotHandlers {
                 ))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                     self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
+                    self?.alertAboutArbitrage(bot: bot, update: update)
                 }
             }
         }
@@ -216,13 +215,19 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func printDescription(earningShemes: [EarningScheme], editMessageId: Int? = nil, update: TGUpdate, bot: TGBotPrtcl) {
+    func printDescription(earningSchemes: [EarningScheme], editMessageId: Int? = nil, update: TGUpdate, bot: TGBotPrtcl) {
         let earningShemesGroup = DispatchGroup()
         var potentialEarningResults: [(scheme: EarningScheme, description: String)] = []
-        earningShemes.forEach { earningSheme in
+        earningSchemes.forEach { earningScheme in
             earningShemesGroup.enter()
-            getSpreadDescription(for: earningSheme) { description in
-                potentialEarningResults.append((earningSheme, description))
+            
+            getPricesInfo(for: earningScheme) { pricesInfo in
+                guard let pricesInfo = pricesInfo else {
+                    potentialEarningResults.append((earningScheme, "No PricesInfo for \(earningScheme)"))
+                    return
+                }
+        
+                potentialEarningResults.append((earningScheme, earningScheme.getPrettyDescription(with: pricesInfo)))
                 earningShemesGroup.leave()
             }
         }
@@ -239,17 +244,6 @@ private extension DefaultBotHandlers {
                 let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
                 _ = try? bot.sendMessage(params: params)
             }
-        }
-    }
-    
-    func getSpreadDescription(for earningScheme: EarningScheme, completion: @escaping(String) -> Void) {
-        getPricesInfo(for: earningScheme) { pricesInfo in
-            guard let pricesInfo = pricesInfo else {
-                completion("No PricesInfo for \(earningScheme)")
-                return
-            }
-            
-            completion(earningScheme.getPrettyDescription(with: pricesInfo))
         }
     }
     
@@ -329,18 +323,107 @@ private extension DefaultBotHandlers {
     
     func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
         earningSchemes.forEach { earningScheme in
-            guard (Date() - (self.lastAlertingEvents[earningScheme] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
-                self.lastAlertingEvents[earningScheme] == nil
+            guard (Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
+                    self.lastAlertingEvents[earningScheme.shortDescription] == nil
             else { return }
             
             getPricesInfo(for: earningScheme) { pricesInfo in
                 guard let pricesInfo = pricesInfo, earningScheme.getSpreads(for: pricesInfo).cleanSpread > earningScheme.profitableSpread  else { return }
                 
-                self.lastAlertingEvents[earningScheme] = Date()
-                let text = "Profitable Opportunity!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
+                self.lastAlertingEvents[earningScheme.shortDescription] = Date()
+                let text = "Профітна можливість!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }
+    }
+    
+    func alertAboutArbitrage(bot: TGBotPrtcl, update: TGUpdate) {
+        let arbitrageGroup = DispatchGroup()
+        let opportunitiesForArbitrage: [Opportunity] = [
+            .binance(.monobankUSDT),
+            .huobi(.usdtSpot),
+            .whiteBit(.usdtSpot)
+        ]
+
+        var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
+        
+        opportunitiesForArbitrage.forEach { opportunity in
+            arbitrageGroup.enter()
+            
+            getPricesInfo(for: opportunity) { pricesInfo in
+                guard let pricesInfo = pricesInfo else {
+                    arbitrageGroup.leave()
+                    return
+                }
+        
+                opportunitiesResults.append((opportunity, pricesInfo))
+                arbitrageGroup.leave()
+            }
+        }
+
+        arbitrageGroup.notify(queue: .global()) { [weak self] in
+            let biggestSellPriceOpportunityResult = opportunitiesResults
+                .sorted { $0.priceInfo.possibleSellPrice > $1.priceInfo.possibleSellPrice }
+                .first
+            
+            let lowestBuyPriceOpportunityResult = opportunitiesResults
+                .sorted { $0.priceInfo.possibleBuyPrice < $1.priceInfo.possibleBuyPrice }
+                .first
+            
+            guard let self = self,
+                  let biggestSellPriceOpportunityResult = biggestSellPriceOpportunityResult,
+                  let lowestBuyPriceOpportunityResult = lowestBuyPriceOpportunityResult
+            else { return }
+            
+            let currentArbitragePossibilityID = "\(biggestSellPriceOpportunityResult.opportunity.paymentMethodDescription)-\(lowestBuyPriceOpportunityResult.opportunity.paymentMethodDescription)"
+           
+            let pricesInfo = PricesInfo(possibleSellPrice: biggestSellPriceOpportunityResult.priceInfo.possibleSellPrice,
+                                        possibleBuyPrice: lowestBuyPriceOpportunityResult.priceInfo.possibleBuyPrice)
+            
+            let currentSpread = self.getSpreads(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
+                                                buyOpportunity: lowestBuyPriceOpportunityResult.opportunity,
+                                                pricesInfo: pricesInfo)
+            
+            guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
+                   self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
+                    currentSpread.cleanSpread > 1 else  { return }
+            
+            self.lastAlertingEvents[currentArbitragePossibilityID] = Date()
+            let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
+                                                              buyOpportunity: lowestBuyPriceOpportunityResult.opportunity,
+                                                              pricesInfo: pricesInfo)
+            let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: "Арбітражна можливість: \(prettyDescription)")
+            _ = try? bot.sendMessage(params: params)
+        }
+    }
+    
+}
+
+// MARK: - HELPERS
+
+private extension DefaultBotHandlers {
+    
+    func getPrettyDescription(
+        sellOpportunity: Opportunity,
+        buyOpportunity: Opportunity,
+        pricesInfo: PricesInfo
+    ) -> String {
+        let spreads = getSpreads(sellOpportunity: sellOpportunity, buyOpportunity: buyOpportunity, pricesInfo: pricesInfo)
+        let cleanSpreadPercentString = (spreads.cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
+        
+        return ("\(sellOpportunity.description)-\(buyOpportunity.description)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency())-\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
+    }
+    
+    func getSpreads(
+        sellOpportunity: Opportunity,
+        buyOpportunity: Opportunity,
+        pricesInfo: PricesInfo
+    ) -> (dirtySpread: Double, cleanSpread: Double) {
+        let dirtySpread = pricesInfo.possibleSellPrice - pricesInfo.possibleBuyPrice
+        let buyCommissionAmount = pricesInfo.possibleBuyPrice * buyOpportunity.extraCommission / 100.0
+        let sellComissionAmount = pricesInfo.possibleSellPrice * sellOpportunity.extraCommission / 100.0
+        let cleanSpread = dirtySpread - buyCommissionAmount - sellComissionAmount
+        return (dirtySpread, cleanSpread)
     }
     
 }

@@ -147,6 +147,10 @@ enum Opportunity: Equatable {
     case huobi(Huobi)
     case whiteBit(WhiteBit)
     
+    var description: String {
+        "\(self.cryptoDescription)(\(self.paymentMethodDescription))"
+    }
+    
     var paymentMethodDescription: String {
         switch self {
         case .binance(let opportunity):
