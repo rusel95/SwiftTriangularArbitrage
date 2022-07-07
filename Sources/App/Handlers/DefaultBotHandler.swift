@@ -49,15 +49,20 @@ final class DefaultBotHandlers {
     
     static let shared = DefaultBotHandlers()
     
-    private var loggingJob: Job?
-    private var tradingJob: Job?
-    private var alertingJob: Job?
+    private var tradingJob: Job? = nil
+    private var loggingJob: Job? = nil
+    private var alertingJob: Job? = nil
     
     // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
     private var lastAlertingEvents: [EarningScheme: Date] = [:]
     
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %" //"crypto Sell(payment method) - Buy(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %\n" +
     
+    init() {
+        tradingJob = nil
+        loggingJob = nil
+        alertingJob = nil
+    }
     
     // MARK: - METHODS
     
