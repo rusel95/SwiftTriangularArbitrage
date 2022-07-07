@@ -12,11 +12,47 @@ import FoundationNetworking
 
 final class BinanceAPIService {
     
+    struct BookTicker: Codable {
+        let symbol: String
+        let bidPrice: String
+        let bidQty: String
+        let askPrice: String
+        let askQty: String
+    }
+    
     // MARK: - PROPERTIES
     
     static let shared = BinanceAPIService()
 
     // MARK: - METHODS
+    
+    func getBookTicker(
+        symbol: String,
+        completion: @escaping(_ ticker: BookTicker?) -> Void
+    ) {
+        let session = URLSession.shared
+        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker?symbol=\(symbol)")!
+       
+        var request = URLRequest(url: url)
+        request.httpMethod = "Get"
+        
+        session.dataTask(with: request) {(data, response, error) in
+            if let error = error {
+                print("error is \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            
+            guard let data = data else { return }
+            
+            do {
+                let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
+                completion(ticker)
+            } catch {
+                completion(nil)
+            }
+        }.resume()
+    }
     
     func loadAdvertisements(
         paymentMethod: String,
