@@ -17,8 +17,8 @@ final class DefaultBotHandlers {
     
     private enum Mode {
         
-        case logging
         case trading
+        case logging
         case alerting /*
                        example 1: USDT/UAH spot -> UAH Crypto to UAH fiat -> UAH fiat to USDT
                        example 2: BTC(other coint)/USDT spot price >= 2% difference to p2p market
@@ -28,8 +28,8 @@ final class DefaultBotHandlers {
         
         var jobInterval: Double { // in seconds
             switch self {
-            case .logging: return 900
             case .trading: return 10
+            case .logging: return 900
             case .alerting: return 60
             case .suspended: return 0
             }
@@ -122,10 +122,9 @@ private extension DefaultBotHandlers {
                             let tradingOpportunities: [EarningScheme] = [
                                 .monobankUSDT_monobankUSDT,
                                 .privatbankUSDT_privabbankUSDT,
-                                .abankUSDT_monobankUSDT,
-                                .pumbUSDT_monobankUSDT,
                                 .monobankBUSD_monobankUSDT,
-                                .privatbankBUSD_privatbankUSDT
+                                .privatbankBUSD_privatbankUSDT,
+                                .wiseUSDT_wiseUSDT
                             ]
                             self?.printDescription(earningSchemes: tradingOpportunities,
                                                    editMessageId: messageIdForEditing,
