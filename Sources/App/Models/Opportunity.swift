@@ -180,11 +180,38 @@ enum Opportunity: Equatable {
         }
     }
     
+    // MARK: - EXMO
+    
+    enum EXMO {
+        
+        case usdtUAHSpot
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usdtUAHSpot: return .exmo(.usdtuahSpot)
+            }
+        }
+        
+        var crypto: Crypto {
+            switch self {
+            case .usdtUAHSpot: return .exmo(.usdt)
+            }
+        }
+        
+        // in percents
+        var extraCommission: Double {
+            switch self {
+            case .usdtUAHSpot: return 0.5
+            }
+        }
+    }
+    
     // MARK: - Cases
     
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
+    case exmo(EXMO)
     
     // MARK: - PARAMETERS
     
@@ -205,6 +232,8 @@ enum Opportunity: Equatable {
             return opportunity.paymentMethod.description
         case .huobi(let opportunity):
             return opportunity.paymentMethod.description
+        case .exmo(let exmoOpportunity):
+            return exmoOpportunity.paymentMethod.description
         }
     }
     
@@ -221,6 +250,8 @@ enum Opportunity: Equatable {
             return opportunity.crypto.apiDescription
         case .huobi(let opportunity):
             return opportunity.crypto.apiDescription
+        case .exmo(let exmoOpportunity):
+            return exmoOpportunity.crypto.apiDescription
         }
     }
     
@@ -238,6 +269,8 @@ enum Opportunity: Equatable {
             return opportunity.extraCommission
         case .huobi(let opportunity):
             return opportunity.extraCommission
+        case .exmo(let exmoOpportunity):
+            return exmoOpportunity.extraCommission
         }
     }
     

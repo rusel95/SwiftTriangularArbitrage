@@ -7,6 +7,8 @@
 
 enum PaymentMethod: Equatable {
     
+    // MARK: - BINANCE
+    
     enum Binance: Equatable {
         
         enum P2P: String {
@@ -45,6 +47,8 @@ enum PaymentMethod: Equatable {
         
     }
     
+    // MARK: - WHITEBIT
+    
     enum WhiteBit: String {
         
         case usdtuahSpot = "USDT_UAH"
@@ -56,6 +60,8 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - Huobi
+    
     enum Huobi: String {
         case usdtuahSpot = "usdtuah"
         
@@ -66,9 +72,23 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - EXMO
+    
+    enum EXMO: String {
+        
+        case usdtuahSpot = "USDT_UAH"
+        
+        var description: String {
+            switch self {
+            case .usdtuahSpot: return "EXMO_Spot"
+            }
+        }
+    }
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
+    case exmo(EXMO)
     
     var apiDescription: String {
         switch self {
@@ -82,6 +102,8 @@ enum PaymentMethod: Equatable {
         case .whiteBit(let paymentMethod):
             return paymentMethod.rawValue
         case .huobi(let paymentMethod):
+            return paymentMethod.rawValue
+        case .exmo(let paymentMethod):
             return paymentMethod.rawValue
         }
     }
@@ -98,6 +120,8 @@ enum PaymentMethod: Equatable {
         case .whiteBit(let paymentMethod):
             return paymentMethod.description
         case .huobi(let paymentMethod):
+            return paymentMethod.description
+        case .exmo(let paymentMethod):
             return paymentMethod.description
         }
     }

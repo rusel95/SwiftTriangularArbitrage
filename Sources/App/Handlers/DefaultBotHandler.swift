@@ -182,10 +182,11 @@ private extension DefaultBotHandlers {
                     .map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }
                     .joined(separator: "\n")
                 let opportunitiesForArbitrage: [Opportunity] = [
-                    .binance(.spot(.usdtUAH)),
                     .binance(.p2p(.monobankUSDT)),
                     .huobi(.usdtSpot),
-                    .whiteBit(.usdtSpot)
+                    .whiteBit(.usdtSpot),
+                    .binance(.spot(.usdtUAH)),
+                    .exmo(.usdtUAHSpot)
                 ]
                 let opportunitiesFullDescription = opportunitiesForArbitrage
                     .map { $0.description }
@@ -329,6 +330,10 @@ private extension DefaultBotHandlers {
         case .huobi(let opportunity):
             HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
                 completion(PricesInfo(possibleSellPrice: bids.first ?? 0, possibleBuyPrice: asks.first ?? 0))
+            }
+        case .exmo(let exmoOpportunity):
+            EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { askTop, bidTop, error in
+                completion(PricesInfo(possibleSellPrice: bidTop ?? 0.0, possibleBuyPrice: askTop ?? 0.0))
             }
         }
         

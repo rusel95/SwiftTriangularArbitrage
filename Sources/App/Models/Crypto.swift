@@ -32,9 +32,14 @@ enum Crypto: Equatable {
         }
     }
     
+    enum EXMO: String {
+        case usdt = "USDT"
+    }
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
+    case exmo(EXMO)
     
     var apiDescription: String {
         switch self {
@@ -44,6 +49,8 @@ enum Crypto: Equatable {
             return crypto.rawValue
         case .huobi(let crypto):
             return crypto.description
+        case .exmo(let exmoCrypto):
+            return exmoCrypto.rawValue
         }
     }
     
