@@ -180,15 +180,33 @@ private extension DefaultBotHandlers {
                 ]
                 let schemesFullDescription = wellKnownSchemesForAlerting
                     .map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }
-                    .joined(separator: "\n\n")
+                    .joined(separator: "\n")
+                let opportunitiesForArbitrage: [Opportunity] = [
+                    .binance(.spot(.usdtUAH)),
+                    .binance(.p2p(.monobankUSDT)),
+                    .huobi(.usdtSpot),
+                    .whiteBit(.usdtSpot)
+                ]
+                let opportunitiesFullDescription = opportunitiesForArbitrage
+                    .map { $0.description }
+                    .joined(separator: "\n")
                 
+                let text = """
+                Полювання за НадКрутими можливостями розпочато! Як тільки, так сразу я тобі скажу.
+                
+                Слідкую за наступними звязками:
+                \(schemesFullDescription)
+                
+                Намагаюся знайти найращі можливості для Арбітражу для наступних можливостей покупки/продажі на:
+                \(opportunitiesFullDescription)
+                """// "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
                 _ = try? bot.sendMessage(params: .init(
                     chatId: .chat(update.message!.chat.id),
-                    text: "Полювання за НадКрутими можливостями розпочато! Як тільки, так сразу я тобі скажу. Слідкую за наступними схемами:\n\n\(schemesFullDescription)"// "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
+                    text: text
                 ))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                     self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
-                    self?.alertAboutArbitrage(bot: bot, update: update)
+                    self?.alertAboutArbitrage(opportunities: opportunitiesForArbitrage, bot: bot, update: update)
                 }
             }
         }
@@ -211,7 +229,7 @@ private extension DefaultBotHandlers {
     
 }
 
-// MARK: - P2P
+// MARK: - HANDLERS
 
 private extension DefaultBotHandlers {
     
@@ -349,18 +367,11 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func alertAboutArbitrage(bot: TGBotPrtcl, update: TGUpdate) {
+    func alertAboutArbitrage(opportunities: [Opportunity], bot: TGBotPrtcl, update: TGUpdate) {
         let arbitrageGroup = DispatchGroup()
-        let opportunitiesForArbitrage: [Opportunity] = [
-            .binance(.spot(.usdtUAH)),
-            .binance(.p2p(.monobankUSDT)),
-            .huobi(.usdtSpot),
-            .whiteBit(.usdtSpot)
-        ]
-
         var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
         
-        opportunitiesForArbitrage.forEach { opportunity in
+        opportunities.forEach { opportunity in
             arbitrageGroup.enter()
             
             getPricesInfo(for: opportunity) { pricesInfo in

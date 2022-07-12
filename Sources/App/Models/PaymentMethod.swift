@@ -19,12 +19,12 @@ enum PaymentMethod: Equatable {
             
             var shortDescription: String {
                 switch self {
-                case .privatbank: return "Privat"
-                case .monobank: return "Mono"
-                case .pumb: return "PUMB"
-                case .abank: return "ABank"
-                case .wise: return "Wise"
-                case .binancePayUAH: return "Fiat"
+                case .privatbank: return "P2P_Privat"
+                case .monobank: return "P2P_Mono"
+                case .pumb: return "P2P_PUMB"
+                case .abank: return "P2P_ABank"
+                case .wise: return "P2P_Wise"
+                case .binancePayUAH: return "P2P_Fiat"
                 }
             }
         }
@@ -35,7 +35,7 @@ enum PaymentMethod: Equatable {
             
             var shortDescription: String {
                 switch self {
-                case .usdtUAH: return "BinSpotUSDTUAH"
+                case .usdtUAH: return "BinanceSpot"
                 }
             }
         }
@@ -51,7 +51,7 @@ enum PaymentMethod: Equatable {
         
         var description: String {
             switch self {
-            case .usdtuahSpot: return "wb_Sp"
+            case .usdtuahSpot: return "WhiteBit_Spot"
             }
         }
     }
@@ -61,7 +61,7 @@ enum PaymentMethod: Equatable {
         
         var description: String {
             switch self {
-            case .usdtuahSpot: return "hu_Sp"
+            case .usdtuahSpot: return "Huobi_Spot"
             }
         }
     }

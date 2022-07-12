@@ -128,7 +128,8 @@ enum Opportunity: Equatable {
         
     }
     
-    // MARK: - WhiteBit
+    // MARK: - WHITEBIT
+    
     enum WhiteBit {
         
         case usdtSpot
@@ -154,7 +155,7 @@ enum Opportunity: Equatable {
         
     }
     
-    // MARK: - Huobi
+    // MARK: - HUOBI
     enum Huobi {
         
         case usdtSpot
@@ -180,6 +181,7 @@ enum Opportunity: Equatable {
     }
     
     // MARK: - Cases
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
