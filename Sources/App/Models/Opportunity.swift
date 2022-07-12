@@ -149,7 +149,7 @@ enum Opportunity: Equatable {
         // in percents
         var extraCommission: Double {
             switch self {
-            case .usdtSpot: return 0.1
+            case .usdtSpot: return 0.2
             }
         }
         
@@ -175,7 +175,7 @@ enum Opportunity: Equatable {
         // in percents
         var extraCommission: Double {
             switch self {
-            case .usdtSpot: return 1
+            case .usdtSpot: return 1.5
             }
         }
     }
@@ -201,7 +201,7 @@ enum Opportunity: Equatable {
         // in percents
         var extraCommission: Double {
             switch self {
-            case .usdtUAHSpot: return 0.5
+            case .usdtUAHSpot: return 0.2
             }
         }
     }

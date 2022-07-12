@@ -412,10 +412,11 @@ private extension DefaultBotHandlers {
             let currentSpread = self.getSpreads(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
                                                 buyOpportunity: lowestBuyPriceOpportunityResult.opportunity,
                                                 pricesInfo: pricesInfo)
-            
+            let profitPercent: Double = (currentSpread.cleanSpread / pricesInfo.possibleSellPrice * 100.0)
+            let valuableProfitPercent: Double = 1.5 //%
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
-                    currentSpread.cleanSpread > 1 else  { return }
+                    profitPercent > valuableProfitPercent else  { return } // %
             
             self.lastAlertingEvents[currentArbitragePossibilityID] = Date()
             let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
