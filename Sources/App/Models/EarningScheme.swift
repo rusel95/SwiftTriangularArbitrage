@@ -85,7 +85,7 @@ enum EarningScheme: Int, CaseIterable {
         return spacedMessage
     }
     
-    // In UAH
+    // In UAH (should be shown in percents)
     var profitableSpread: Double {
         switch self {
         case .monobankUSDT_monobankUSDT, .privatbankUSDT_privabbankUSDT: return 0.3

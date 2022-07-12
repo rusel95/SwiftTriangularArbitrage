@@ -12,6 +12,72 @@ import FoundationNetworking
 
 final class BinanceAPIService {
     
+    // MARK: - STRUCTS
+
+    struct Welcome: Codable {
+        
+        let code: String
+        let message, messageDetail: String?
+        let data: [Datum]
+        let total: Int
+        let success: Bool
+        
+    }
+
+    struct Datum: Codable {
+        
+        let adv: Adv
+        let advertiser: Advertiser
+        
+    }
+    
+    struct Advertiser: Codable {
+        
+        let userNo: String
+        let realName: String?
+        let nickName: String
+        let margin, marginUnit, orderCount: String?
+        let monthOrderCount: Int
+        let monthFinishRate: Double
+        let advConfirmTime: Int
+        let email, registrationTime, mobile: String?
+        let userType: String
+        let tagIconUrls: [String]
+        let userGrade: Int
+        let userIdentity: String
+        let proMerchant, isBlocked: String?
+        
+    }
+    
+    struct Adv: Codable {
+        
+        let advNo, classify, tradeType, asset: String
+        let fiatUnit: String
+        let advStatus, priceType, priceFloatingRatio, rateFloatingRatio: String?
+        let currencyRate: String?
+        let price, initAmount, surplusAmount: String
+        let amountAfterEditing: String?
+        let maxSingleTransAmount, minSingleTransAmount: String
+        let buyerKycLimit, buyerRegDaysLimit, buyerBtcPositionLimit, remarks: String?
+        let autoReplyMsg: String
+        let payTimeLimit: Int
+        let tradeMethods: [[String: String?]]
+        let userTradeCountFilterTime, userBuyTradeCountMin, userBuyTradeCountMax, userSellTradeCountMin: String?
+        let userSellTradeCountMax, userAllTradeCountMin, userAllTradeCountMax, userTradeCompleteRateFilterTime: String?
+        let userTradeCompleteCountMin, userTradeCompleteRateMin, userTradeVolumeFilterTime, userTradeType: String?
+        let userTradeVolumeMin, userTradeVolumeMax, userTradeVolumeAsset, createTime: String?
+        let advUpdateTime, fiatVo, assetVo, advVisibleRet: String?
+        let assetLogo: String?
+        let assetScale, fiatScale, priceScale: Int
+        let fiatSymbol: String
+        let isTradable: Bool
+        let dynamicMaxSingleTransAmount, minSingleTransQuantity, maxSingleTransQuantity, dynamicMaxSingleTransQuantity: String
+        let tradableQuantity, commissionRate: String
+        let tradeMethodCommissionRates: [String]
+        let launchCountry: String?
+        
+    }
+    
     struct BookTicker: Codable {
         let symbol: String
         let bidPrice: String

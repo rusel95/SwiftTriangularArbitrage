@@ -304,7 +304,7 @@ private extension DefaultBotHandlers {
         
     }
     
-    func getFilteredPrices(advs: [Adv], binanceOpportunity: Opportunity.Binance) -> [Double] {
+    func getFilteredPrices(advs: [BinanceAPIService.Adv], binanceOpportunity: Opportunity.Binance) -> [Double] {
         let arraySlice = advs
             .filter { Double($0.surplusAmount) ?? 0 >= binanceOpportunity.minSurplusAmount }
             .filter { Double($0.minSingleTransAmount) ?? 0 >= binanceOpportunity.minSingleTransAmount }
