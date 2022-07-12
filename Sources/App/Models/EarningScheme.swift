@@ -30,40 +30,40 @@ enum EarningScheme: Int, CaseIterable {
     
     var sellOpportunity: Opportunity {
         switch self {
-        case .monobankUSDT_monobankUSDT: return .binance(.monobankUSDT)
-        case .monobankBUSD_monobankUSDT: return .binance(.monobankBUSD)
-        case .privatbankUSDT_privabbankUSDT: return .binance(.privatbankUSDT)
-        case .privatbankBUSD_privatbankUSDT: return .binance(.privatbankBUSD)
-        case .abankUSDT_monobankUSDT: return .binance(.abankUSDT)
-        case .pumbUSDT_monobankUSDT: return .binance(.pumbUSDT)
-        case .wiseUSDT_wiseUSDT: return .binance(.wiseUSDT)
-        case .wiseBUSD_wiseUSDT: return .binance(.wiseBUSD)
-        case .binancePayUAH_binancePayUAH: return .binance(.binancePayUSDT)
+        case .monobankUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
+        case .monobankBUSD_monobankUSDT: return .binance(.p2p(.monobankBUSD))
+        case .privatbankUSDT_privabbankUSDT: return .binance(.p2p(.privatbankUSDT))
+        case .privatbankBUSD_privatbankUSDT: return .binance(.p2p(.privatbankBUSD))
+        case .abankUSDT_monobankUSDT: return .binance(.p2p(.abankUSDT))
+        case .pumbUSDT_monobankUSDT: return .binance(.p2p(.pumbUSDT))
+        case .wiseUSDT_wiseUSDT: return .binance(.p2p(.wiseUSDT))
+        case .wiseBUSD_wiseUSDT: return .binance(.p2p(.wiseBUSD))
+        case .binancePayUAH_binancePayUAH: return .binance(.p2p(.binancePayUSDT))
         case .huobiUSDT_monobankUSDT: return .huobi(.usdtSpot)
-        case .monobankUSDT_huobiUSDT: return .binance(.monobankUSDT)
+        case .monobankUSDT_huobiUSDT: return .binance(.p2p(.monobankUSDT))
         case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdtSpot)
-        case .monobankUSDT_whiteBitUSDT: return .binance(.monobankUSDT)
-        case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
-        case .monobankBNB_monobankBNB: return .binance(.monobankBNB)
+        case .monobankUSDT_whiteBitUSDT: return .binance(.p2p(.monobankUSDT))
+        case .monobankBTC_monobankBTC: return .binance(.p2p(.monobankBTC))
+        case .monobankBNB_monobankBNB: return .binance(.p2p(.monobankBNB))
         }
     }
     
     var buyOpportunity: Opportunity {
         switch self {
-        case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT: return .binance(.monobankUSDT)
-        case .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: return .binance(.privatbankUSDT)
-        case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return .binance(.monobankUSDT)
-        case .wiseUSDT_wiseUSDT, .wiseBUSD_wiseUSDT: return .binance(.wiseUSDT)
-        case .binancePayUAH_binancePayUAH: return .binance(.binancePayUSDT)
+        case .monobankUSDT_monobankUSDT, .monobankBUSD_monobankUSDT: return .binance(.p2p(.monobankUSDT))
+        case .privatbankUSDT_privabbankUSDT, .privatbankBUSD_privatbankUSDT: return .binance(.p2p(.privatbankUSDT))
+        case .abankUSDT_monobankUSDT, .pumbUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
+        case .wiseUSDT_wiseUSDT, .wiseBUSD_wiseUSDT: return .binance(.p2p(.wiseUSDT))
+        case .binancePayUAH_binancePayUAH: return .binance(.p2p(.binancePayUSDT))
             
-        case .huobiUSDT_monobankUSDT: return .binance(.monobankUSDT)
+        case .huobiUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
         case .monobankUSDT_huobiUSDT: return .huobi(.usdtSpot)
             
-        case .whiteBitUSDT_monobankUSDT: return .binance(.monobankUSDT)
+        case .whiteBitUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
         case .monobankUSDT_whiteBitUSDT: return .whiteBit(.usdtSpot)
             
-        case .monobankBTC_monobankBTC: return .binance(.monobankBTC)
-        case .monobankBNB_monobankBNB: return .binance(.monobankBNB)
+        case .monobankBTC_monobankBTC: return .binance(.p2p(.monobankBTC))
+        case .monobankBNB_monobankBNB: return .binance(.p2p(.monobankBNB))
         }
     }
     

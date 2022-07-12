@@ -79,11 +79,21 @@ final class BinanceAPIService {
     }
     
     struct BookTicker: Codable {
+        
         let symbol: String
         let bidPrice: String
         let bidQty: String
         let askPrice: String
         let askQty: String
+        
+        var sellPrice: Double {
+            Double(bidPrice) ?? 0.0
+        }
+        
+        var buyPrice: Double {
+            Double(askPrice) ?? 0.0
+        }
+        
     }
     
     // MARK: - PROPERTIES
@@ -120,6 +130,7 @@ final class BinanceAPIService {
         }.resume()
     }
     
+    // TODO: - should be separated into different methods which gives SELL/BUY separately
     func loadAdvertisements(
         paymentMethod: String,
         crypto: String,

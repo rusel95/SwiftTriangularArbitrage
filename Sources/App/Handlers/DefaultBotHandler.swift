@@ -277,25 +277,37 @@ private extension DefaultBotHandlers {
     
     func getPricesInfo(for opportunity: Opportunity, completion: @escaping(PricesInfo?) -> Void) {
         switch opportunity {
-        case .binance(let binance):
-            BinanceAPIService.shared.loadAdvertisements(paymentMethod: binance.paymentMethod.apiDescription, crypto: binance.crypto.apiDescription) { [weak self] buyAdvs, sellAdvs, error in
-                guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
-                    completion(nil)
-                    return
+        case .binance(let binanceOpportunity):
+            switch binanceOpportunity {
+            case .p2p(let binanceP2POpportunity):
+                BinanceAPIService.shared.loadAdvertisements(
+                    paymentMethod: binanceP2POpportunity.paymentMethod.apiDescription,
+                    crypto: binanceP2POpportunity.crypto.apiDescription
+                ) { [weak self] buyAdvs, sellAdvs, error in
+                    guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
+                        completion(nil)
+                        return
+                    }
+                    
+                    let makersBuyPrices = self.getFilteredPrices(advs: sellAdvs, binanceOpportunity: binanceP2POpportunity)
+                    let averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
+                    
+                    let makersSellPrices = self.getFilteredPrices(advs: buyAdvs, binanceOpportunity: binanceP2POpportunity)
+                    let averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
+                    
+                    completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice, possibleBuyPrice: averagePossibleBuyPrice))
                 }
-                
-                let makersBuyPrices = self.getFilteredPrices(advs: sellAdvs, binanceOpportunity: binance)
-                let averagePossibleBuyPrice = makersBuyPrices.reduce(0.0, +) / Double(makersBuyPrices.count)
-                
-                let makersSellPrices = self.getFilteredPrices(advs: buyAdvs, binanceOpportunity: binance)
-                let averagePossibleSellPrice = makersSellPrices.reduce(0.0, +) / Double(makersSellPrices.count)
-                
-                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice, possibleBuyPrice: averagePossibleBuyPrice))
+            case .spot(let binanceSpotOpportunity):
+                BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { ticker in
+                    completion(PricesInfo(possibleSellPrice: ticker?.sellPrice ?? 0, possibleBuyPrice: ticker?.buyPrice ?? 0.0))
+                }
             }
+           
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
                 completion(PricesInfo(possibleSellPrice: bids?.first ?? 0, possibleBuyPrice: asks?.first ?? 0))
             }
+                
         case .huobi(let opportunity):
             HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
                 completion(PricesInfo(possibleSellPrice: bids.first ?? 0, possibleBuyPrice: asks.first ?? 0))
@@ -304,7 +316,7 @@ private extension DefaultBotHandlers {
         
     }
     
-    func getFilteredPrices(advs: [BinanceAPIService.Adv], binanceOpportunity: Opportunity.Binance) -> [Double] {
+    func getFilteredPrices(advs: [BinanceAPIService.Adv], binanceOpportunity: Opportunity.Binance.P2P) -> [Double] {
         let arraySlice = advs
             .filter { Double($0.surplusAmount) ?? 0 >= binanceOpportunity.minSurplusAmount }
             .filter { Double($0.minSingleTransAmount) ?? 0 >= binanceOpportunity.minSingleTransAmount }
@@ -340,7 +352,8 @@ private extension DefaultBotHandlers {
     func alertAboutArbitrage(bot: TGBotPrtcl, update: TGUpdate) {
         let arbitrageGroup = DispatchGroup()
         let opportunitiesForArbitrage: [Opportunity] = [
-            .binance(.monobankUSDT),
+            .binance(.spot(.usdtUAH)),
+            .binance(.p2p(.monobankUSDT)),
             .huobi(.usdtSpot),
             .whiteBit(.usdtSpot)
         ]

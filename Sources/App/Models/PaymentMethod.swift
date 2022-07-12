@@ -7,27 +7,46 @@
 
 enum PaymentMethod: Equatable {
     
-    enum Binance: String {
-        case privatbank = "Privatbank"
-        case monobank = "Monobank"
-        case pumb = "PUMBBank"
-        case abank = "ABank"
-        case wise = "Wise"
-        case binancePayUAH = "UAHfiatbalance"
-
-        var shortDescription: String {
-            switch self {
-            case .privatbank: return "Privat"
-            case .monobank: return "Mono"
-            case .pumb: return "PUMB"
-            case .abank: return "ABank"
-            case .wise: return "Wise"
-            case .binancePayUAH: return "Fiat"
+    enum Binance: Equatable {
+        
+        enum P2P: String {
+            case privatbank = "Privatbank"
+            case monobank = "Monobank"
+            case pumb = "PUMBBank"
+            case abank = "ABank"
+            case wise = "Wise"
+            case binancePayUAH = "UAHfiatbalance"
+            
+            var shortDescription: String {
+                switch self {
+                case .privatbank: return "Privat"
+                case .monobank: return "Mono"
+                case .pumb: return "PUMB"
+                case .abank: return "ABank"
+                case .wise: return "Wise"
+                case .binancePayUAH: return "Fiat"
+                }
             }
         }
+        
+        enum Spot: String {
+            
+            case usdtUAH = "USDTUAH"
+            
+            var shortDescription: String {
+                switch self {
+                case .usdtUAH: return "BinSpotUSDTUAH"
+                }
+            }
+        }
+        
+        case p2p(P2P)
+        case spot(Spot)
+        
     }
     
     enum WhiteBit: String {
+        
         case usdtuahSpot = "USDT_UAH"
         
         var description: String {
@@ -53,8 +72,13 @@ enum PaymentMethod: Equatable {
     
     var apiDescription: String {
         switch self {
-        case .binance(let paymentMethod):
-            return paymentMethod.rawValue
+        case .binance(let binancePaymentMethod):
+            switch binancePaymentMethod {
+            case .p2p(let p2pPaymentMethod):
+                return p2pPaymentMethod.rawValue
+            case .spot(let binanceSpot):
+                return binanceSpot.rawValue
+            }
         case .whiteBit(let paymentMethod):
             return paymentMethod.rawValue
         case .huobi(let paymentMethod):
@@ -64,8 +88,13 @@ enum PaymentMethod: Equatable {
     
     var description: String {
         switch self {
-        case .binance(let paymentMethod):
-            return paymentMethod.shortDescription
+        case .binance(let binancePaymentMethod):
+            switch binancePaymentMethod {
+            case .p2p(let p2pPaymentMethod):
+                return p2pPaymentMethod.shortDescription
+            case .spot(let binanceSpot):
+                return binanceSpot.shortDescription
+            }
         case .whiteBit(let paymentMethod):
             return paymentMethod.description
         case .huobi(let paymentMethod):
