@@ -117,7 +117,6 @@ private extension DefaultBotHandlers {
                 explanationMessageFutute?.whenComplete({ _ in
                     let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Уже пашу.."))// "Wait a sec.."))
                     editMessageFuture?.whenComplete({ result in
-                        let messageIdForEditing = try? result.get().messageId
                         self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
                             let tradingOpportunities: [EarningScheme] = [
                                 .monobankUSDT_monobankUSDT,
@@ -127,7 +126,7 @@ private extension DefaultBotHandlers {
                                 .wiseUSDT_wiseUSDT
                             ]
                             self?.printDescription(earningSchemes: tradingOpportunities,
-                                                   editMessageId: messageIdForEditing,
+                                                   editMessageId: try? result.get().messageId,
                                                    update: update,
                                                    bot: bot)
                         }
@@ -256,7 +255,7 @@ private extension DefaultBotHandlers {
                 .map { $0.description }
                 .joined(separator: "\n")
             if let editMessageId = editMessageId {
-                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: totalDescriptioon)
+                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
                 _ = try? bot.editMessageText(params: params)
             } else {
                 let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
