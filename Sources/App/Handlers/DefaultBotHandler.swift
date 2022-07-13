@@ -10,6 +10,7 @@ import telegram_vapor_bot
 import Jobs
 
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
+typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
 final class DefaultBotHandlers {
     
@@ -177,7 +178,7 @@ private extension DefaultBotHandlers {
                     .monobankUSDT_whiteBitUSDT
                 ]
                 let schemesFullDescription = wellKnownSchemesForAlerting
-                    .map { "\($0.shortDescription) >= \($0.profitableSpread) UAH" }
+                    .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
                     .joined(separator: "\n")
                 let opportunitiesForArbitrage: [Opportunity] = [
                     .binance(.p2p(.monobankUSDT)),
@@ -245,7 +246,10 @@ private extension DefaultBotHandlers {
                     return
                 }
         
-                potentialEarningResults.append((earningScheme, earningScheme.getPrettyDescription(with: pricesInfo)))
+                let description = self.getPrettyDescription(sellOpportunity: earningScheme.sellOpportunity,
+                                                            buyOpportunity: earningScheme.buyOpportunity,
+                                                            pricesInfo: pricesInfo)
+                potentialEarningResults.append((earningScheme, description))
                 earningShemesGroup.leave()
             }
         }
@@ -365,11 +369,19 @@ private extension DefaultBotHandlers {
                     self.lastAlertingEvents[earningScheme.shortDescription] == nil
             else { return }
             
-            getPricesInfo(for: earningScheme) { pricesInfo in
-                guard let pricesInfo = pricesInfo, earningScheme.getSpreads(for: pricesInfo).cleanSpread > earningScheme.profitableSpread  else { return }
+            getPricesInfo(for: earningScheme) { [weak self] pricesInfo in
+                guard let pricesInfo = pricesInfo,
+                      let self = self,
+                      let spreadInfo = self.getSpreadInfo(sellOpportunity: earningScheme.sellOpportunity,
+                                                          buyOpportunity: earningScheme.buyOpportunity,
+                                                          pricesInfo: pricesInfo),
+                      spreadInfo.cleanSpread > earningScheme.valuableProfit else { return }
                 
                 self.lastAlertingEvents[earningScheme.shortDescription] = Date()
-                let text = "Профітна можливість!!! \(earningScheme.getPrettyDescription(with: pricesInfo))"
+                let description = self.getPrettyDescription(sellOpportunity: earningScheme.sellOpportunity,
+                                                            buyOpportunity: earningScheme.buyOpportunity,
+                                                            pricesInfo: pricesInfo)
+                let text = "Профітна можливість!!! \(description)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
             }
         }
@@ -394,36 +406,46 @@ private extension DefaultBotHandlers {
         }
 
         arbitrageGroup.notify(queue: .global()) { [weak self] in
-            let biggestSellPriceOpportunityResult = opportunitiesResults
-                .sorted { $0.priceInfo.possibleSellPrice > $1.priceInfo.possibleSellPrice }
+            let biggestSellFinalPriceOpportunityResult = opportunitiesResults
+                .filter { $0.opportunity.sellCommission != nil }
+                .sorted {
+                    let firstOpportunityFinalSellPrice = $0.priceInfo.possibleSellPrice - ($0.priceInfo.possibleSellPrice * ($0.opportunity.sellCommission ?? 0.0) / 100.0)
+                    let secondOpportunityFinalSellPrice = $1.priceInfo.possibleSellPrice - ($1.priceInfo.possibleSellPrice * ($1.opportunity.sellCommission ?? 0.0) / 100.0)
+                    return firstOpportunityFinalSellPrice > secondOpportunityFinalSellPrice
+                }
                 .first
             
-            let lowestBuyPriceOpportunityResult = opportunitiesResults
-                .sorted { $0.priceInfo.possibleBuyPrice < $1.priceInfo.possibleBuyPrice }
+            let lowestBuyFinalPriceOpportunityResult = opportunitiesResults
+                .filter { $0.opportunity.buyCommission != nil }
+                .sorted { (firstOpportinityResult, secondOpportunityResult) in
+                    let firstOpportunityFinalBuyPrice = firstOpportinityResult.priceInfo.possibleBuyPrice + (firstOpportinityResult.priceInfo.possibleBuyPrice * (firstOpportinityResult.opportunity.buyCommission ?? 0.0) / 100.0)
+                    let secondOpportunityFinalBuyPrice = secondOpportunityResult.priceInfo.possibleBuyPrice + (secondOpportunityResult.priceInfo.possibleBuyPrice * (secondOpportunityResult.opportunity.buyCommission ?? 0.0) / 100.0)
+                    return firstOpportunityFinalBuyPrice < secondOpportunityFinalBuyPrice
+                }
                 .first
             
             guard let self = self,
-                  let biggestSellPriceOpportunityResult = biggestSellPriceOpportunityResult,
-                  let lowestBuyPriceOpportunityResult = lowestBuyPriceOpportunityResult
+                  let biggestSellFinalPriceOpportunityResult = biggestSellFinalPriceOpportunityResult,
+                  let lowestBuyFinalPriceOpportunityResult = lowestBuyFinalPriceOpportunityResult
             else { return }
             
-            let currentArbitragePossibilityID = "\(biggestSellPriceOpportunityResult.opportunity.paymentMethodDescription)-\(lowestBuyPriceOpportunityResult.opportunity.paymentMethodDescription)"
+            let currentArbitragePossibilityID = "\(biggestSellFinalPriceOpportunityResult.opportunity.paymentMethodDescription)-\(lowestBuyFinalPriceOpportunityResult.opportunity.paymentMethodDescription)"
            
-            let pricesInfo = PricesInfo(possibleSellPrice: biggestSellPriceOpportunityResult.priceInfo.possibleSellPrice,
-                                        possibleBuyPrice: lowestBuyPriceOpportunityResult.priceInfo.possibleBuyPrice)
+            let pricesInfo = PricesInfo(possibleSellPrice: biggestSellFinalPriceOpportunityResult.priceInfo.possibleSellPrice,
+                                        possibleBuyPrice: lowestBuyFinalPriceOpportunityResult.priceInfo.possibleBuyPrice)
             
-            let currentSpread = self.getSpreads(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
-                                                buyOpportunity: lowestBuyPriceOpportunityResult.opportunity,
+            let spreadInfo = self.getSpreadInfo(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
+                                                buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                 pricesInfo: pricesInfo)
-            let profitPercent: Double = (currentSpread.cleanSpread / pricesInfo.possibleSellPrice * 100.0)
-            let valuableProfitPercent: Double = 1.5 //%
+            let profitPercent: Double = (spreadInfo?.cleanSpread ?? 0.0 / pricesInfo.possibleSellPrice * 100.0)
+            let valuableProfitPercent: Double = 1.5 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
                     profitPercent > valuableProfitPercent else  { return } // %
             
             self.lastAlertingEvents[currentArbitragePossibilityID] = Date()
-            let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellPriceOpportunityResult.opportunity,
-                                                              buyOpportunity: lowestBuyPriceOpportunityResult.opportunity,
+            let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
+                                                              buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                               pricesInfo: pricesInfo)
             let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: "Арбітражна можливість: \(prettyDescription)")
             _ = try? bot.sendMessage(params: params)
@@ -441,22 +463,26 @@ private extension DefaultBotHandlers {
         buyOpportunity: Opportunity,
         pricesInfo: PricesInfo
     ) -> String {
-        let spreads = getSpreads(sellOpportunity: sellOpportunity, buyOpportunity: buyOpportunity, pricesInfo: pricesInfo)
-        let cleanSpreadPercentString = (spreads.cleanSpread / pricesInfo.possibleSellPrice * 100).toLocalCurrency()
+        let spreadInfo = getSpreadInfo(sellOpportunity: sellOpportunity, buyOpportunity: buyOpportunity, pricesInfo: pricesInfo)
+        let cleanSpreadPercentString = (((spreadInfo?.cleanSpread ?? 0.0) / pricesInfo.possibleSellPrice) * 100).toLocalCurrency()
         
-        return ("\(sellOpportunity.description)-\(buyOpportunity.description)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\(spreads.dirtySpread.toLocalCurrency())-\(spreads.cleanSpread.toLocalCurrency())|\(cleanSpreadPercentString)%\n")
+        return ("\(sellOpportunity.description)-\(buyOpportunity.description)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\((spreadInfo?.dirtySpread ?? 0.0).toLocalCurrency())-\((spreadInfo?.cleanSpread ?? 0.0).toLocalCurrency())|\(cleanSpreadPercentString)%\n")
     }
     
-    func getSpreads(
+    func getSpreadInfo(
         sellOpportunity: Opportunity,
         buyOpportunity: Opportunity,
         pricesInfo: PricesInfo
-    ) -> (dirtySpread: Double, cleanSpread: Double) {
+    ) -> SpreadInfo? {
+        guard let sellCommission = sellOpportunity.sellCommission, let buyCommission = buyOpportunity.buyCommission else {
+            return nil
+        }
+        
         let dirtySpread = pricesInfo.possibleSellPrice - pricesInfo.possibleBuyPrice
-        let buyCommissionAmount = pricesInfo.possibleBuyPrice * buyOpportunity.extraCommission / 100.0
-        let sellComissionAmount = pricesInfo.possibleSellPrice * sellOpportunity.extraCommission / 100.0
-        let cleanSpread = dirtySpread - buyCommissionAmount - sellComissionAmount
-        return (dirtySpread, cleanSpread)
+        let sellComissionAmount = pricesInfo.possibleSellPrice * sellCommission / 100.0
+        let buyCommissionAmount = pricesInfo.possibleBuyPrice * buyCommission / 100.0
+        let cleanSpread = dirtySpread - sellComissionAmount - buyCommissionAmount
+        return SpreadInfo(dirtySpread, cleanSpread)
     }
     
 }

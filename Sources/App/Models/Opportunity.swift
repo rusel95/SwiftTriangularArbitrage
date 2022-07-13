@@ -173,7 +173,14 @@ enum Opportunity: Equatable {
         }
         
         // in percents
-        var extraCommission: Double {
+        var sellCommission: Double? {
+            switch self {
+            case .usdtSpot: return nil
+            }
+        }
+        
+        // in percents
+        var buyCommission: Double {
             switch self {
             case .usdtSpot: return 1.5
             }
@@ -206,7 +213,7 @@ enum Opportunity: Equatable {
         }
     }
     
-    // MARK: - EXMO
+    // MARK: - Kuna
     
     enum Kuna {
         
@@ -287,8 +294,8 @@ enum Opportunity: Equatable {
         }
     }
     
-    // in percents
-    var extraCommission: Double {
+    // in percents, nil means that opportunity can't be used for selling
+    var sellCommission: Double? {
         switch self {
         case .binance(let binanceOpportunity):
             switch binanceOpportunity {
@@ -300,7 +307,28 @@ enum Opportunity: Equatable {
         case .whiteBit(let opportunity):
             return opportunity.extraCommission
         case .huobi(let opportunity):
+            return opportunity.sellCommission
+        case .exmo(let exmoOpportunity):
+            return exmoOpportunity.extraCommission
+        case .kuna(let kunaOpportunity):
+            return kunaOpportunity.extraCommission
+        }
+    }
+    
+    // in percents, nil means that opportunity can't be used for buying
+    var buyCommission: Double? {
+        switch self {
+        case .binance(let binanceOpportunity):
+            switch binanceOpportunity {
+            case .p2p(let binanceP2POpportunity):
+                return binanceP2POpportunity.extraCommission
+            case .spot(let binanceSpotOpportunity):
+                return binanceSpotOpportunity.extraCommission
+            }
+        case .whiteBit(let opportunity):
             return opportunity.extraCommission
+        case .huobi(let opportunity):
+            return opportunity.buyCommission
         case .exmo(let exmoOpportunity):
             return exmoOpportunity.extraCommission
         case .kuna(let kunaOpportunity):
