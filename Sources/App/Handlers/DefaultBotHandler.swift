@@ -184,7 +184,8 @@ private extension DefaultBotHandlers {
                     .huobi(.usdtSpot),
                     .whiteBit(.usdtSpot),
                     .binance(.spot(.usdtUAH)),
-                    .exmo(.usdtUAHSpot)
+                    .exmo(.usdtUAHSpot),
+                    .kuna(.usdtUAHSpot)
                 ]
                 let opportunitiesFullDescription = opportunitiesForArbitrage
                     .map { $0.description }
@@ -332,6 +333,10 @@ private extension DefaultBotHandlers {
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { askTop, bidTop, error in
                 completion(PricesInfo(possibleSellPrice: bidTop ?? 0.0, possibleBuyPrice: askTop ?? 0.0))
+            }
+        case .kuna(let kunaOpportunity):
+            KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { asks, bids, error in
+                completion(PricesInfo(possibleSellPrice: bids.first ?? 0.0, possibleBuyPrice: asks.first ?? 0.0))
             }
         }
         
