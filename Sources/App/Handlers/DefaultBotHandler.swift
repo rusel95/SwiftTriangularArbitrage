@@ -170,8 +170,8 @@ private extension DefaultBotHandlers {
                     .privatbankUSDT_privabbankUSDT,
                     .monobankBUSD_monobankUSDT,
                     .privatbankBUSD_privatbankUSDT,
-                    .abankUSDT_monobankUSDT,
-                    .pumbUSDT_monobankUSDT,
+                    .abankUSDT_abankUSDT,
+                    .pumbUSDT_pumbUSDT,
                     .huobiUSDT_monobankUSDT,
                     .monobankUSDT_huobiUSDT,
                     .whiteBitUSDT_monobankUSDT,
@@ -441,7 +441,7 @@ private extension DefaultBotHandlers {
             let valuableProfitPercent: Double = 1.5 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
-                    profitPercent > valuableProfitPercent else  { return } // %
+                    profitPercent > valuableProfitPercent else { return } // %
             
             self.lastAlertingEvents[currentArbitragePossibilityID] = Date()
             let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
