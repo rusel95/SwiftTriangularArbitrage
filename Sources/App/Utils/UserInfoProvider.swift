@@ -24,7 +24,7 @@ final class UserInfoProvider: NSObject {
     // MARK: - METHODS
     
     func getUser(chatId: Int64) -> TGUser? {
-        guard let data = Foundation.UserDefaults.standard.value(forKey: String(chatId)) as? Data else { return nil }
+        guard let data = Foundation.UserDefaults.standard.data(forKey: String(chatId)) else { return nil }
         
         return try? JSONDecoder().decode(TGUser.self, from: data)
     }
