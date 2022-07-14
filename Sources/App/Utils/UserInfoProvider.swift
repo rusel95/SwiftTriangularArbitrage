@@ -6,10 +6,8 @@
 //
 
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import telegram_vapor_bot
+import Vapor
 
 final class UserInfoProvider: NSObject {
     
@@ -24,19 +22,21 @@ final class UserInfoProvider: NSObject {
     // MARK: - METHODS
     
     func getUser(chatId: Int64) -> TGUser? {
-        guard let data = Foundation.UserDefaults.standard.data(forKey: String(chatId)) else { return nil }
+        guard let data = UserDefaults.standard.data(forKey: String(chatId)) else {
+            TGBot.log.critical(Logger.Message(stringLiteral: "No data for key"))
+            return nil }
         
         return try? JSONDecoder().decode(TGUser.self, from: data)
     }
     
     func set(user: TGUser, chatId: Int64) {
-        if let encoded = try? JSONEncoder().encode(user) {
-            Foundation.UserDefaults.standard.set(encoded, forKey: String(chatId))
-        }
+        guard let encoded = try? JSONEncoder().encode(user) else { return }
+        
+        UserDefaults.standard.set(encoded, forKey: String(chatId))
     }
     
     func getAllUsersInfo() -> [UserInfo] {
-        return Foundation.UserDefaults.standard
+        return UserDefaults.standard
             .dictionaryRepresentation()
             .compactMap { (key, value) in
                 guard let chatId = Int64(key), let user = getUser(chatId: chatId) else { return nil }
