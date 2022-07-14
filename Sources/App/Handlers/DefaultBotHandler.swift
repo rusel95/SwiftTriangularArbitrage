@@ -80,6 +80,7 @@ final class DefaultBotHandlers {
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         
+        TGBot.log.critical(Logger.Message(stringLiteral: String(UserInfoProvider.shared.getAllUsersInfo().count)))
         UserInfoProvider.shared.getAllUsersInfo().forEach { userInfo in
             TGBot.log.critical(Logger.Message(stringLiteral: userInfo.user.firstName))
             let infoMessage = "Проводилися технічні роботи і я вимикався.. Ввімкни знову ті режими роботи, які тебе цікавлять:\n\(commandsDescription)"
