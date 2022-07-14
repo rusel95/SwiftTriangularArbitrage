@@ -81,6 +81,7 @@ final class DefaultBotHandlers {
         commandStopHandler(app: app, bot: bot)
         
         UserInfoProvider.shared.getAllUsersInfo().forEach { userInfo in
+            TGBot.log.critical(Logger.Message(stringLiteral: userInfo.user.firstName))
             let infoMessage = "Проводилися технічні роботи і я вимикався.. Ввімкни знову ті режими роботи, які тебе цікавлять:\n\(commandsDescription)"
             _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: infoMessage))
         }
