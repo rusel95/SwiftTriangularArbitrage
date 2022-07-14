@@ -58,6 +58,12 @@ final class DefaultBotHandlers {
     private var lastAlertingEvents: [String: Date] = [:]
     
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %" //"crypto Sell(payment method) - Buy(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %\n" +
+    private let commandsDescription = """
+        /start_trading - режим моніторингу основних схем торгівлі в режимі реального часу (відкриваємо і торгуємо);
+        /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
+        /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
+        /stop - зупинка всіх режимів (очікування);
+        """
     
     init() {
         tradingJob = nil
@@ -73,6 +79,11 @@ final class DefaultBotHandlers {
         commandStartTradingHandler(app: app, bot: bot)
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
+        
+        UserInfoService.shared.getAllUsersInfo().forEach { userInfo in
+            let infoMessage = "Проводилися технічні роботи і я вимикався.. Ввімкни знову ті режими роботи, які тебе цікавлять:\n\(commandsDescription)"
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: infoMessage))
+        }
     }
 
 }
@@ -83,23 +94,23 @@ private extension DefaultBotHandlers {
     
     /// add handler for command "/start"
     func commandStartHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: ["/start"]) { update, bot in
+        let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            UserInfoService.shared.set(user: user, chatId: chatId)
+            
             let infoMessage = """
             Привіт, мене звати Пантелеймон!
             
             Я Телеграм-Бот, зроблений для допомоги у торгівлі на Binance P2P та пошуку нових потенційних можливостей для торгівлі/арбітражу на інших платформах. Список готових режимів роботи (декілька режимів можуть працювати одночасно):
-            /start_trading - режим моніторингу основних схем торгівлі в режимі реального часу (відкриваємо і торгуємо);
-            /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
-            /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
-            /stop - зупинка всіх режимів (очікування);
-            
+            \(self.commandsDescription)
             Сподіваюся бути тобі корисним..
             
             Поки мене ще роблять, я можу тупить. Якшо так - пишіть за допомогую або з пропозиціями до @rusel95 або @AnhelinaGrigoryeva
             
             P.S. Вибачте за мій суржик, і за те шо туплю..
             """
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
         }
         bot.connection.dispatcher.add(handler)
     }
@@ -107,16 +118,18 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_trading"
     func commandStartTradingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
-            guard let self = self else { return }
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            UserInfoService.shared.set(user: user, chatId: chatId)
             
             if self.tradingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"//"Trading Updates already running!"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
             } else {
                 let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"// "Now you will see market updates in Real Time (with update interval \(Int(Mode.trading.jobInterval)) seconds) \n\(self.resultsFormatDescription)"
-                let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 explanationMessageFutute?.whenComplete({ _ in
-                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Уже пашу.."))// "Wait a sec.."))
+                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Уже пашу.."))// "Wait a sec.."))
                     editMessageFuture?.whenComplete({ result in
                         self.tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
                             let tradingOpportunities: [EarningScheme] = [
@@ -141,14 +154,16 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_logging"
     func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
-            guard let self = self else { return }
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            UserInfoService.shared.set(user: user, chatId: chatId)
             
             if self.loggingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
             } else {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)" //"Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: infoMessage))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
                     self?.printDescription(earningSchemes: EarningScheme.allCases, update: update, bot: bot)
                 }
@@ -160,10 +175,12 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_alerting"
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
-            guard let self = self else { return }
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            UserInfoService.shared.set(user: user, chatId: chatId)
             
             if self.alertingJob?.isRunning != nil {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
             } else {
                 let wellKnownSchemesForAlerting: [EarningScheme] = [
                     .monobankUSDT_monobankUSDT,
@@ -201,10 +218,7 @@ private extension DefaultBotHandlers {
                 Намагаюся знайти найращі можливості для Арбітражу для наступних можливостей покупки/продажі на:
                 \(opportunitiesFullDescription)
                 """// "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
-                _ = try? bot.sendMessage(params: .init(
-                    chatId: .chat(update.message!.chat.id),
-                    text: text
-                ))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
                     self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
                     self?.alertAboutArbitrage(opportunities: opportunitiesForArbitrage, bot: bot, update: update)
@@ -217,13 +231,17 @@ private extension DefaultBotHandlers {
     /// add handler for command "/stop"
     func commandStopHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
-            self?.loggingJob?.stop()
-            self?.loggingJob = nil
-            self?.tradingJob?.stop()
-            self?.tradingJob = nil
-            self?.alertingJob?.stop()
-            self?.alertingJob = nil
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: "Ну і ладно, я всьо равно вже заморився.."))// "Now bot will have some rest.."))
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            UserInfoService.shared.set(user: user, chatId: chatId)
+            
+            self.loggingJob?.stop()
+            self.loggingJob = nil
+            self.tradingJob?.stop()
+            self.tradingJob = nil
+            self.alertingJob?.stop()
+            self.alertingJob = nil
+            _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Ну і ладно, я всьо равно вже заморився.."))// "Now bot will have some rest.."))
         }
         bot.connection.dispatcher.add(handler)
     }
@@ -255,15 +273,17 @@ private extension DefaultBotHandlers {
         }
         
         earningShemesGroup.notify(queue: .global()) {
+            guard let chatId = update.message?.chat.id else { return }
+           
             let totalDescriptioon = potentialEarningResults
                 .sorted { $0.scheme.rawValue < $1.scheme.rawValue }
                 .map { $0.description }
                 .joined(separator: "\n")
             if let editMessageId = editMessageId {
-                let params: TGEditMessageTextParams = .init(chatId: .chat(update.message!.chat.id), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
+                let params: TGEditMessageTextParams = .init(chatId: .chat(chatId), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
                 _ = try? bot.editMessageText(params: params)
             } else {
-                let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: totalDescriptioon)
+                let params: TGSendMessageParams = .init(chatId: .chat(chatId), text: totalDescriptioon)
                 _ = try? bot.sendMessage(params: params)
             }
         }
@@ -370,8 +390,9 @@ private extension DefaultBotHandlers {
             else { return }
             
             getPricesInfo(for: earningScheme) { [weak self] pricesInfo in
-                guard let pricesInfo = pricesInfo,
-                      let self = self,
+                guard let self = self,
+                      let pricesInfo = pricesInfo,
+                      let chatId = update.message?.chat.id,
                       let spreadInfo = self.getSpreadInfo(sellOpportunity: earningScheme.sellOpportunity,
                                                           buyOpportunity: earningScheme.buyOpportunity,
                                                           pricesInfo: pricesInfo),
@@ -382,7 +403,7 @@ private extension DefaultBotHandlers {
                                                             buyOpportunity: earningScheme.buyOpportunity,
                                                             pricesInfo: pricesInfo)
                 let text = "Профітна можливість!!! \(description)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(update.message!.chat.id), text: text))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
             }
         }
     }
@@ -425,6 +446,7 @@ private extension DefaultBotHandlers {
                 .first
             
             guard let self = self,
+                  let chatId = update.message?.chat.id,
                   let biggestSellFinalPriceOpportunityResult = biggestSellFinalPriceOpportunityResult,
                   let lowestBuyFinalPriceOpportunityResult = lowestBuyFinalPriceOpportunityResult
             else { return }
@@ -447,7 +469,7 @@ private extension DefaultBotHandlers {
             let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
                                                               buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                               pricesInfo: pricesInfo)
-            let params: TGSendMessageParams = .init(chatId: .chat(update.message!.chat.id), text: "Арбітражна можливість: \(prettyDescription)")
+            let params: TGSendMessageParams = .init(chatId: .chat(chatId), text: "Арбітражна можливість: \(prettyDescription)")
             _ = try? bot.sendMessage(params: params)
         }
     }
