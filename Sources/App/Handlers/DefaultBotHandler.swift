@@ -79,6 +79,7 @@ final class DefaultBotHandlers {
         commandStartTradingHandler(app: app, bot: bot)
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
+        commandTestHandler(app: app, bot: bot)
         
         TGBot.log.critical(Logger.Message(stringLiteral: String(UserInfoProvider.shared.getAllUsersInfo().count)))
         UserInfoProvider.shared.getAllUsersInfo().forEach { userInfo in
@@ -251,6 +252,20 @@ private extension DefaultBotHandlers {
             self.alertingJob?.stop()
             self.alertingJob = nil
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Ну і ладно, я всьо равно вже заморився.."))// "Now bot will have some rest.."))
+        }
+        bot.connection.dispatcher.add(handler)
+    }
+    
+    /// add handler for command "/test"
+    func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
+        let handler = TGCommandHandler(commands: ["/test"]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+           
+            if let user = UserInfoProvider.shared.getUser(chatId: 204251205) {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(204251205), text: String(user.id)))
+            } else {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(204251205), text: "No User Was saved"))
+            }
         }
         bot.connection.dispatcher.add(handler)
     }
