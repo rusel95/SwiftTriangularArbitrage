@@ -100,7 +100,9 @@ private extension DefaultBotHandlers {
            
             UserInfoProvider.shared.set(user: user, chatId: chatId)
             
-            if UserInfoProvider.shared.getUser(chatId: chatId) == nil {
+            if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: user.firstName))
+            } else {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "No User Was saved"))
             }
             
