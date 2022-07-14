@@ -115,12 +115,6 @@ private extension DefaultBotHandlers {
             P.S. Вибачте за мій суржик, і за те шо туплю..
             """
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-            
-            if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: String(user.id)))
-            } else {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "No User Was saved"))
-            }
         }
         bot.connection.dispatcher.add(handler)
     }
@@ -259,12 +253,12 @@ private extension DefaultBotHandlers {
     /// add handler for command "/test"
     func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: ["/test"]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+            guard let chatId = update.message?.chat.id else { return }
            
-            if let user = UserInfoProvider.shared.getUser(chatId: 204251205) {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(204251205), text: String(user.id)))
+            if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: String(user.id)))
             } else {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(204251205), text: "No User Was saved"))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "No User Was saved"))
             }
         }
         bot.connection.dispatcher.add(handler)
