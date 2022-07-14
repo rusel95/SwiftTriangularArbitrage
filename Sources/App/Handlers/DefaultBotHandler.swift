@@ -102,12 +102,6 @@ private extension DefaultBotHandlers {
            
             UserInfoProvider.shared.set(user: user, chatId: chatId)
             
-            if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: user.firstName))
-            } else {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "No User Was saved"))
-            }
-            
             let infoMessage = """
             Привіт, мене звати Пантелеймон!
             
@@ -120,6 +114,12 @@ private extension DefaultBotHandlers {
             P.S. Вибачте за мій суржик, і за те шо туплю..
             """
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+            
+            if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: String(user.id)))
+            } else {
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "No User Was saved"))
+            }
         }
         bot.connection.dispatcher.add(handler)
     }
