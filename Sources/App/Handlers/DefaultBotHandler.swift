@@ -95,9 +95,14 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start"
     func commandStartHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else {
+                return }
            
             UserInfoProvider.shared.set(user: user, chatId: chatId)
+            
+            if UserInfoProvider.shared.getUser(chatId: chatId) == nil {
+                app.logger.info("No User Was saved")
+            }
             
             let infoMessage = """
             Привіт, мене звати Пантелеймон!
