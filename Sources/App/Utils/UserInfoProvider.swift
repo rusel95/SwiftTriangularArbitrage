@@ -11,7 +11,7 @@ import FoundationNetworking
 #endif
 import telegram_vapor_bot
 
-final class UserInfoService {
+final class UserInfoProvider {
     
     // MARK: - TYPEALIAS
 
@@ -19,14 +19,12 @@ final class UserInfoService {
 
     // MARK: - PROPERTIES
     
-    static let shared = UserInfoService()
-    
-    private let defaults = UserDefaults.standard
+    static let shared = UserInfoProvider()
 
     // MARK: - METHODS
     
     func getUser(chatId: Int64) -> TGUser? {
-        guard let data = defaults.value(forKey: String(chatId)) as? Data else { return nil }
+        guard let data = UserDefaults.standard.value(forKey: String(chatId)) as? Data else { return nil }
         
         return try? JSONDecoder().decode(TGUser.self, from: data)
     }
@@ -38,7 +36,7 @@ final class UserInfoService {
     }
     
     func getAllUsersInfo() -> [UserInfo] {
-        return defaults
+        return UserDefaults.standard
             .dictionaryRepresentation()
             .compactMap { (key, value) in
                 guard let chatId = Int64(key), let user = getUser(chatId: chatId) else { return nil }

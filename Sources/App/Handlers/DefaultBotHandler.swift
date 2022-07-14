@@ -80,7 +80,7 @@ final class DefaultBotHandlers {
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         
-        UserInfoService.shared.getAllUsersInfo().forEach { userInfo in
+        UserInfoProvider.shared.getAllUsersInfo().forEach { userInfo in
             let infoMessage = "Проводилися технічні роботи і я вимикався.. Ввімкни знову ті режими роботи, які тебе цікавлять:\n\(commandsDescription)"
             _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: infoMessage))
         }
@@ -97,7 +97,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoService.shared.set(user: user, chatId: chatId)
+            UserInfoProvider.shared.set(user: user, chatId: chatId)
             
             let infoMessage = """
             Привіт, мене звати Пантелеймон!
@@ -120,7 +120,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoService.shared.set(user: user, chatId: chatId)
+            UserInfoProvider.shared.set(user: user, chatId: chatId)
             
             if self.tradingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"//"Trading Updates already running!"
@@ -156,7 +156,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoService.shared.set(user: user, chatId: chatId)
+            UserInfoProvider.shared.set(user: user, chatId: chatId)
             
             if self.loggingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
@@ -177,7 +177,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoService.shared.set(user: user, chatId: chatId)
+            UserInfoProvider.shared.set(user: user, chatId: chatId)
             
             if self.alertingJob?.isRunning != nil {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
@@ -233,7 +233,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoService.shared.set(user: user, chatId: chatId)
+            UserInfoProvider.shared.set(user: user, chatId: chatId)
             
             self.loggingJob?.stop()
             self.loggingJob = nil
@@ -248,7 +248,7 @@ private extension DefaultBotHandlers {
     
 }
 
-// MARK: - HANDLERS
+// MARK: - HELPERS
 
 private extension DefaultBotHandlers {
     
