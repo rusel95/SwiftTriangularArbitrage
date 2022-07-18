@@ -9,11 +9,11 @@ import Foundation
 import telegram_vapor_bot
 import Vapor
 
-final class UserInfoProvider: NSObject {
+final class UsersInfoProvider: NSObject {
     
     // MARK: - PROPERTIES
     
-    static let shared = UserInfoProvider()
+    static let shared = UsersInfoProvider()
     
     private var usersInfo: Set<UserInfo> = []
 
@@ -28,6 +28,11 @@ final class UserInfoProvider: NSObject {
         }
     }
     
+    func handleStopModes(chatId: Int64) {
+        if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
+            userInfo.selectedModes.removeAll()
+        }
+    }
     
     func getAllUsersInfo() -> Set<UserInfo> {
         return usersInfo

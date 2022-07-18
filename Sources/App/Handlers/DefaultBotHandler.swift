@@ -76,7 +76,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            UserInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .trading)
+            UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .trading)
             
             if self.tradingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"//"Trading Updates already running!"
@@ -112,7 +112,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            UserInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
+            UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
             
             if self.loggingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
@@ -133,7 +133,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
            
-            UserInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
+            UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             
             if self.alertingJob?.isRunning != nil {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
@@ -189,6 +189,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id else { return }
             
+            UsersInfoProvider.shared.handleStopModes(chatId: chatId)
             self.loggingJob?.stop()
             self.tradingJob?.stop()
             self.alertingJob?.stop()
