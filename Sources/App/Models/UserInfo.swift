@@ -36,8 +36,6 @@ final class UserInfo: Hashable, Equatable {
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(self.chatId)
-        hasher.combine(self.id)
-        hasher.combine(self.selectedModes)
     }
 
     static func == (lhs: UserInfo, rhs: UserInfo) -> Bool {

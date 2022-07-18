@@ -65,10 +65,11 @@ final class DefaultBotHandlers {
         
         startTradingJob(bot: bot)
         startLoggingJob(bot: bot)
+        startAlertingJob(bot: bot)
     }
     
     func startTradingJob(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
+        tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
             let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
             
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
@@ -90,8 +91,8 @@ final class DefaultBotHandlers {
     }
     
     func startLoggingJob(bot: TGBotPrtcl) {
-        self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
+        loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
+            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
         
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
             
@@ -102,8 +103,8 @@ final class DefaultBotHandlers {
     }
     
     func startAlertingJob(bot: TGBotPrtcl) {
-        self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
-            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
+        alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
+            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
         
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
             
@@ -333,26 +334,46 @@ private extension DefaultBotHandlers {
                 }
             case .spot(let binanceSpotOpportunity):
                 BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { ticker in
-                    completion(PricesInfo(possibleSellPrice: ticker?.sellPrice ?? 0, possibleBuyPrice: ticker?.buyPrice ?? 0.0))
+                    guard let possibleSellPrice = ticker?.sellPrice, let possibleBuyPrice = ticker?.buyPrice else {
+                        completion(nil)
+                        return
+                    }
+                    completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
                 }
             }
            
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
-                completion(PricesInfo(possibleSellPrice: bids?.first ?? 0, possibleBuyPrice: asks?.first ?? 0))
+                guard let possibleSellPrice = bids?.first, let possibleBuyPrice = asks?.first else {
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
                 
         case .huobi(let opportunity):
             HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
-                completion(PricesInfo(possibleSellPrice: bids.first ?? 0, possibleBuyPrice: asks.first ?? 0))
+                guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { askTop, bidTop, error in
-                completion(PricesInfo(possibleSellPrice: bidTop ?? 0.0, possibleBuyPrice: askTop ?? 0.0))
+                guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         case .kuna(let kunaOpportunity):
             KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { asks, bids, error in
-                completion(PricesInfo(possibleSellPrice: bids.first ?? 0.0, possibleBuyPrice: asks.first ?? 0.0))
+                guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         }
         
