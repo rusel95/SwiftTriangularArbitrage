@@ -12,6 +12,13 @@ import Jobs
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
+struct ChatInfo: Hashable {
+    
+    let chatId: Int64
+    let editMessageId: Int?
+    
+}
+
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
@@ -81,34 +88,30 @@ final class DefaultBotHandlers {
                 .privatbankBUSD_privatbankUSDT,
                 .wiseUSDT_wiseUSDT
             ]
-            usersInfoWithTradingMode.forEach { userInfo in
-                self.printDescription(earningSchemes: tradingOpportunities,
-                                      editMessageId: userInfo.onlineUpdatesMessageId,
-                                      chatId: userInfo.chatId,
-                                      bot: bot)
-            }
+            let chatsInfo: [ChatInfo] = usersInfoWithTradingMode
+                .map { ChatInfo(chatId: $0.chatId, editMessageId: $0.onlineUpdatesMessageId) }
+            self.printDescription(earningSchemes: tradingOpportunities, chatsInfo: chatsInfo, bot: bot)
         }
     }
     
     func startLoggingJob(bot: TGBotPrtcl) {
         loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
-        
-            guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
+            let usersInfoWithLoggingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
             
-            usersInfoWithTradingMode.forEach { userInfo in
-                self.printDescription(earningSchemes: EarningScheme.allCases, chatId: userInfo.chatId, bot: bot)
-            }
+            guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
+            
+            let chatsInfo: [ChatInfo] = usersInfoWithLoggingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
+            self.printDescription(earningSchemes: EarningScheme.allCases, chatsInfo: chatsInfo, bot: bot)
         }
     }
     
     func startAlertingJob(bot: TGBotPrtcl) {
         alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
-            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
-        
-            guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
+            let usersInfoWithAlertingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
             
-            usersInfoWithTradingMode.forEach { userInfo in
+            guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
+            
+            usersInfoWithAlertingMode.forEach { userInfo in
                 self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, bot: bot, chatId: userInfo.chatId)
                 self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, bot: bot, chatId: userInfo.chatId)
             }
@@ -182,7 +185,11 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)" //"Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
-                self.printDescription(earningSchemes: EarningScheme.allCases, chatId: chatId, bot: bot)
+                self.printDescription(
+                    earningSchemes: EarningScheme.allCases,
+                    chatsInfo: [ChatInfo(chatId: chatId, editMessageId: nil)],
+                    bot: bot
+                )
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -247,7 +254,7 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func printDescription(earningSchemes: [EarningScheme], editMessageId: Int? = nil, chatId: Int64, bot: TGBotPrtcl) {
+    func printDescription(earningSchemes: [EarningScheme], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
         let earningShemesGroup = DispatchGroup()
         var potentialEarningResults: [(scheme: EarningScheme, description: String)] = []
         earningSchemes.forEach { earningScheme in
@@ -272,13 +279,16 @@ private extension DefaultBotHandlers {
                 .sorted { $0.scheme.rawValue < $1.scheme.rawValue }
                 .map { $0.description }
                 .joined(separator: "\n")
-            if let editMessageId = editMessageId {
-                let params: TGEditMessageTextParams = .init(chatId: .chat(chatId), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
-                _ = try? bot.editMessageText(params: params)
-            } else {
-                let params: TGSendMessageParams = .init(chatId: .chat(chatId), text: totalDescriptioon)
-                _ = try? bot.sendMessage(params: params)
+            chatsInfo.forEach { chatInfo in
+                if let editMessageId = chatInfo.editMessageId {
+                    let params: TGEditMessageTextParams = .init(chatId: .chat(chatInfo.chatId), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
+                    _ = try? bot.editMessageText(params: params)
+                } else {
+                    let params: TGSendMessageParams = .init(chatId: .chat(chatInfo.chatId), text: totalDescriptioon)
+                    _ = try? bot.sendMessage(params: params)
+                }
             }
+           
         }
     }
     
@@ -471,7 +481,7 @@ private extension DefaultBotHandlers {
                                                 buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                 pricesInfo: pricesInfo)
             let profitPercent: Double = (spreadInfo?.cleanSpread ?? 0.0 / pricesInfo.possibleSellPrice * 100.0)
-            let valuableProfitPercent: Double = 1.5 // %
+            let valuableProfitPercent: Double = 0.1 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
                     profitPercent > valuableProfitPercent else { return } // %
@@ -491,22 +501,14 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func getPrettyDescription(
-        sellOpportunity: Opportunity,
-        buyOpportunity: Opportunity,
-        pricesInfo: PricesInfo
-    ) -> String {
+    func getPrettyDescription(sellOpportunity: Opportunity, buyOpportunity: Opportunity, pricesInfo: PricesInfo) -> String {
         let spreadInfo = getSpreadInfo(sellOpportunity: sellOpportunity, buyOpportunity: buyOpportunity, pricesInfo: pricesInfo)
         let cleanSpreadPercentString = (((spreadInfo?.cleanSpread ?? 0.0) / pricesInfo.possibleSellPrice) * 100).toLocalCurrency()
         
         return ("\(sellOpportunity.description)-\(buyOpportunity.description)|\(pricesInfo.possibleSellPrice.toLocalCurrency())-\(pricesInfo.possibleBuyPrice.toLocalCurrency())|\((spreadInfo?.dirtySpread ?? 0.0).toLocalCurrency())-\((spreadInfo?.cleanSpread ?? 0.0).toLocalCurrency())|\(cleanSpreadPercentString)%\n")
     }
     
-    func getSpreadInfo(
-        sellOpportunity: Opportunity,
-        buyOpportunity: Opportunity,
-        pricesInfo: PricesInfo
-    ) -> SpreadInfo? {
+    func getSpreadInfo(sellOpportunity: Opportunity, buyOpportunity: Opportunity, pricesInfo: PricesInfo) -> SpreadInfo? {
         guard let sellCommission = sellOpportunity.sellCommission, let buyCommission = buyOpportunity.buyCommission else {
             return nil
         }

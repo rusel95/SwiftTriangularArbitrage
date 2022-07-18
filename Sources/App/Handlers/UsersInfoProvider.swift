@@ -25,7 +25,9 @@ final class UsersInfoProvider: NSObject {
     func handleModeSelected(chatId: Int64, user: TGUser, mode: Mode, onlineUpdatesMessageId: Int? = nil) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
-            userInfo.onlineUpdatesMessageId = onlineUpdatesMessageId
+            if onlineUpdatesMessageId != nil {
+                userInfo.onlineUpdatesMessageId = onlineUpdatesMessageId
+            }
         } else {
             let newUserInfo = UserInfo(chatId: chatId,
                                        user: user,
