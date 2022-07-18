@@ -5,7 +5,7 @@
 //  Created by Ruslan Popesku on 18.07.2022.
 //
 
-enum Mode {
+enum Mode: Hashable {
     
     case trading
     case logging
