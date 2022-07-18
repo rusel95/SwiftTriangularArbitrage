@@ -18,10 +18,10 @@ enum Mode: Hashable {
     
     var jobInterval: Double { // in seconds
         switch self {
-        case .trading: return 10
+        case .trading: return 15
         case .logging: return 900
         case .alerting: return 60
-        case .suspended: return 0
+        case .suspended: return .infinity
         }
     }
     

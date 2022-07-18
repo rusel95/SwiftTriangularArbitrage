@@ -5,7 +5,6 @@
 //  Created by Ruslan Popesku on 14.07.2022.
 //
 
-import Foundation
 import telegram_vapor_bot
 import Vapor
 
@@ -23,11 +22,14 @@ final class UsersInfoProvider: NSObject {
         usersInfo.filter { $0.selectedModes.contains(selectedMode) }
     }
     
-    func handleModeSelected(chatId: Int64, user: TGUser, mode: Mode) {
+    func handleModeSelected(chatId: Int64, user: TGUser, mode: Mode, onlineUpdatesMessageId: Int? = nil) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
         } else {
-            let newUserInfo = UserInfo(chatId: chatId, user: user, selectedModes: [mode])
+            let newUserInfo = UserInfo(chatId: chatId,
+                                       user: user,
+                                       selectedModes: [mode],
+                                       onlineUpdatesMessageId: onlineUpdatesMessageId)
             usersInfo.insert(newUserInfo)
         }
     }

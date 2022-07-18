@@ -17,15 +17,21 @@ final class UserInfo: Hashable, Equatable {
     
     var selectedModes: Set<Mode> = []
     
-    init(chatId: Int64,
-         user: TGUser,
-         selectedModes: Set<Mode>) {
+    var onlineUpdatesMessageId: Int?
+    
+    init(
+        chatId: Int64,
+        user: TGUser,
+        selectedModes: Set<Mode>,
+        onlineUpdatesMessageId: Int? = nil
+    ) {
         self.chatId = chatId
         self.id = user.id
         self.firstName = user.firstName
         self.lastName = user.lastName
         self.username = user.username
         self.selectedModes = selectedModes
+        self.onlineUpdatesMessageId = onlineUpdatesMessageId
     }
     
     func hash(into hasher: inout Hasher) {

@@ -19,7 +19,6 @@ final class DefaultBotHandlers {
     static let shared = DefaultBotHandlers()
     
     private var tradingJob: Job?
-    
     private var loggingJob: Job?
     private var alertingJob: Job?
     
@@ -83,7 +82,7 @@ final class DefaultBotHandlers {
             ]
             usersInfoWithTradingMode.forEach { userInfo in
                 self.printDescription(earningSchemes: tradingOpportunities,
-                                      editMessageId: nil, // add editMessageId
+                                      editMessageId: userInfo.onlineUpdatesMessageId,
                                       chatId: userInfo.chatId,
                                       bot: bot)
             }
@@ -154,9 +153,15 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"// "Now you will see market updates in Real Time (with update interval \(Int(Mode.trading.jobInterval)) seconds) \n\(self.resultsFormatDescription)"
                 let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 explanationMessageFutute?.whenComplete({ _ in
-                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Уже пашу.."))// "Wait a sec.."))
+                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))// "Wait a sec.."))
                     editMessageFuture?.whenComplete({ result in
-                        UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .trading)
+                        let onlineUpdatesMessageId = try? result.get().messageId
+                        UsersInfoProvider.shared.handleModeSelected(
+                            chatId: chatId,
+                            user: user,
+                            mode: .trading,
+                            onlineUpdatesMessageId: onlineUpdatesMessageId
+                        )
                     })
                 })
             }
