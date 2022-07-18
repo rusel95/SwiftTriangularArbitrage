@@ -43,7 +43,9 @@ final class DefaultBotHandlers {
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
+        
         startTradingJob(bot: bot)
+        startLoggingJob(bot: bot)
     }
     
     func startTradingJob(bot: TGBotPrtcl) {
@@ -64,6 +66,18 @@ final class DefaultBotHandlers {
                                       editMessageId: nil, // add editMessageId
                                       chatId: userInfo.chatId,
                                       bot: bot)
+            }
+        }
+    }
+    
+    func startLoggingJob(bot: TGBotPrtcl) {
+        self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
+            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
+        
+            guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
+            
+            usersInfoWithTradingMode.forEach { userInfo in
+                self.printDescription(earningSchemes: EarningScheme.allCases, chatId: userInfo.chatId, bot: bot)
             }
         }
     }
@@ -122,17 +136,14 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
-            
-            if self.loggingJob?.isRunning != nil {
+            if UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging).contains(where: { $0.chatId == chatId }) {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
             } else {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)" //"Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-                self.loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-                    self?.printDescription(earningSchemes: EarningScheme.allCases, chatId: chatId, bot: bot)
-                }
+                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
+                self.printDescription(earningSchemes: EarningScheme.allCases, chatId: chatId, bot: bot)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -196,7 +207,7 @@ private extension DefaultBotHandlers {
     
     /// add handler for command "/stop"
     func commandStopHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
+        let handler = TGCommandHandler(commands: [Mode.suspended.command]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
             
             UsersInfoProvider.shared.handleStopModes(chatId: chatId)
