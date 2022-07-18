@@ -33,6 +33,26 @@ final class DefaultBotHandlers {
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /stop - зупинка всіх режимів (очікування);
         """
+    private let wellKnownSchemesForAlerting: [EarningScheme] = [
+        .monobankUSDT_monobankUSDT,
+        .privatbankUSDT_privabbankUSDT,
+        .monobankBUSD_monobankUSDT,
+        .privatbankBUSD_privatbankUSDT,
+        .abankUSDT_abankUSDT,
+        .pumbUSDT_pumbUSDT,
+        .huobiUSDT_monobankUSDT,
+        .monobankUSDT_huobiUSDT,
+        .whiteBitUSDT_monobankUSDT,
+        .monobankUSDT_whiteBitUSDT
+    ]
+    private let opportunitiesForArbitrage: [Opportunity] = [
+        .binance(.p2p(.monobankUSDT)),
+        .huobi(.usdtSpot),
+        .whiteBit(.usdtSpot),
+        .binance(.spot(.usdtUAH)),
+        .exmo(.usdtUAHSpot),
+        .kuna(.usdtUAHSpot)
+    ]
     
     // MARK: - METHODS
     
@@ -78,6 +98,19 @@ final class DefaultBotHandlers {
             
             usersInfoWithTradingMode.forEach { userInfo in
                 self.printDescription(earningSchemes: EarningScheme.allCases, chatId: userInfo.chatId, bot: bot)
+            }
+        }
+    }
+    
+    func startAlertingJob(bot: TGBotPrtcl) {
+        self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
+            let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
+        
+            guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
+            
+            usersInfoWithTradingMode.forEach { userInfo in
+                self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, bot: bot, chatId: userInfo.chatId)
+                self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, bot: bot, chatId: userInfo.chatId)
             }
         }
     }
@@ -153,36 +186,14 @@ private extension DefaultBotHandlers {
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
-           
-            UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             
-            if self.alertingJob?.isRunning != nil {
+            if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
             } else {
-                let wellKnownSchemesForAlerting: [EarningScheme] = [
-                    .monobankUSDT_monobankUSDT,
-                    .privatbankUSDT_privabbankUSDT,
-                    .monobankBUSD_monobankUSDT,
-                    .privatbankBUSD_privatbankUSDT,
-                    .abankUSDT_abankUSDT,
-                    .pumbUSDT_pumbUSDT,
-                    .huobiUSDT_monobankUSDT,
-                    .monobankUSDT_huobiUSDT,
-                    .whiteBitUSDT_monobankUSDT,
-                    .monobankUSDT_whiteBitUSDT
-                ]
-                let schemesFullDescription = wellKnownSchemesForAlerting
+                let schemesFullDescription = self.wellKnownSchemesForAlerting
                     .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
                     .joined(separator: "\n")
-                let opportunitiesForArbitrage: [Opportunity] = [
-                    .binance(.p2p(.monobankUSDT)),
-                    .huobi(.usdtSpot),
-                    .whiteBit(.usdtSpot),
-                    .binance(.spot(.usdtUAH)),
-                    .exmo(.usdtUAHSpot),
-                    .kuna(.usdtUAHSpot)
-                ]
-                let opportunitiesFullDescription = opportunitiesForArbitrage
+                let opportunitiesFullDescription = self.opportunitiesForArbitrage
                     .map { $0.description }
                     .joined(separator: "\n")
                 
@@ -196,10 +207,7 @@ private extension DefaultBotHandlers {
                 \(opportunitiesFullDescription)
                 """// "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
-                self.alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
-                    self?.alertAboutProfitability(earningSchemes: wellKnownSchemesForAlerting, bot: bot, update: update)
-                    self?.alertAboutArbitrage(opportunities: opportunitiesForArbitrage, bot: bot, update: update)
-                }
+                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -362,7 +370,7 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
+    func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, chatId: Int64) {
         earningSchemes.forEach { [weak self] earningScheme in
             guard let self = self,
                   ((Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime) || self.lastAlertingEvents[earningScheme.shortDescription] == nil
@@ -371,7 +379,6 @@ private extension DefaultBotHandlers {
             getPricesInfo(for: earningScheme) { [weak self] pricesInfo in
                 guard let self = self,
                       let pricesInfo = pricesInfo,
-                      let chatId = update.message?.chat.id,
                       let spreadInfo = self.getSpreadInfo(sellOpportunity: earningScheme.sellOpportunity,
                                                           buyOpportunity: earningScheme.buyOpportunity,
                                                           pricesInfo: pricesInfo),
@@ -387,7 +394,7 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func alertAboutArbitrage(opportunities: [Opportunity], bot: TGBotPrtcl, update: TGUpdate) {
+    func alertAboutArbitrage(opportunities: [Opportunity], bot: TGBotPrtcl, chatId: Int64) {
         let arbitrageGroup = DispatchGroup()
         var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
         
@@ -425,7 +432,6 @@ private extension DefaultBotHandlers {
                 .first
             
             guard let self = self,
-                  let chatId = update.message?.chat.id,
                   let biggestSellFinalPriceOpportunityResult = biggestSellFinalPriceOpportunityResult,
                   let lowestBuyFinalPriceOpportunityResult = lowestBuyFinalPriceOpportunityResult
             else { return }
