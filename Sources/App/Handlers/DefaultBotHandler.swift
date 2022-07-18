@@ -25,13 +25,11 @@ final class DefaultBotHandlers {
     
     static let shared = DefaultBotHandlers()
     
-    private var tradingJob: Job?
-    private var loggingJob: Job?
-    private var alertingJob: Job?
-    
+    // TODO: - move to each users settings
     // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
     private var lastAlertingEvents: [String: Date] = [:]
     
+    // TODO: - move to constants
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %" //"crypto Sell(payment method) - Buy(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %\n" +
     private let commandsDescription = """
         /start_trading - режим моніторингу основних схем торгівлі в режимі реального часу (відкриваємо і торгуємо);
@@ -76,7 +74,7 @@ final class DefaultBotHandlers {
     }
     
     func startTradingJob(bot: TGBotPrtcl) {
-        tradingJob = Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
+        Jobs.add(interval: .seconds(Mode.trading.jobInterval)) { [weak self] in
             let usersInfoWithTradingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading)
             
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
@@ -95,7 +93,7 @@ final class DefaultBotHandlers {
     }
     
     func startLoggingJob(bot: TGBotPrtcl) {
-        loggingJob = Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
+        Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
             let usersInfoWithLoggingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
             
             guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
@@ -106,7 +104,7 @@ final class DefaultBotHandlers {
     }
     
     func startAlertingJob(bot: TGBotPrtcl) {
-        alertingJob = Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
+        Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
             let usersInfoWithAlertingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
             
             guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
