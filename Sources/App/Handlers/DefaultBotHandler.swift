@@ -111,10 +111,9 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
             
-            usersInfoWithAlertingMode.forEach { userInfo in
-                self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, bot: bot, chatId: userInfo.chatId)
-                self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, bot: bot, chatId: userInfo.chatId)
-            }
+            let chatsInfo: [ChatInfo] = usersInfoWithAlertingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
+            self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, chatsInfo: chatsInfo, bot: bot)
+            self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, chatsInfo: chatsInfo, bot: bot)
         }
     }
 
@@ -406,7 +405,7 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, chatId: Int64) {
+    func alertAboutProfitability(earningSchemes: [EarningScheme], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
         earningSchemes.forEach { [weak self] earningScheme in
             guard let self = self,
                   ((Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime) || self.lastAlertingEvents[earningScheme.shortDescription] == nil
@@ -425,12 +424,15 @@ private extension DefaultBotHandlers {
                                                             buyOpportunity: earningScheme.buyOpportunity,
                                                             pricesInfo: pricesInfo)
                 let text = "Профітна можливість!!! \(description)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                
+                chatsInfo.forEach { chatInfo in
+                    _ = try? bot.sendMessage(params: .init(chatId: .chat(chatInfo.chatId), text: text))
+                }
             }
         }
     }
     
-    func alertAboutArbitrage(opportunities: [Opportunity], bot: TGBotPrtcl, chatId: Int64) {
+    func alertAboutArbitrage(opportunities: [Opportunity], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
         let arbitrageGroup = DispatchGroup()
         var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
         
@@ -481,7 +483,7 @@ private extension DefaultBotHandlers {
                                                 buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                 pricesInfo: pricesInfo)
             let profitPercent: Double = (spreadInfo?.cleanSpread ?? 0.0 / pricesInfo.possibleSellPrice * 100.0)
-            let valuableProfitPercent: Double = 0.1 // %
+            let valuableProfitPercent: Double = 1 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
                     profitPercent > valuableProfitPercent else { return } // %
@@ -490,8 +492,9 @@ private extension DefaultBotHandlers {
             let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
                                                               buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                               pricesInfo: pricesInfo)
-            let params: TGSendMessageParams = .init(chatId: .chat(chatId), text: "Арбітражна можливість: \(prettyDescription)")
-            _ = try? bot.sendMessage(params: params)
+            chatsInfo.forEach { chatInfo in
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatInfo.chatId), text: "Арбітражна можливість: \(prettyDescription)"))
+            }
         }
     }
     
