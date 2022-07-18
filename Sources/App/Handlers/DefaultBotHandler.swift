@@ -14,38 +14,6 @@ typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
 final class DefaultBotHandlers {
     
-    // MARK: - ENUMERATIONS
-    
-    private enum Mode {
-        
-        case trading
-        case logging
-        case alerting /*
-                       example 1: USDT/UAH spot -> UAH Crypto to UAH fiat -> UAH fiat to USDT
-                       example 2: BTC(other coint)/USDT spot price >= 2% difference to p2p market
-                       example 3: Stable Coin/Stable Coin price >= 3% difference then normal level
-                       */
-        case suspended
-        
-        var jobInterval: Double { // in seconds
-            switch self {
-            case .trading: return 10
-            case .logging: return 900
-            case .alerting: return 60
-            case .suspended: return 0
-            }
-        }
-        
-        var command: String {
-            switch self {
-            case .trading: return "/start_trading"
-            case .logging: return "/start_logging"
-            case .alerting: return "/start_alerting"
-            case .suspended: return "/stop"
-            }
-        }
-    }
-    
     // MARK: - PROPERTIES
     
     static let shared = DefaultBotHandlers()
@@ -64,12 +32,6 @@ final class DefaultBotHandlers {
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /stop - зупинка всіх режимів (очікування);
         """
-    
-    init() {
-        tradingJob = nil
-        loggingJob = nil
-        alertingJob = nil
-    }
     
     // MARK: - METHODS
     
@@ -98,11 +60,8 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start"
     func commandStartHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else {
-                return }
+            guard let self = self, let chatId = update.message?.chat.id else { return }
            
-            UserInfoProvider.shared.set(user: user, chatId: chatId)
-            
             let infoMessage = """
             Привіт, мене звати Пантелеймон!
             
@@ -122,9 +81,7 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_trading"
     func commandStartTradingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
-           
-            UserInfoProvider.shared.set(user: user, chatId: chatId)
+            guard let self = self, let chatId = update.message?.chat.id else { return }
             
             if self.tradingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"//"Trading Updates already running!"
@@ -158,9 +115,7 @@ private extension DefaultBotHandlers {
     /// add handler for command "/start_logging"
     func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
-           
-            UserInfoProvider.shared.set(user: user, chatId: chatId)
+            guard let self = self, let chatId = update.message?.chat.id else { return }
             
             if self.loggingJob?.isRunning != nil {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
@@ -235,16 +190,11 @@ private extension DefaultBotHandlers {
     /// add handler for command "/stop"
     func commandStopHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
-           
-            UserInfoProvider.shared.set(user: user, chatId: chatId)
+            guard let self = self, let chatId = update.message?.chat.id else { return }
             
             self.loggingJob?.stop()
-            self.loggingJob = nil
             self.tradingJob?.stop()
-            self.tradingJob = nil
             self.alertingJob?.stop()
-            self.alertingJob = nil
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Ну і ладно, я всьо равно вже заморився.."))// "Now bot will have some rest.."))
         }
         bot.connection.dispatcher.add(handler)
@@ -252,7 +202,7 @@ private extension DefaultBotHandlers {
     
     /// add handler for command "/test"
     func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: ["/test"]) { [weak self] update, bot in
+        let handler = TGCommandHandler(commands: ["/test"]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
            
             if let user = UserInfoProvider.shared.getUser(chatId: chatId) {
@@ -402,9 +352,9 @@ private extension DefaultBotHandlers {
 private extension DefaultBotHandlers {
     
     func alertAboutProfitability(earningSchemes: [EarningScheme], bot: TGBotPrtcl, update: TGUpdate) {
-        earningSchemes.forEach { earningScheme in
-            guard (Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
-                    self.lastAlertingEvents[earningScheme.shortDescription] == nil
+        earningSchemes.forEach { [weak self] earningScheme in
+            guard let self = self,
+                  ((Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime) || self.lastAlertingEvents[earningScheme.shortDescription] == nil
             else { return }
             
             getPricesInfo(for: earningScheme) { [weak self] pricesInfo in
