@@ -19,6 +19,10 @@ final class UsersInfoProvider: NSObject {
 
     // MARK: - METHODS
     
+    func getUsersInfo(selectedMode: Mode) -> Set<UserInfo> {
+        usersInfo.filter { $0.selectedModes.contains(selectedMode) }
+    }
+    
     func handleModeSelected(chatId: Int64, user: TGUser, mode: Mode) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
