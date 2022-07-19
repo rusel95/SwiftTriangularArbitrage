@@ -228,7 +228,7 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
             
-            UsersInfoProvider.shared.handleStopModes(chatId: chatId)
+            UsersInfoProvider.shared.handleStopAllModes(chatId: chatId)
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Ну і ладно, я всьо равно вже заморився.."))// "Now bot will have some rest.."))
         }
         bot.connection.dispatcher.add(handler)

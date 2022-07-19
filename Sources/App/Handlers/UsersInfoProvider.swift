@@ -8,28 +8,34 @@
 import telegram_vapor_bot
 import Vapor
 
-final class UsersInfoProvider: NSObject {
+public final class UsersInfoProvider: NSObject {
     
     // MARK: - PROPERTIES
     
-    static let shared = UsersInfoProvider()
+    public static let shared = UsersInfoProvider()
     
     private var usersInfo: Set<UserInfo> = []
     
-    private let fileName = "usersInfo.txt"
+    private let userDefaultsKey = "usersInfo"
 
     override init() {
         do {
-            guard let data = UserDefaults.standard.data(forKey: "usersInfo") else { return }
+            guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+                TGBot.log.info(Logger.Message(stringLiteral: "No data for users"))
+                return }
             
             let usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: data)
             self.usersInfo = usersInfo
         } catch {
-            print(error)
+            TGBot.log.error(error.logMessage)
         }
     }
     
     // MARK: - METHODS
+    
+    func getAllUsersInfo() -> Set<UserInfo> {
+        usersInfo
+    }
     
     func getUsersInfo(selectedMode: Mode) -> Set<UserInfo> {
         usersInfo.filter { $0.selectedModes.contains(selectedMode) }
@@ -48,23 +54,19 @@ final class UsersInfoProvider: NSObject {
                                        onlineUpdatesMessageId: onlineUpdatesMessageId)
             usersInfo.insert(newUserInfo)
         }
-        update()
+        syncStorage()
     }
     
-    func handleStopModes(chatId: Int64) {
+    func handleStopAllModes(chatId: Int64) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.removeAll()
+            syncStorage()
         }
-        update()
     }
     
-    func getAllUsersInfo() -> Set<UserInfo> {
-        return usersInfo
-    }
-    
-    func update() {
-        let res = try? JSONEncoder().encode(usersInfo)
-        UserDefaults.standard.set(res, forKey: "usersInfo")
+    public func syncStorage() {
+        let endcodedData = try? JSONEncoder().encode(usersInfo)
+        UserDefaults.standard.set(endcodedData, forKey: userDefaultsKey)
     }
     
 }

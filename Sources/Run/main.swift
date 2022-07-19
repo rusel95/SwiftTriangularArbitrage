@@ -5,7 +5,8 @@ var env = try Environment.detect()
 try LoggingSystem.bootstrap(from: &env)
 let app = Application(env)
 defer {
-    // Do some external logging
+    UsersInfoProvider.shared.syncStorage()
+    // Add some logs about crash with stacktrace
     app.shutdown()
 }
 try configure(app)
