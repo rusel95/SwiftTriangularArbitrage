@@ -239,7 +239,9 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: ["/test"]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
            
-            let testMessage = "some test message"
+            let testMessage = UsersInfoProvider.shared.getAllUsersInfo()
+                .map { $0.description }
+                .joined(separator: "\n")
             _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: testMessage))
         }
         bot.connection.dispatcher.add(handler)
