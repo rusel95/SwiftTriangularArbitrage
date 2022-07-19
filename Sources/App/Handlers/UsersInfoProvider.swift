@@ -15,7 +15,20 @@ final class UsersInfoProvider: NSObject {
     static let shared = UsersInfoProvider()
     
     private var usersInfo: Set<UserInfo> = []
+    
+    private let fileName = "usersInfo.txt"
 
+    override init() {
+        do {
+            guard let data = UserDefaults.standard.data(forKey: "usersInfo") else { return }
+            
+            let usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: data)
+            self.usersInfo = usersInfo
+        } catch {
+            print(error)
+        }
+    }
+    
     // MARK: - METHODS
     
     func getUsersInfo(selectedMode: Mode) -> Set<UserInfo> {
@@ -35,16 +48,23 @@ final class UsersInfoProvider: NSObject {
                                        onlineUpdatesMessageId: onlineUpdatesMessageId)
             usersInfo.insert(newUserInfo)
         }
+        update()
     }
     
     func handleStopModes(chatId: Int64) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.removeAll()
         }
+        update()
     }
     
     func getAllUsersInfo() -> Set<UserInfo> {
         return usersInfo
+    }
+    
+    func update() {
+        let res = try? JSONEncoder().encode(usersInfo)
+        UserDefaults.standard.set(res, forKey: "usersInfo")
     }
     
 }

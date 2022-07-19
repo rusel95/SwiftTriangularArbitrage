@@ -7,7 +7,7 @@
 
 import telegram_vapor_bot
 
-final class UserInfo: Hashable, Equatable {
+final class UserInfo: Codable, Hashable, Equatable {
 
     let chatId: Int64
     let id: Int64
