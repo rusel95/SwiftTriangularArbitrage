@@ -10,7 +10,8 @@ let package = Package(
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         .package(url: "https://github.com/nerzh/telegram-vapor-bot", .upToNextMajor(from: "1.0.2")),
-        .package(url: "https://github.com/BrettRToomey/Jobs.git", from: "1.1.1")
+        .package(url: "https://github.com/BrettRToomey/Jobs.git", from: "1.1.1"),
+        .package(url: "https://github.com/swift-sentry/swift-sentry.git", from: "1.0.0")
     ],
     targets: [
         .target(
@@ -18,7 +19,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "telegram-vapor-bot", package: "telegram-vapor-bot"),
-                .product(name: "Jobs", package: "Jobs")
+                .product(name: "Jobs", package: "Jobs"),
+                .product(name: "SwiftSentry", package: "swift-sentry"),
             ],
             swiftSettings: [
                 // Enable better optimizations when building in Release configuration. Despite the use of

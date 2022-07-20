@@ -38,7 +38,7 @@ public final class UsersInfoProvider: NSObject {
             let jsonData = try Data(contentsOf: self.storageURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
-            TGBot.log.error(error.logMessage)
+            Logging.shared.log(error: error)
         }
     }
     
@@ -80,7 +80,7 @@ public final class UsersInfoProvider: NSObject {
             let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: storageURL)
         } catch {
-            TGBot.log.error(error.logMessage)
+            Logging.shared.log(error: error)
         }
     }
     

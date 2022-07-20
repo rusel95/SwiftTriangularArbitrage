@@ -91,15 +91,15 @@ enum EarningScheme: Int, CaseIterable {
         switch self {
         case .monobankUSDT_monobankUSDT, .privatbankUSDT_privabbankUSDT: return 0.8
         case .monobankBUSD_monobankUSDT, .privatbankBUSD_privatbankUSDT: return 0.8
-        case .abankUSDT_abankUSDT, .pumbUSDT_pumbUSDT: return 1.2
-        case .wiseUSDT_wiseUSDT: return 1.5
-        case .binancePayUAH_binancePayUAH, .wiseBUSD_wiseUSDT: return 1.6
-        case .huobiUSDT_monobankUSDT: return 2.0
-        case .monobankUSDT_huobiUSDT: return 2.0
-        case .whiteBitUSDT_monobankUSDT: return 2.0
-        case .monobankUSDT_whiteBitUSDT: return 2.0
-        case .monobankBTC_monobankBTC: return 3
-        case .monobankBNB_monobankBNB: return 3
+        case .abankUSDT_abankUSDT, .pumbUSDT_pumbUSDT: return 1
+        case .wiseUSDT_wiseUSDT: return 1
+        case .binancePayUAH_binancePayUAH, .wiseBUSD_wiseUSDT: return 1.5
+        case .huobiUSDT_monobankUSDT: return 1.0
+        case .monobankUSDT_huobiUSDT: return 1.0
+        case .whiteBitUSDT_monobankUSDT: return 1.0
+        case .monobankUSDT_whiteBitUSDT: return 1.0
+        case .monobankBTC_monobankBTC: return 2.5
+        case .monobankBNB_monobankBNB: return 2.5
         }
     }
     

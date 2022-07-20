@@ -172,6 +172,15 @@
       }
     },
     {
+      "identity" : "swift-sentry",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-sentry/swift-sentry.git",
+      "state" : {
+        "revision" : "f34a083938258965eb21e9434269043f9c1376e9",
+        "version" : "1.0.1"
+      }
+    },
+    {
       "identity" : "telegram-vapor-bot",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nerzh/telegram-vapor-bot",

@@ -86,12 +86,12 @@ final class BinanceAPIService {
         let askPrice: String
         let askQty: String
         
-        var sellPrice: Double {
-            Double(bidPrice) ?? 0.0
+        var sellPrice: Double? {
+            Double(bidPrice)
         }
         
-        var buyPrice: Double {
-            Double(askPrice) ?? 0.0
+        var buyPrice: Double? {
+            Double(askPrice)
         }
         
     }

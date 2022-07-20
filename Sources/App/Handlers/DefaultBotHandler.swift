@@ -328,6 +328,7 @@ private extension DefaultBotHandlers {
                     paymentMethod: binanceP2POpportunity.paymentMethod.apiDescription,
                     crypto: binanceP2POpportunity.crypto.apiDescription
                 ) { [weak self] buyAdvs, sellAdvs, error in
+                    if let error = error { Logging.shared.log(error: error) }
                     guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                         completion(nil)
                         return
@@ -353,6 +354,7 @@ private extension DefaultBotHandlers {
            
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
+                if let error = error { Logging.shared.log(error: error) }
                 guard let possibleSellPrice = bids?.first, let possibleBuyPrice = asks?.first else {
                     completion(nil)
                     return
@@ -362,6 +364,7 @@ private extension DefaultBotHandlers {
                 
         case .huobi(let opportunity):
             HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
+                if let error = error { Logging.shared.log(error: error) }
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
                     completion(nil)
                     return
@@ -370,6 +373,7 @@ private extension DefaultBotHandlers {
             }
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { askTop, bidTop, error in
+                if let error = error { Logging.shared.log(error: error) }
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
                     completion(nil)
                     return
@@ -378,6 +382,7 @@ private extension DefaultBotHandlers {
             }
         case .kuna(let kunaOpportunity):
             KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { asks, bids, error in
+                if let error = error { Logging.shared.log(error: error) }
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
                     completion(nil)
                     return
