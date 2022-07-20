@@ -21,13 +21,12 @@ public final class UsersInfoProvider: NSObject {
     override init() {
         do {
             let fileURL: URL
+            TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
             if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
-                TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
                 fileURL = URL(fileURLWithPath: fileName)
             }
-            TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
             let jsonData = try Data(contentsOf: fileURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
@@ -70,6 +69,9 @@ public final class UsersInfoProvider: NSObject {
     
     public func syncStorage() {
         do {
+            let endcodedData = try JSONEncoder().encode(usersInfo)
+            
+            TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
             let fileURL: URL
             if let documentDirectory = try? FileManager.default.url(for: .documentDirectory,
                                                                     in: .userDomainMask,
@@ -80,8 +82,6 @@ public final class UsersInfoProvider: NSObject {
                 TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
                 fileURL = URL(fileURLWithPath: fileName)
             }
-            TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
-            let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: fileURL)
         } catch {
             TGBot.log.error(error.logMessage)
