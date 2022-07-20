@@ -16,12 +16,16 @@ public final class UsersInfoProvider: NSObject {
     
     private var usersInfo: Set<UserInfo> = []
     
-    private let userDefaultsKey = "usersInfo"
+    private let fileName = "usersInfo.txt"
 
     override init() {
         do {
-            let documentDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create:false)
-            let fileURL = documentDirectory.appendingPathComponent("test.txt")
+            let fileURL: URL
+            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+                fileURL = documentDirectory.appendingPathComponent(fileName)
+            } else {
+                fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
+            }
             let jsonData = try Data(contentsOf: fileURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
@@ -64,8 +68,12 @@ public final class UsersInfoProvider: NSObject {
     
     public func syncStorage() {
         do {
-            let documentDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-            let fileURL = documentDirectory.appendingPathComponent("test.txt")
+            let fileURL: URL
+            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+                fileURL = documentDirectory.appendingPathComponent(fileName)
+            } else {
+                fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
+            }
             let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: fileURL)
         } catch {
