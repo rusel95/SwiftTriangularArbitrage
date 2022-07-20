@@ -16,11 +16,20 @@ public final class UsersInfoProvider: NSObject {
     
     private var usersInfo: Set<UserInfo> = []
     
-    private let fileName = "usersInfo"
+    private var storageURL: URL {
+        let fileName = "usersInfo"
+        let isDevelopment: Bool = ProcessInfo.processInfo.environment["token"] != nil
+        let fileURL: URL
+        if isDevelopment,
+            let documentsDirectory = try? FileManager.default.url(for: .desktopDirectory,
+                                                                  in: .userDomainMask,
+                                                                  appropriateFor: nil,
+                                                                  create: true) {
+            fileURL = documentsDirectory.appendingPathComponent(fileName)
+        } else {
+            fileURL = URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+        }
     
-    private var fileURL: URL {
-        TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
-        let fileURL: URL = URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
         TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
         return fileURL
     }
@@ -28,7 +37,7 @@ public final class UsersInfoProvider: NSObject {
     override init() {
         super.init()
         do {
-            let jsonData = try Data(contentsOf: self.fileURL)
+            let jsonData = try Data(contentsOf: self.storageURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
             TGBot.log.error(error.logMessage)
@@ -71,7 +80,7 @@ public final class UsersInfoProvider: NSObject {
     public func syncStorage() {
         do {
             let endcodedData = try JSONEncoder().encode(usersInfo)
-            try endcodedData.write(to: fileURL)
+            try endcodedData.write(to: storageURL)
         } catch {
             TGBot.log.error(error.logMessage)
         }

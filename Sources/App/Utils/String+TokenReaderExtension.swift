@@ -31,12 +31,8 @@ extension String {
     ///
     /// - Returns: `String`
     static func readConfigurationValue(_ name: String) -> String? {
-        let environment = ProcessInfo.processInfo.environment
-        var value = environment[name]
-        if value == nil {
-            value = try? String(contentsOfFile: name, encoding: String.Encoding.utf8)
-        }
-        return value?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
+        let token = ProcessInfo.processInfo.environment[name] ?? (try? String(contentsOfFile: name, encoding: String.Encoding.utf8))
+        return token?.trimmingCharacters(in: NSCharacterSet.whitespacesAndNewlines)
     }
     
     /// Reads value from environment variable or from a file.
