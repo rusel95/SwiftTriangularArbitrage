@@ -26,6 +26,7 @@ public final class UsersInfoProvider: NSObject {
             } else {
                 fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
             }
+            TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
             let jsonData = try Data(contentsOf: fileURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
@@ -74,6 +75,7 @@ public final class UsersInfoProvider: NSObject {
             } else {
                 fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
             }
+            TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
             let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: fileURL)
         } catch {
