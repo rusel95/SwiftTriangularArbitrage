@@ -20,12 +20,10 @@ public final class UsersInfoProvider: NSObject {
 
     override init() {
         do {
-            guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-                TGBot.log.info(Logger.Message(stringLiteral: "No data for users"))
-                return }
-            
-            let usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: data)
-            self.usersInfo = usersInfo
+            let documentDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create:false)
+            let fileURL = documentDirectory.appendingPathComponent("test.txt")
+            let jsonData = try Data(contentsOf: fileURL)
+            self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
             TGBot.log.error(error.logMessage)
         }
@@ -65,8 +63,14 @@ public final class UsersInfoProvider: NSObject {
     }
     
     public func syncStorage() {
-        let endcodedData = try? JSONEncoder().encode(usersInfo)
-        UserDefaults.standard.set(endcodedData, forKey: userDefaultsKey)
+        do {
+            let documentDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            let fileURL = documentDirectory.appendingPathComponent("test.txt")
+            let endcodedData = try JSONEncoder().encode(usersInfo)
+            try endcodedData.write(to: fileURL)
+        } catch {
+            TGBot.log.error(error.logMessage)
+        }
     }
     
 }
