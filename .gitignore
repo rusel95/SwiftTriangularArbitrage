@@ -9,4 +9,4 @@ db.sqlite
 .env
 
 Token
-usersInfo.txt
+usersInfo

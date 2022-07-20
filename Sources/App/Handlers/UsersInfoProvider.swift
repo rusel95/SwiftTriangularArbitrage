@@ -16,7 +16,7 @@ public final class UsersInfoProvider: NSObject {
     
     private var usersInfo: Set<UserInfo> = []
     
-    private let fileName = "usersInfo.txt"
+    private let fileName = "usersInfo"
 
     override init() {
         do {
