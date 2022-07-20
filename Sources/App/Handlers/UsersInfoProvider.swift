@@ -24,10 +24,10 @@ public final class UsersInfoProvider: NSObject {
             if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
-                TGBot.log.info(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
+                TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
                 fileURL = URL(fileURLWithPath: fileName)
             }
-            TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
+            TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
             let jsonData = try Data(contentsOf: fileURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
@@ -77,10 +77,10 @@ public final class UsersInfoProvider: NSObject {
                                                                     create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
-                TGBot.log.info(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
+                TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
                 fileURL = URL(fileURLWithPath: fileName)
             }
-            TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
+            TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
             let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: fileURL)
         } catch {
