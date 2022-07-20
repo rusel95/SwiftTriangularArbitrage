@@ -29,8 +29,6 @@ public final class UsersInfoProvider: NSObject {
         } else {
             fileURL = URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
         }
-    
-        TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
         return fileURL
     }
 
