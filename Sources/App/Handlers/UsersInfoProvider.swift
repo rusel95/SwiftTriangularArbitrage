@@ -17,17 +17,18 @@ public final class UsersInfoProvider: NSObject {
     private var usersInfo: Set<UserInfo> = []
     
     private let fileName = "usersInfo"
+    
+    private var fileURL: URL {
+        TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
+        let fileURL: URL = URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+        TGBot.log.error(Logger.Message(stringLiteral: fileURL.absoluteString))
+        return fileURL
+    }
 
     override init() {
+        super.init()
         do {
-            let fileURL: URL
-            TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
-            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
-                fileURL = documentDirectory.appendingPathComponent(fileName)
-            } else {
-                fileURL = URL(fileURLWithPath: fileName)
-            }
-            let jsonData = try Data(contentsOf: fileURL)
+            let jsonData = try Data(contentsOf: self.fileURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
             TGBot.log.error(error.logMessage)
@@ -70,18 +71,6 @@ public final class UsersInfoProvider: NSObject {
     public func syncStorage() {
         do {
             let endcodedData = try JSONEncoder().encode(usersInfo)
-            
-            TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
-            let fileURL: URL
-            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory,
-                                                                    in: .userDomainMask,
-                                                                    appropriateFor: nil,
-                                                                    create: false) {
-                fileURL = documentDirectory.appendingPathComponent(fileName)
-            } else {
-                TGBot.log.error(Logger.Message(stringLiteral: FileManager.default.currentDirectoryPath))
-                fileURL = URL(fileURLWithPath: fileName)
-            }
             try endcodedData.write(to: fileURL)
         } catch {
             TGBot.log.error(error.logMessage)
