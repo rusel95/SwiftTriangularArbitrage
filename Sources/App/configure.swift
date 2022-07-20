@@ -14,8 +14,6 @@ public func configure(_ app: Application) throws {
         ])
     }
     
-    Logging.shared.log(critical: "testinit")
-    
     let connection: TGConnectionPrtcl = TGLongPollingConnection()
     TGBot.configure(connection: connection, botId: String.readToken(from: "token"), vaporClient: app.client)
     try TGBot.shared.start()
