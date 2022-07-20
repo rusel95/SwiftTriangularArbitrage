@@ -24,7 +24,7 @@ public final class UsersInfoProvider: NSObject {
             if let documentDirectory = try? FileManager.default.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
-                fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
+                fileURL = URL(fileURLWithPath: fileName)
             }
             TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
             let jsonData = try Data(contentsOf: fileURL)
@@ -73,7 +73,7 @@ public final class UsersInfoProvider: NSObject {
             if let documentDirectory = try? FileManager.default.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
-                fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
+                fileURL = URL(fileURLWithPath: fileName)
             }
             TGBot.log.info(Logger.Message(stringLiteral: fileURL.absoluteString))
             let endcodedData = try JSONEncoder().encode(usersInfo)
