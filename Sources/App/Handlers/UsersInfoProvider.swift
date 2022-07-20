@@ -15,6 +15,7 @@ public final class UsersInfoProvider: NSObject {
     public static let shared = UsersInfoProvider()
     
     private var usersInfo: Set<UserInfo> = []
+    private var logger = Logger(label: "handlers.logger")
     
     private var storageURL: URL {
         let fileName = "usersInfo"
@@ -32,13 +33,15 @@ public final class UsersInfoProvider: NSObject {
         return fileURL
     }
 
+    // MARK: - INIT
+    
     override init() {
         super.init()
         do {
             let jsonData = try Data(contentsOf: self.storageURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)
         } catch {
-            Logging.shared.log(error: error)
+            logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
         }
     }
     
@@ -80,7 +83,7 @@ public final class UsersInfoProvider: NSObject {
             let endcodedData = try JSONEncoder().encode(usersInfo)
             try endcodedData.write(to: storageURL)
         } catch {
-            Logging.shared.log(error: error)
+            logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
         }
     }
     

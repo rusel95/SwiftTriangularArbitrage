@@ -8,6 +8,7 @@
 import Vapor
 import telegram_vapor_bot
 import Jobs
+import Logging
 
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
@@ -27,6 +28,7 @@ final class DefaultBotHandlers {
     
     // TODO: - move to each users settings
     // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
+    private var logger = Logger(label: "handlers.logger")
     private var lastAlertingEvents: [String: Date] = [:]
     
     // TODO: - move to constants
@@ -328,7 +330,7 @@ private extension DefaultBotHandlers {
                     paymentMethod: binanceP2POpportunity.paymentMethod.apiDescription,
                     crypto: binanceP2POpportunity.crypto.apiDescription
                 ) { [weak self] buyAdvs, sellAdvs, error in
-                    if let error = error { Logging.shared.log(error: error) }
+                    if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                     guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                         completion(nil)
                         return
@@ -353,8 +355,8 @@ private extension DefaultBotHandlers {
             }
            
         case .whiteBit(let opportunity):
-            WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
-                if let error = error { Logging.shared.log(error: error) }
+            WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
+                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bids?.first, let possibleBuyPrice = asks?.first else {
                     completion(nil)
                     return
@@ -363,8 +365,8 @@ private extension DefaultBotHandlers {
             }
                 
         case .huobi(let opportunity):
-            HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { asks, bids, error in
-                if let error = error { Logging.shared.log(error: error) }
+            HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
+                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
                     completion(nil)
                     return
@@ -372,8 +374,8 @@ private extension DefaultBotHandlers {
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         case .exmo(let exmoOpportunity):
-            EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { askTop, bidTop, error in
-                if let error = error { Logging.shared.log(error: error) }
+            EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
+                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
                     completion(nil)
                     return
@@ -381,8 +383,8 @@ private extension DefaultBotHandlers {
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         case .kuna(let kunaOpportunity):
-            KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { asks, bids, error in
-                if let error = error { Logging.shared.log(error: error) }
+            KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
+                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
                     completion(nil)
                     return
