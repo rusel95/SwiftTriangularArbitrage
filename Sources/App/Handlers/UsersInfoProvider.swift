@@ -21,7 +21,7 @@ public final class UsersInfoProvider: NSObject {
     override init() {
         do {
             let fileURL: URL
-            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+            if let documentDirectory = try? FileManager.default.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
                 fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
@@ -70,7 +70,7 @@ public final class UsersInfoProvider: NSObject {
     public func syncStorage() {
         do {
             let fileURL: URL
-            if let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+            if let documentDirectory = try? FileManager.default.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
                 fileURL = documentDirectory.appendingPathComponent(fileName)
             } else {
                 fileURL = URL(fileURLWithPath: "/root/p2pHelper/\(fileName)")
