@@ -9,6 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import Logging
 
 final class BinanceAPIService {
     
@@ -99,6 +100,8 @@ final class BinanceAPIService {
     // MARK: - PROPERTIES
     
     static let shared = BinanceAPIService()
+    
+    private var logger = Logger(label: "api.binance")
 
     // MARK: - METHODS
     
@@ -114,17 +117,22 @@ final class BinanceAPIService {
         
         session.dataTask(with: request) {(data, response, error) in
             if let error = error {
-                print("error is \(error.localizedDescription)")
+                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil)
                 return
             }
             
-            guard let data = data else { return }
+            guard let data = data else {
+                self?.logger.error(Logger.Message(stringLiteral: "NO DATA for Binance Spot"))
+                completion(nil)
+                return
+            }
             
             do {
                 let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
                 completion(ticker)
-            } catch {
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil)
             }
         }.resume()
@@ -167,9 +175,9 @@ final class BinanceAPIService {
         sellRequest.httpBody = try? JSONSerialization.data(withJSONObject: sellParametersDictionary) as Data
         
         group.enter()
-        session.dataTask(with: sellRequest) {(data, response, error) in
+        session.dataTask(with: sellRequest) { [weak self] (data, response, error) in
             if let error = error {
-                print("error is \(error.localizedDescription)")
+                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 finalError = error
                 group.leave()
                 return
@@ -180,28 +188,10 @@ final class BinanceAPIService {
             do {
                 let welcome = try JSONDecoder().decode(Welcome.self, from: data) //Creates a User Object if your JSON data matches the structure of your class
                 sellAdvs = welcome.data.compactMap { $0.adv }
-                
-//                let all = welcome.data
-//                    .map { $0.advertiser.nickName }
-//
-//                print("All: \(all)")
-//
-//                let amountFilter = welcome.data
-//                    .filter { Double($0.adv.surplusAmount) ?? 0 >= 200 }
-//                    .map { $0.advertiser.nickName }
-//
-//                print("Amount Filter: \(amountFilter)")
-//
-//                let singleFilter = welcome.data
-//                    .filter { Double($0.adv.surplusAmount) ?? 0 >= 200 }
-//                    .filter { Double($0.adv.minSingleTransAmount) ?? 0 >= 2000 && Double($0.adv.minSingleTransAmount) ?? 0 <= 50000 }
-//                    .map { $0.advertiser.nickName }
-//
-//                print("Single Filter: \(singleFilter)")
-                
                 group.leave()
             } catch (let decodingError) {
                 finalError = decodingError
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 group.leave()
             }
         }.resume()
@@ -213,9 +203,9 @@ final class BinanceAPIService {
         buyRequest.httpBody = try? JSONSerialization.data(withJSONObject: buyParametersDictionary) as Data
         
         group.enter()
-        session.dataTask(with: buyRequest) {(data, response, error) in
+        session.dataTask(with: buyRequest) { [weak self] (data, response, error) in
             if let error = error {
-                print("error is \(error.localizedDescription)")
+                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 finalError = error
                 group.leave()
                 return
@@ -229,6 +219,7 @@ final class BinanceAPIService {
                 group.leave()
             } catch (let decodingError) {
                 finalError = decodingError
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 group.leave()
             }
         }.resume()

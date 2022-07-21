@@ -26,9 +26,9 @@ final class DefaultBotHandlers {
     
     static let shared = DefaultBotHandlers()
     
+    private var logger = Logger(label: "handlers.logger")
     // TODO: - move to each users settings
     // Stores Last Alert Date for each scheme - needed to send Alert with some periodisation
-    private var logger = Logger(label: "handlers.logger")
     private var lastAlertingEvents: [String: Date] = [:]
     
     // TODO: - move to constants
@@ -330,8 +330,8 @@ private extension DefaultBotHandlers {
                     paymentMethod: binanceP2POpportunity.paymentMethod.apiDescription,
                     crypto: binanceP2POpportunity.crypto.apiDescription
                 ) { [weak self] buyAdvs, sellAdvs, error in
-                    if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                     guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
+                        self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE P2P"))
                         completion(nil)
                         return
                     }
@@ -347,6 +347,7 @@ private extension DefaultBotHandlers {
             case .spot(let binanceSpotOpportunity):
                 BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { ticker in
                     guard let possibleSellPrice = ticker?.sellPrice, let possibleBuyPrice = ticker?.buyPrice else {
+                        self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE SPOT"))
                         completion(nil)
                         return
                     }
