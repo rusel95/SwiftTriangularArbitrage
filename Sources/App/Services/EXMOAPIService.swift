@@ -9,6 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import Logging
 
 final class EXMOAPIService {
     
@@ -47,6 +48,8 @@ final class EXMOAPIService {
     // MARK: - PROPERTIES
     
     static let shared = EXMOAPIService()
+    
+    private var logger = Logger(label: "api.exmo")
 
     // MARK: - METHODS
     
@@ -60,19 +63,26 @@ final class EXMOAPIService {
             URLQueryItem(name: "limit", value: "5")
         ]
         let request = URLRequest(url: urlComponents.url!)
-        URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
+        URLSession.shared.dataTask(with: request, completionHandler: { [weak self] data, response, error in
             if let error = error {
-                print("error is \(error.localizedDescription)")
+                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil, nil, error)
                 return
             }
             
-            guard let data = data,
-                  let welcome = try? JSONDecoder().decode(Welcome.self, from: data) else {
+            guard let data = data else {
+                self?.logger.error(Logger.Message(stringLiteral: "NO DATA FOR EXMO, url: \(urlComponents.debugDescription)"))
                 completion(nil, nil, nil)
-                return }
-        
-            completion(Double(welcome.usdtUah.askTop), Double(welcome.usdtUah.bidTop), nil)
+                return
+            }
+            
+            do {
+                let welcome = try JSONDecoder().decode(Welcome.self, from: data)
+                completion(Double(welcome.usdtUah.askTop), Double(welcome.usdtUah.bidTop), nil)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil, nil, decodingError)
+            }
         }).resume()
     }
     

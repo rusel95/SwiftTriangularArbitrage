@@ -115,7 +115,7 @@ final class BinanceAPIService {
         var request = URLRequest(url: url)
         request.httpMethod = "Get"
         
-        session.dataTask(with: request) {(data, response, error) in
+        session.dataTask(with: request) { [weak self] (data, response, error) in
             if let error = error {
                 self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil)
@@ -123,7 +123,7 @@ final class BinanceAPIService {
             }
             
             guard let data = data else {
-                self?.logger.error(Logger.Message(stringLiteral: "NO DATA for Binance Spot"))
+                self?.logger.error(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
                 completion(nil)
                 return
             }

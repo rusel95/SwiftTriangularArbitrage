@@ -345,7 +345,7 @@ private extension DefaultBotHandlers {
                     completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice, possibleBuyPrice: averagePossibleBuyPrice))
                 }
             case .spot(let binanceSpotOpportunity):
-                BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { ticker in
+                BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { [weak self] ticker in
                     guard let possibleSellPrice = ticker?.sellPrice, let possibleBuyPrice = ticker?.buyPrice else {
                         self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE SPOT"))
                         completion(nil)
@@ -376,8 +376,8 @@ private extension DefaultBotHandlers {
             }
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
-                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
+                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR EXMO"))
                     completion(nil)
                     return
                 }
