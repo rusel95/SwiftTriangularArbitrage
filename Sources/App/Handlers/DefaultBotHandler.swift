@@ -32,11 +32,11 @@ final class DefaultBotHandlers {
     private var lastAlertingEvents: [String: Date] = [:]
     
     // TODO: - move to constants
-    private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %" //"crypto Sell(payment method) - Buy(payment method) | possible price Sell - Buy | spread Dirty - Clean | Clean Profit in %\n" +
+    private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %"
     private let commandsDescription = """
         /start_trading - режим моніторингу основних схем торгівлі в режимі реального часу (відкриваємо і торгуємо);
-        /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
+        /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
         """
     private let wellKnownSchemesForAlerting: [EarningScheme] = [
@@ -65,15 +65,15 @@ final class DefaultBotHandlers {
     
     func addHandlers(app: Vapor.Application, bot: TGBotPrtcl) {
         commandStartHandler(app: app, bot: bot)
-        commandStartLoggingHandler(app: app, bot: bot)
         commandStartTradingHandler(app: app, bot: bot)
         commandStartAlertingHandler(app: app, bot: bot)
+        commandStartLoggingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
         
         startTradingJob(bot: bot)
-        startLoggingJob(bot: bot)
         startAlertingJob(bot: bot)
+        startLoggingJob(bot: bot)
     }
     
     func startTradingJob(bot: TGBotPrtcl) {
@@ -95,17 +95,6 @@ final class DefaultBotHandlers {
         }
     }
     
-    func startLoggingJob(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
-            let usersInfoWithLoggingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
-            
-            guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
-            
-            let chatsInfo: [ChatInfo] = usersInfoWithLoggingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
-            self.printDescription(earningSchemes: EarningScheme.allCases, chatsInfo: chatsInfo, bot: bot)
-        }
-    }
-    
     func startAlertingJob(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(Mode.alerting.jobInterval)) { [weak self] in
             let usersInfoWithAlertingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
@@ -115,6 +104,17 @@ final class DefaultBotHandlers {
             let chatsInfo: [ChatInfo] = usersInfoWithAlertingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
             self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, chatsInfo: chatsInfo, bot: bot)
             self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, chatsInfo: chatsInfo, bot: bot)
+        }
+    }
+    
+    func startLoggingJob(bot: TGBotPrtcl) {
+        Jobs.add(interval: .seconds(Mode.logging.jobInterval)) { [weak self] in
+            let usersInfoWithLoggingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging)
+            
+            guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
+            
+            let chatsInfo: [ChatInfo] = usersInfoWithLoggingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
+            self.printDescription(earningSchemes: EarningScheme.allCases, chatsInfo: chatsInfo, bot: bot)
         }
     }
 
@@ -151,13 +151,13 @@ private extension DefaultBotHandlers {
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
             if UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading).contains(where: { $0.chatId == chatId }) {
-                let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"//"Trading Updates already running!"
+                let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
             } else {
-                let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"// "Now you will see market updates in Real Time (with update interval \(Int(Mode.trading.jobInterval)) seconds) \n\(self.resultsFormatDescription)"
+                let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"
                 let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 explanationMessageFutute?.whenComplete({ _ in
-                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))// "Wait a sec.."))
+                    let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
                     editMessageFuture?.whenComplete({ result in
                         let onlineUpdatesMessageId = try? result.get().messageId
                         UsersInfoProvider.shared.handleModeSelected(
@@ -173,35 +173,13 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/start_logging"
-    func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
-            
-            if UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging).contains(where: { $0.chatId == chatId }) {
-                let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop" //"Logging Updates already running!"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-            } else {
-                let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)" //"Now you will see market updates every \(Int(Mode.logging.jobInterval / 60)) minutes\n\(self.resultsFormatDescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
-                self.printDescription(
-                    earningSchemes: EarningScheme.allCases,
-                    chatsInfo: [ChatInfo(chatId: chatId, editMessageId: nil)],
-                    bot: bot
-                )
-            }
-        }
-        bot.connection.dispatcher.add(handler)
-    }
-    
     /// add handler for command "/start_alerting"
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
             if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop")) // "Already handling Extra opportinuties.."))
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
             } else {
                 let schemesFullDescription = self.wellKnownSchemesForAlerting
                     .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
@@ -218,9 +196,31 @@ private extension DefaultBotHandlers {
                 
                 Намагаюся знайти найращі можливості для Арбітражу для наступних можливостей покупки/продажі на:
                 \(opportunitiesFullDescription)
-                """// "Started handling Extra opportinuties (max 1 alert/hour/ooportinity) for Schemes:\n\(schemesFullDescription)"
+                """
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
+            }
+        }
+        bot.connection.dispatcher.add(handler)
+    }
+    
+    /// add handler for command "/start_logging"
+    func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
+        let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+            
+            if UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging).contains(where: { $0.chatId == chatId }) {
+                let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+            } else {
+                let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60.0)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
+                self.printDescription(
+                    earningSchemes: EarningScheme.allCases,
+                    chatsInfo: [ChatInfo(chatId: chatId, editMessageId: nil)],
+                    bot: bot
+                )
             }
         }
         bot.connection.dispatcher.add(handler)

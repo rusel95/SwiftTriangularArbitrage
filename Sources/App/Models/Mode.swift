@@ -18,7 +18,7 @@ enum Mode: Codable, Hashable {
     
     var jobInterval: Double { // in seconds
         switch self {
-        case .trading: return 10
+        case .trading: return 30
         case .logging: return 900
         case .alerting: return 60
         case .suspended: return .infinity
@@ -28,8 +28,8 @@ enum Mode: Codable, Hashable {
     var command: String {
         switch self {
         case .trading: return "/start_trading"
-        case .logging: return "/start_logging"
         case .alerting: return "/start_alerting"
+        case .logging: return "/start_logging"
         case .suspended: return "/stop"
         }
     }
