@@ -300,24 +300,34 @@ private extension DefaultBotHandlers {
                 completion(pricesInfo)
             }
         } else {
-            var averagePossibleSellPrice: Double = 0
-            var averagePossibleBuyPrice: Double = 0
+            var averagePossibleSellPrice: Double?
+            var averagePossibleBuyPrice: Double?
 
             let priceInfoGroup = DispatchGroup()
             priceInfoGroup.enter()
             getPricesInfo(for: earningScheme.sellOpportunity) { pricesInfo in
-                averagePossibleSellPrice = pricesInfo?.possibleSellPrice ?? 0
+                averagePossibleSellPrice = pricesInfo?.possibleSellPrice
                 priceInfoGroup.leave()
             }
             
             priceInfoGroup.enter()
             getPricesInfo(for: earningScheme.buyOpportunity) { pricesInfo in
-                averagePossibleBuyPrice = pricesInfo?.possibleBuyPrice ?? 0
+                averagePossibleBuyPrice = pricesInfo?.possibleBuyPrice
                 priceInfoGroup.leave()
             }
-            priceInfoGroup.notify(queue: .global()) {
-                completion(PricesInfo(possibleSellPrice: averagePossibleSellPrice,
-                                      possibleBuyPrice: averagePossibleBuyPrice))
+            priceInfoGroup.notify(queue: .global()) { [weak self] in
+                guard let possibleSellPrice = averagePossibleSellPrice else {
+                    self?.logger.error(Logger.Message(stringLiteral: "NO possibleSellPrice for \(earningScheme.sellOpportunity.description)"))
+                    completion(nil)
+                    return
+                }
+                guard let possibleBuyPrice = averagePossibleBuyPrice else {
+                    self?.logger.error(Logger.Message(stringLiteral: "NO possibleBuyPrice for \(earningScheme.buyOpportunity.description)"))
+                    completion(nil)
+                    return
+                }
+                
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
         }
     }
@@ -488,10 +498,13 @@ private extension DefaultBotHandlers {
             let pricesInfo = PricesInfo(possibleSellPrice: biggestSellFinalPriceOpportunityResult.priceInfo.possibleSellPrice,
                                         possibleBuyPrice: lowestBuyFinalPriceOpportunityResult.priceInfo.possibleBuyPrice)
             
-            let spreadInfo = self.getSpreadInfo(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
-                                                buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
-                                                pricesInfo: pricesInfo)
-            let profitPercent: Double = (spreadInfo?.cleanSpread ?? 0.0 / pricesInfo.possibleSellPrice * 100.0)
+            guard let spreadInfo = self.getSpreadInfo(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
+                                                      buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
+                                                      pricesInfo: pricesInfo) else {
+                self.logger.error(Logger.Message(stringLiteral: "NO spreadInfo for sellOpportunity: \( biggestSellFinalPriceOpportunityResult.opportunity.description), buyOpportunity: \(lowestBuyFinalPriceOpportunityResult.opportunity.description)"))
+                return
+            }
+            let profitPercent: Double = spreadInfo.cleanSpread / pricesInfo.possibleSellPrice * 100.0
             let valuableProfitPercent: Double = 1 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
