@@ -173,9 +173,9 @@ enum Opportunity: Equatable {
         }
         
         // in percents
-        var sellCommission: Double? {
+        var sellCommission: Double {
             switch self {
-            case .usdtSpot: return nil
+            case .usdtSpot: return 1.1
             }
         }
         
