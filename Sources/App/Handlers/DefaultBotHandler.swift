@@ -53,6 +53,7 @@ final class DefaultBotHandlers {
     ]
     private let opportunitiesForArbitrage: [Opportunity] = [
         .binance(.p2p(.monobankUSDT)),
+        .binance(.p2p(.abankUSDT)),
         .huobi(.usdtSpot),
         .whiteBit(.usdtSpot),
         .binance(.spot(.usdtUAH)),
@@ -385,8 +386,8 @@ private extension DefaultBotHandlers {
             }
         case .kuna(let kunaOpportunity):
             KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
-                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
+                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR KUNA"))
                     completion(nil)
                     return
                 }
