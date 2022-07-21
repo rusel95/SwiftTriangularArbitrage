@@ -58,7 +58,7 @@ final class KunaAPIService {
                 completion(asks, bids, nil)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                completion(nil, nil, decodingError)
+                completion([], [], decodingError)
             }
         }).resume()
     }

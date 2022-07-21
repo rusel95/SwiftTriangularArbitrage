@@ -9,6 +9,7 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import Logging
 
 final class WhiteBitAPIService {
     
@@ -23,6 +24,8 @@ final class WhiteBitAPIService {
     // MARK: - PROPERTIES
     
     static let shared = WhiteBitAPIService()
+    
+    private var logger = Logger(label: "api.whitebit")
 
     // MARK: - METHODS
     
@@ -35,19 +38,28 @@ final class WhiteBitAPIService {
             URLQueryItem(name: "limit", value: "5")
         ]
         let request = URLRequest(url: urlComponents.url!)
-        URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
+        URLSession.shared.dataTask(with: request, completionHandler: { [weak self] data, response, error in
             if let error = error {
-                print("error is \(error.localizedDescription)")
+                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil, nil, error)
                 return
             }
             
-            guard let data = data else { return }
+            guard let data = data else {
+                self?.logger.error(Logger.Message(stringLiteral: "NO Data for whitebit: \(urlComponents.debugDescription)"))
+                completion(nil, nil, nil)
+                return
+            }
             
-            let orderbookData = try? JSONDecoder().decode(OrderbookData.self, from: data)
-            let asks = orderbookData?.asks.compactMap { $0.first }.compactMap { Double($0) }
-            let bids = orderbookData?.bids.compactMap { $0.first }.compactMap { Double($0) }
-            completion(asks, bids, nil)
+            do {
+                let orderbookData = try JSONDecoder().decode(OrderbookData.self, from: data)
+                let asks = orderbookData.asks.compactMap { $0.first }.compactMap { Double($0) }
+                let bids = orderbookData.bids.compactMap { $0.first }.compactMap { Double($0) }
+                completion(asks, bids, nil)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil, nil, decodingError)
+            }
         }).resume()
     }
     

@@ -358,8 +358,8 @@ private extension DefaultBotHandlers {
            
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
-                if let error = error { self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription)) }
                 guard let possibleSellPrice = bids?.first, let possibleBuyPrice = asks?.first else {
+                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR WHITEBIT"))
                     completion(nil)
                     return
                 }
