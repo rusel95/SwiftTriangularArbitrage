@@ -13,6 +13,24 @@ import Logging
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
+struct OpportunityResult {
+    
+    let opportunity: Opportunity
+    let priceInfo: PricesInfo
+    
+    var finalSellPrice: Double? {
+        guard let sellCommission = opportunity.sellCommission else { return nil }
+        
+        return priceInfo.possibleSellPrice - (priceInfo.possibleSellPrice * (sellCommission) / 100.0)
+    }
+    
+    var finalBuyPrice: Double? {
+        guard let buyCommission = opportunity.buyCommission else { return nil }
+        
+        return priceInfo.possibleBuyPrice + (priceInfo.possibleBuyPrice * (buyCommission) / 100.0)
+    }
+}
+
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
@@ -275,7 +293,7 @@ private extension DefaultBotHandlers {
             var arbitragingPricesInfodescription = ""
             self.getOpportunitiesResults(for: self.arbitragingOpportunities) { opportunitiesResults in
                 opportunitiesResults.forEach { opportunityResult in
-                    arbitragingPricesInfodescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())\n")
+                    arbitragingPricesInfodescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())|\((opportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())-\((opportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n")
                 }
                 let text = "Users:\n\(usersDescription)\n\nArtitrage:\n\(arbitragingPricesInfodescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
@@ -480,21 +498,13 @@ private extension DefaultBotHandlers {
     func alertAboutArbitrage(opportunities: [Opportunity], chatsIds: [Int64], bot: TGBotPrtcl) {
         getOpportunitiesResults(for: opportunities) { [weak self] opportunitiesResults in
             let biggestSellFinalPriceOpportunityResult = opportunitiesResults
-                .filter { $0.opportunity.sellCommission != nil }
-                .sorted {
-                    let firstOpportunityFinalSellPrice = $0.priceInfo.possibleSellPrice - ($0.priceInfo.possibleSellPrice * ($0.opportunity.sellCommission ?? 0.0) / 100.0)
-                    let secondOpportunityFinalSellPrice = $1.priceInfo.possibleSellPrice - ($1.priceInfo.possibleSellPrice * ($1.opportunity.sellCommission ?? 0.0) / 100.0)
-                    return firstOpportunityFinalSellPrice > secondOpportunityFinalSellPrice
-                }
+                .filter { $0.finalSellPrice != nil }
+                .sorted { $0.finalSellPrice ?? 0.0 > $1.finalSellPrice ?? 0.0 }
                 .first
             
             let lowestBuyFinalPriceOpportunityResult = opportunitiesResults
-                .filter { $0.opportunity.buyCommission != nil }
-                .sorted { (firstOpportinityResult, secondOpportunityResult) in
-                    let firstOpportunityFinalBuyPrice = firstOpportinityResult.priceInfo.possibleBuyPrice + (firstOpportinityResult.priceInfo.possibleBuyPrice * (firstOpportinityResult.opportunity.buyCommission ?? 0.0) / 100.0)
-                    let secondOpportunityFinalBuyPrice = secondOpportunityResult.priceInfo.possibleBuyPrice + (secondOpportunityResult.priceInfo.possibleBuyPrice * (secondOpportunityResult.opportunity.buyCommission ?? 0.0) / 100.0)
-                    return firstOpportunityFinalBuyPrice < secondOpportunityFinalBuyPrice
-                }
+                .filter { $0.finalBuyPrice != nil }
+                .sorted { $0.finalBuyPrice ?? 0.0 < $1.finalBuyPrice ?? 0.0 }
                 .first
             
             guard let self = self,
@@ -529,9 +539,9 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func getOpportunitiesResults(for opportunities: [Opportunity], completion: @escaping([(opportunity: Opportunity, priceInfo: PricesInfo)]) -> Void) {
+    func getOpportunitiesResults(for opportunities: [Opportunity], completion: @escaping([OpportunityResult]) -> Void) {
         let opportunitiesGroup = DispatchGroup()
-        var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
+        var opportunitiesResults: [OpportunityResult] = []
         opportunities.forEach { opportunity in
             opportunitiesGroup.enter()
             
@@ -541,7 +551,7 @@ private extension DefaultBotHandlers {
                     return
                 }
         
-                opportunitiesResults.append((opportunity, pricesInfo))
+                opportunitiesResults.append(OpportunityResult(opportunity: opportunity, priceInfo: pricesInfo))
                 opportunitiesGroup.leave()
             }
         }
