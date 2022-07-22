@@ -206,9 +206,16 @@ enum Opportunity: Equatable {
         }
         
         // in percents
-        var extraCommission: Double {
+        var sellCommission: Double {
             switch self {
-            case .usdtUAHSpot: return 0.2
+            case .usdtUAHSpot: return 1.1
+            }
+        }
+        
+        // in percents
+        var buyCommission: Double? {
+            switch self {
+            case .usdtUAHSpot: return nil
             }
         }
     }
@@ -309,7 +316,7 @@ enum Opportunity: Equatable {
         case .huobi(let opportunity):
             return opportunity.sellCommission
         case .exmo(let exmoOpportunity):
-            return exmoOpportunity.extraCommission
+            return exmoOpportunity.sellCommission
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.extraCommission
         }
@@ -330,7 +337,7 @@ enum Opportunity: Equatable {
         case .huobi(let opportunity):
             return opportunity.buyCommission
         case .exmo(let exmoOpportunity):
-            return exmoOpportunity.extraCommission
+            return exmoOpportunity.buyCommission
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.extraCommission
         }
