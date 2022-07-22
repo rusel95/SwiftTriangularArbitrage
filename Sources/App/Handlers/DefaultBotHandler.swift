@@ -13,13 +13,6 @@ import Logging
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
-struct ChatInfo: Hashable {
-    
-    let chatId: Int64
-    let editMessageId: Int?
-    
-}
-
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
@@ -116,9 +109,9 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
             
-            let chatsInfo: [ChatInfo] = usersInfoWithAlertingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
-            self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsInfo: chatsInfo, bot: bot)
-            self.alertAboutArbitrage(opportunities: self.arbitragingOpportunities, chatsInfo: chatsInfo, bot: bot)
+            let chatsIds: [Int64] = usersInfoWithAlertingMode.map { $0.chatId }
+            self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsIds: chatsIds, bot: bot)
+            self.alertAboutArbitrage(opportunities: self.arbitragingOpportunities, chatsIds: chatsIds, bot: bot)
         }
     }
     
@@ -272,13 +265,21 @@ private extension DefaultBotHandlers {
     
     /// add handler for command "/test"
     func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: ["/test"]) { update, bot in
-            guard let chatId = update.message?.chat.id else { return }
+        let handler = TGCommandHandler(commands: ["/test"]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id else { return }
            
-            let testMessage = UsersInfoProvider.shared.getAllUsersInfo()
+            let usersDescription = UsersInfoProvider.shared.getAllUsersInfo()
                 .map { $0.description }
                 .joined(separator: "\n")
-            _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: testMessage))
+            
+            var arbitragingPricesInfodescription = ""
+            self.getOpportunitiesResults(for: self.arbitragingOpportunities) { opportunitiesResults in
+                opportunitiesResults.forEach { opportunityResult in
+                    arbitragingPricesInfodescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())\n")
+                }
+                let text = "Users:\n\(usersDescription)\n\nArtitrage:\n\(arbitragingPricesInfodescription)"
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+            }
         }
         bot.connection.dispatcher.add(handler)
     }
@@ -449,7 +450,7 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func alertAboutProfitability(earningSchemes: [EarningScheme], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
+    func alertAboutProfitability(earningSchemes: [EarningScheme], chatsIds: [Int64], bot: TGBotPrtcl) {
         earningSchemes.forEach { [weak self] earningScheme in
             guard let self = self,
                   ((Date() - (self.lastAlertingEvents[earningScheme.shortDescription] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime) || self.lastAlertingEvents[earningScheme.shortDescription] == nil
@@ -469,32 +470,15 @@ private extension DefaultBotHandlers {
                                                             pricesInfo: pricesInfo)
                 let text = "Профітна можливість!!! \(description)"
                 
-                chatsInfo.forEach { chatInfo in
-                    _ = try? bot.sendMessage(params: .init(chatId: .chat(chatInfo.chatId), text: text))
+                chatsIds.forEach { chatId in
+                    _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 }
             }
         }
     }
     
-    func alertAboutArbitrage(opportunities: [Opportunity], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
-        let arbitrageGroup = DispatchGroup()
-        var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
-        
-        opportunities.forEach { opportunity in
-            arbitrageGroup.enter()
-            
-            getPricesInfo(for: opportunity) { pricesInfo in
-                guard let pricesInfo = pricesInfo else {
-                    arbitrageGroup.leave()
-                    return
-                }
-        
-                opportunitiesResults.append((opportunity, pricesInfo))
-                arbitrageGroup.leave()
-            }
-        }
-
-        arbitrageGroup.notify(queue: .global()) { [weak self] in
+    func alertAboutArbitrage(opportunities: [Opportunity], chatsIds: [Int64], bot: TGBotPrtcl) {
+        getOpportunitiesResults(for: opportunities) { [weak self] opportunitiesResults in
             let biggestSellFinalPriceOpportunityResult = opportunitiesResults
                 .filter { $0.opportunity.sellCommission != nil }
                 .sorted {
@@ -539,9 +523,30 @@ private extension DefaultBotHandlers {
             let prettyDescription = self.getPrettyDescription(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
                                                               buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                               pricesInfo: pricesInfo)
-            chatsInfo.forEach { chatInfo in
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatInfo.chatId), text: "Арбітражна можливість: \(prettyDescription)"))
+            chatsIds.forEach { chatId in
+                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Арбітражна можливість: \(prettyDescription)"))
             }
+        }
+    }
+    
+    func getOpportunitiesResults(for opportunities: [Opportunity], completion: @escaping([(opportunity: Opportunity, priceInfo: PricesInfo)]) -> Void) {
+        let opportunitiesGroup = DispatchGroup()
+        var opportunitiesResults: [(opportunity: Opportunity, priceInfo: PricesInfo)] = []
+        opportunities.forEach { opportunity in
+            opportunitiesGroup.enter()
+            
+            getPricesInfo(for: opportunity) { pricesInfo in
+                guard let pricesInfo = pricesInfo else {
+                    opportunitiesGroup.leave()
+                    return
+                }
+        
+                opportunitiesResults.append((opportunity, pricesInfo))
+                opportunitiesGroup.leave()
+            }
+        }
+        opportunitiesGroup.notify(queue: .global()) {
+            completion(opportunitiesResults)
         }
     }
     
