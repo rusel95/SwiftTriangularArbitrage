@@ -39,6 +39,13 @@ final class DefaultBotHandlers {
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
         """
+    private let tradingOpportunities: [EarningScheme] = [
+        .monobankUSDT_monobankUSDT,
+        .privatbankUSDT_privabbankUSDT,
+        .monobankBUSD_monobankUSDT,
+        .privatbankBUSD_privatbankUSDT,
+        .wiseUSDT_wiseUSDT
+    ]
     private let wellKnownSchemesForAlerting: [EarningScheme] = [
         .monobankUSDT_monobankUSDT,
         .privatbankUSDT_privabbankUSDT,
@@ -53,7 +60,6 @@ final class DefaultBotHandlers {
     ]
     private let opportunitiesForArbitrage: [Opportunity] = [
         .binance(.p2p(.monobankUSDT)),
-        .binance(.p2p(.abankUSDT)),
         .huobi(.usdtSpot),
         .whiteBit(.usdtSpot),
         .binance(.spot(.usdtUAH)),
@@ -82,16 +88,23 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
            
-            let tradingOpportunities: [EarningScheme] = [
-                .monobankUSDT_monobankUSDT,
-                .privatbankUSDT_privabbankUSDT,
-                .monobankBUSD_monobankUSDT,
-                .privatbankBUSD_privatbankUSDT,
-                .wiseUSDT_wiseUSDT
-            ]
-            let chatsInfo: [ChatInfo] = usersInfoWithTradingMode
-                .map { ChatInfo(chatId: $0.chatId, editMessageId: $0.onlineUpdatesMessageId) }
-            self.printDescription(earningSchemes: tradingOpportunities, chatsInfo: chatsInfo, bot: bot)
+            self.getDescription(
+                earningSchemes: self.tradingOpportunities,
+                completion: { totalDescription in
+                    usersInfoWithTradingMode.forEach { userInfo in
+                        if let editMessageId = userInfo.onlineUpdatesMessageId {
+                            let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
+                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                            messageId: editMessageId,
+                                                                            inlineMessageId: nil,
+                                                                            text: text)
+                            _ = try? bot.editMessageText(params: editParams)
+                        } else {
+                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                        }
+                    }
+                }
+            )
         }
     }
     
@@ -113,8 +126,11 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
             
-            let chatsInfo: [ChatInfo] = usersInfoWithLoggingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
-            self.printDescription(earningSchemes: EarningScheme.allCases, chatsInfo: chatsInfo, bot: bot)
+            self.getDescription(earningSchemes: EarningScheme.allCases) { totalDescription in
+                usersInfoWithLoggingMode.forEach { userInfo in
+                    _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                }
+            }
         }
     }
 
@@ -158,13 +174,27 @@ private extension DefaultBotHandlers {
                 let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 explanationMessageFutute?.whenComplete({ _ in
                     let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
-                    editMessageFuture?.whenComplete({ result in
+                    editMessageFuture?.whenComplete({ [weak self] result in
                         let onlineUpdatesMessageId = try? result.get().messageId
                         UsersInfoProvider.shared.handleModeSelected(
                             chatId: chatId,
                             user: user,
                             mode: .trading,
                             onlineUpdatesMessageId: onlineUpdatesMessageId
+                        )
+                        
+                        guard let self = self else { return }
+                        
+                        self.getDescription(
+                            earningSchemes: self.tradingOpportunities,
+                            completion: { totalDescription in
+                                let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
+                                let editParams: TGEditMessageTextParams = .init(chatId: .chat(chatId),
+                                                                                messageId: onlineUpdatesMessageId,
+                                                                                inlineMessageId: nil,
+                                                                                text: text)
+                                _ = try? bot.editMessageText(params: editParams)
+                            }
                         )
                     })
                 })
@@ -216,10 +246,11 @@ private extension DefaultBotHandlers {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60.0)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)"
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
-                self.printDescription(
+                self.getDescription(
                     earningSchemes: EarningScheme.allCases,
-                    chatsInfo: [ChatInfo(chatId: chatId, editMessageId: nil)],
-                    bot: bot
+                    completion: { totalDescription in
+                        _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: totalDescription))
+                    }
                 )
             }
         }
@@ -256,7 +287,7 @@ private extension DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    func printDescription(earningSchemes: [EarningScheme], chatsInfo: [ChatInfo], bot: TGBotPrtcl) {
+    func getDescription(earningSchemes: [EarningScheme], completion: @escaping(String) -> Void) {
         let earningShemesGroup = DispatchGroup()
         var potentialEarningResults: [(scheme: EarningScheme, description: String)] = []
         earningSchemes.forEach { earningScheme in
@@ -264,7 +295,8 @@ private extension DefaultBotHandlers {
             
             getPricesInfo(for: earningScheme) { pricesInfo in
                 guard let pricesInfo = pricesInfo else {
-                    potentialEarningResults.append((earningScheme, "No PricesInfo for \(earningScheme)"))
+                    potentialEarningResults.append((earningScheme, "No Prices for \(earningScheme)\n"))
+                    earningShemesGroup.leave()
                     return
                 }
         
@@ -277,20 +309,11 @@ private extension DefaultBotHandlers {
         }
         
         earningShemesGroup.notify(queue: .global()) {
-            let totalDescriptioon = potentialEarningResults
+            let totalDescription = potentialEarningResults
                 .sorted { $0.scheme.rawValue < $1.scheme.rawValue }
                 .map { $0.description }
                 .joined(separator: "\n")
-            chatsInfo.forEach { chatInfo in
-                if let editMessageId = chatInfo.editMessageId {
-                    let params: TGEditMessageTextParams = .init(chatId: .chat(chatInfo.chatId), messageId: editMessageId, inlineMessageId: nil, text: "\(totalDescriptioon)\nАктуально станом на \(Date().readableDescription)")
-                    _ = try? bot.editMessageText(params: params)
-                } else {
-                    let params: TGSendMessageParams = .init(chatId: .chat(chatInfo.chatId), text: totalDescriptioon)
-                    _ = try? bot.sendMessage(params: params)
-                }
-            }
-           
+            completion(totalDescription)
         }
     }
     
