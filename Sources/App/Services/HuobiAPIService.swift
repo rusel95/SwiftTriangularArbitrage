@@ -47,13 +47,13 @@ final class HuobiAPIService {
         let request = URLRequest(url: urlComponents.url!)
         URLSession.shared.dataTask(with: request, completionHandler: { [weak self] data, response, error in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 completion([], [], error)
                 return
             }
             
             guard let data = data else {
-                self?.logger.error(Logger.Message(stringLiteral: "NO DATA FOR HUOBI \(urlComponents.debugDescription)"))
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA FOR HUOBI \(urlComponents.debugDescription)"))
                 completion([], [], nil)
                 return
             }
@@ -64,7 +64,7 @@ final class HuobiAPIService {
                 let bids = marketData.tick.bids.compactMap { $0.first }.compactMap { Double($0) }
                 completion(asks, bids, nil)
             } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion([], [], decodingError)
             }
         }).resume()

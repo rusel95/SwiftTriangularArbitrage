@@ -117,13 +117,13 @@ final class BinanceAPIService {
         
         session.dataTask(with: request) { [weak self] (data, response, error) in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil)
                 return
             }
             
             guard let data = data else {
-                self?.logger.error(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
                 completion(nil)
                 return
             }
@@ -132,7 +132,7 @@ final class BinanceAPIService {
                 let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
                 completion(ticker)
             } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil)
             }
         }.resume()
@@ -177,7 +177,7 @@ final class BinanceAPIService {
         group.enter()
         session.dataTask(with: sellRequest) { [weak self] (data, response, error) in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 finalError = error
                 group.leave()
                 return
@@ -191,7 +191,7 @@ final class BinanceAPIService {
                 group.leave()
             } catch (let decodingError) {
                 finalError = decodingError
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 group.leave()
             }
         }.resume()
@@ -205,7 +205,7 @@ final class BinanceAPIService {
         group.enter()
         session.dataTask(with: buyRequest) { [weak self] (data, response, error) in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 finalError = error
                 group.leave()
                 return
@@ -219,7 +219,7 @@ final class BinanceAPIService {
                 group.leave()
             } catch (let decodingError) {
                 finalError = decodingError
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 group.leave()
             }
         }.resume()

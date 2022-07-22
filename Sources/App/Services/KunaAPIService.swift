@@ -36,13 +36,13 @@ final class KunaAPIService {
         let url = URL(string: "https://api.kuna.io/v3/book/\(paymentMethod)")!
         URLSession.shared.dataTask(with: url, completionHandler: { [weak self] data, response, error in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 completion([], [], error)
                 return
             }
             
             guard let data = data else {
-                self?.logger.error(Logger.Message(stringLiteral: "NO Data for KUNA \(url.debugDescription)"))
+                self?.logger.warning(Logger.Message(stringLiteral: "NO Data for KUNA \(url.debugDescription)"))
                 completion ([], [], nil)
                 return
             }
@@ -57,7 +57,7 @@ final class KunaAPIService {
                 let asks = orders.filter { $0.volume < 0 }.map { $0.price }.sorted { $0 < $1 }
                 completion(asks, bids, nil)
             } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion([], [], decodingError)
             }
         }).resume()

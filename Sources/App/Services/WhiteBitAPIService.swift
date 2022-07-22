@@ -40,13 +40,13 @@ final class WhiteBitAPIService {
         let request = URLRequest(url: urlComponents.url!)
         URLSession.shared.dataTask(with: request, completionHandler: { [weak self] data, response, error in
             if let error = error {
-                self?.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil, nil, error)
                 return
             }
             
             guard let data = data else {
-                self?.logger.error(Logger.Message(stringLiteral: "NO Data for whitebit: \(urlComponents.debugDescription)"))
+                self?.logger.warning(Logger.Message(stringLiteral: "NO Data for whitebit: \(urlComponents.debugDescription)"))
                 completion(nil, nil, nil)
                 return
             }
@@ -57,7 +57,7 @@ final class WhiteBitAPIService {
                 let bids = orderbookData.bids.compactMap { $0.first }.compactMap { Double($0) }
                 completion(asks, bids, nil)
             } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil, nil, decodingError)
             }
         }).resume()

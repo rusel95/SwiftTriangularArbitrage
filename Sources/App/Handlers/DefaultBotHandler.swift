@@ -361,12 +361,12 @@ private extension DefaultBotHandlers {
             }
             priceInfoGroup.notify(queue: .global()) { [weak self] in
                 guard let possibleSellPrice = averagePossibleSellPrice else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO possibleSellPrice for \(earningScheme.sellOpportunity.description)"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO possibleSellPrice for \(earningScheme.sellOpportunity.description)"))
                     completion(nil)
                     return
                 }
                 guard let possibleBuyPrice = averagePossibleBuyPrice else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO possibleBuyPrice for \(earningScheme.buyOpportunity.description)"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO possibleBuyPrice for \(earningScheme.buyOpportunity.description)"))
                     completion(nil)
                     return
                 }
@@ -386,7 +386,7 @@ private extension DefaultBotHandlers {
                     crypto: binanceP2POpportunity.crypto.apiDescription
                 ) { [weak self] buyAdvs, sellAdvs, error in
                     guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
-                        self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE P2P"))
+                        self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE P2P"))
                         completion(nil)
                         return
                     }
@@ -402,7 +402,7 @@ private extension DefaultBotHandlers {
             case .spot(let binanceSpotOpportunity):
                 BinanceAPIService.shared.getBookTicker(symbol: binanceSpotOpportunity.paymentMethod.rawValue) { [weak self] ticker in
                     guard let possibleSellPrice = ticker?.sellPrice, let possibleBuyPrice = ticker?.buyPrice else {
-                        self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE SPOT"))
+                        self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE SPOT"))
                         completion(nil)
                         return
                     }
@@ -413,7 +413,7 @@ private extension DefaultBotHandlers {
         case .whiteBit(let opportunity):
             WhiteBitAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
                 guard let possibleSellPrice = bids?.first, let possibleBuyPrice = asks?.first else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR WHITEBIT"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR WHITEBIT"))
                     completion(nil)
                     return
                 }
@@ -423,7 +423,7 @@ private extension DefaultBotHandlers {
         case .huobi(let opportunity):
             HuobiAPIService.shared.getOrderbook(paymentMethod: opportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR HUOBI"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR HUOBI"))
                     completion(nil)
                     return
                 }
@@ -432,7 +432,7 @@ private extension DefaultBotHandlers {
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR EXMO"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR EXMO"))
                     completion(nil)
                     return
                 }
@@ -441,7 +441,7 @@ private extension DefaultBotHandlers {
         case .kuna(let kunaOpportunity):
             KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
-                    self?.logger.error(Logger.Message(stringLiteral: "NO PRICES FOR KUNA"))
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR KUNA"))
                     completion(nil)
                     return
                 }
@@ -520,7 +520,7 @@ private extension DefaultBotHandlers {
             guard let spreadInfo = self.getSpreadInfo(sellOpportunity: biggestSellFinalPriceOpportunityResult.opportunity,
                                                       buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                       pricesInfo: pricesInfo) else {
-                self.logger.error(Logger.Message(stringLiteral: "NO spreadInfo for sellOpportunity: \( biggestSellFinalPriceOpportunityResult.opportunity.description), buyOpportunity: \(lowestBuyFinalPriceOpportunityResult.opportunity.description)"))
+                self.logger.info(Logger.Message(stringLiteral: "NO spreadInfo for sellOpportunity: \( biggestSellFinalPriceOpportunityResult.opportunity.description), buyOpportunity: \(lowestBuyFinalPriceOpportunityResult.opportunity.description)"))
                 return
             }
             let profitPercent: Double = spreadInfo.cleanSpread / pricesInfo.possibleSellPrice * 100.0
