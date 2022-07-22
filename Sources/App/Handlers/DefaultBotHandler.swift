@@ -39,14 +39,15 @@ final class DefaultBotHandlers {
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
         """
-    private let tradingOpportunities: [EarningScheme] = [
+    private let tradingSchemes: [EarningScheme] = [
         .monobankUSDT_monobankUSDT,
         .privatbankUSDT_privabbankUSDT,
         .monobankBUSD_monobankUSDT,
         .privatbankBUSD_privatbankUSDT,
         .wiseUSDT_wiseUSDT
     ]
-    private let wellKnownSchemesForAlerting: [EarningScheme] = [
+    
+    private let alertingSchemes: [EarningScheme] = [
         .monobankUSDT_monobankUSDT,
         .privatbankUSDT_privabbankUSDT,
         .monobankBUSD_monobankUSDT,
@@ -58,7 +59,8 @@ final class DefaultBotHandlers {
         .whiteBitUSDT_monobankUSDT,
         .monobankUSDT_whiteBitUSDT
     ]
-    private let opportunitiesForArbitrage: [Opportunity] = [
+    
+    private let arbitragingOpportunities: [Opportunity] = [
         .binance(.p2p(.monobankUSDT)),
         .huobi(.usdtSpot),
         .whiteBit(.usdtSpot),
@@ -89,7 +91,7 @@ final class DefaultBotHandlers {
             guard let self = self, usersInfoWithTradingMode.isEmpty == false else { return }
            
             self.getDescription(
-                earningSchemes: self.tradingOpportunities,
+                earningSchemes: self.tradingSchemes,
                 completion: { totalDescription in
                     usersInfoWithTradingMode.forEach { userInfo in
                         if let editMessageId = userInfo.onlineUpdatesMessageId {
@@ -115,8 +117,8 @@ final class DefaultBotHandlers {
             guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
             
             let chatsInfo: [ChatInfo] = usersInfoWithAlertingMode.map { ChatInfo(chatId: $0.chatId, editMessageId: nil) }
-            self.alertAboutProfitability(earningSchemes: self.wellKnownSchemesForAlerting, chatsInfo: chatsInfo, bot: bot)
-            self.alertAboutArbitrage(opportunities: self.opportunitiesForArbitrage, chatsInfo: chatsInfo, bot: bot)
+            self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsInfo: chatsInfo, bot: bot)
+            self.alertAboutArbitrage(opportunities: self.arbitragingOpportunities, chatsInfo: chatsInfo, bot: bot)
         }
     }
     
@@ -186,7 +188,7 @@ private extension DefaultBotHandlers {
                         guard let self = self else { return }
                         
                         self.getDescription(
-                            earningSchemes: self.tradingOpportunities,
+                            earningSchemes: self.tradingSchemes,
                             completion: { totalDescription in
                                 let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
                                 let editParams: TGEditMessageTextParams = .init(chatId: .chat(chatId),
@@ -211,10 +213,10 @@ private extension DefaultBotHandlers {
             if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
                 _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
             } else {
-                let schemesFullDescription = self.wellKnownSchemesForAlerting
+                let schemesFullDescription = self.alertingSchemes
                     .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
                     .joined(separator: "\n")
-                let opportunitiesFullDescription = self.opportunitiesForArbitrage
+                let opportunitiesFullDescription = self.arbitragingOpportunities
                     .map { $0.description }
                     .joined(separator: "\n")
                 
