@@ -92,7 +92,7 @@ final class BinanceAPIService {
                 let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
                 completion(ticker)
             } catch (let decodingError) {
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil)
             }
         }.resume()

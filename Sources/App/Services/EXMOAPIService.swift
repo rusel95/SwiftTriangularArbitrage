@@ -80,7 +80,7 @@ final class EXMOAPIService {
                 let welcome = try JSONDecoder().decode(Welcome.self, from: data)
                 completion(Double(welcome.usdtUah.askTop), Double(welcome.usdtUah.bidTop), nil)
             } catch (let decodingError) {
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil, nil, decodingError)
             }
         }).resume()

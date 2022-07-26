@@ -57,7 +57,7 @@ final class KunaAPIService {
                 let asks = orders.filter { $0.volume < 0 }.map { $0.price }.sorted { $0 < $1 }
                 completion(asks, bids, nil)
             } catch (let decodingError) {
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion([], [], decodingError)
             }
         }).resume()

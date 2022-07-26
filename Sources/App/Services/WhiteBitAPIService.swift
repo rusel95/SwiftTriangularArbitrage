@@ -57,7 +57,7 @@ final class WhiteBitAPIService {
                 let bids = orderbookData.bids.compactMap { $0.first }.compactMap { Double($0) }
                 completion(asks, bids, nil)
             } catch (let decodingError) {
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil, nil, decodingError)
             }
         }).resume()
