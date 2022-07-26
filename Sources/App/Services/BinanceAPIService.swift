@@ -14,68 +14,28 @@ import Logging
 final class BinanceAPIService {
     
     // MARK: - STRUCTS
-
+    
+    enum TradeType: String {
+        case sell = "SELL"
+        case buy = "BUY"
+    }
+    
     struct Welcome: Codable {
         
-        let code: String
-        let message, messageDetail: String?
         let data: [Datum]
-        let total: Int
-        let success: Bool
-        
-    }
-
-    struct Datum: Codable {
-        
-        let adv: Adv
-        let advertiser: Advertiser
         
     }
     
-    struct Advertiser: Codable {
+    struct Datum: Codable {
         
-        let userNo: String
-        let realName: String?
-        let nickName: String
-        let margin, marginUnit, orderCount: String?
-        let monthOrderCount: Int
-        let monthFinishRate: Double
-        let advConfirmTime: Int
-        let email, registrationTime, mobile: String?
-        let userType: String
-        let tagIconUrls: [String]
-        let userGrade: Int
-        let userIdentity: String
-        let proMerchant, isBlocked: String?
+        let adv: Adv
         
     }
     
     struct Adv: Codable {
-        
-        let advNo, classify, tradeType, asset: String
-        let fiatUnit: String
-        let advStatus, priceType, priceFloatingRatio, rateFloatingRatio: String?
-        let currencyRate: String?
-        let price, initAmount, surplusAmount: String
-        let amountAfterEditing: String?
+    
+        let price, surplusAmount: String
         let maxSingleTransAmount, minSingleTransAmount: String
-        let buyerKycLimit, buyerRegDaysLimit, buyerBtcPositionLimit, remarks: String?
-        let autoReplyMsg: String
-        let payTimeLimit: Int
-        let tradeMethods: [[String: String?]]
-        let userTradeCountFilterTime, userBuyTradeCountMin, userBuyTradeCountMax, userSellTradeCountMin: String?
-        let userSellTradeCountMax, userAllTradeCountMin, userAllTradeCountMax, userTradeCompleteRateFilterTime: String?
-        let userTradeCompleteCountMin, userTradeCompleteRateMin, userTradeVolumeFilterTime, userTradeType: String?
-        let userTradeVolumeMin, userTradeVolumeMax, userTradeVolumeAsset, createTime: String?
-        let advUpdateTime, fiatVo, assetVo, advVisibleRet: String?
-        let assetLogo: String?
-        let assetScale, fiatScale, priceScale: Int
-        let fiatSymbol: String
-        let isTradable: Bool
-        let dynamicMaxSingleTransAmount, minSingleTransQuantity, maxSingleTransQuantity, dynamicMaxSingleTransQuantity: String
-        let tradableQuantity, commissionRate: String
-        let tradeMethodCommissionRates: [String]
-        let launchCountry: String?
         
     }
     
@@ -102,7 +62,7 @@ final class BinanceAPIService {
     static let shared = BinanceAPIService()
     
     private var logger = Logger(label: "api.binance")
-
+    
     // MARK: - METHODS
     
     func getBookTicker(
@@ -111,7 +71,7 @@ final class BinanceAPIService {
     ) {
         let session = URLSession.shared
         let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker?symbol=\(symbol)")!
-       
+        
         var request = URLRequest(url: url)
         request.httpMethod = "Get"
         
@@ -138,7 +98,6 @@ final class BinanceAPIService {
         }.resume()
     }
     
-    // TODO: - should be separated into different methods which gives SELL/BUY separately
     func loadAdvertisements(
         paymentMethod: String,
         crypto: String,
@@ -150,83 +109,86 @@ final class BinanceAPIService {
         var sellAdvs: [Adv]?
         
         let group = DispatchGroup()
+        group.enter()
         
+        loadAdvertisements(paymentMethod: paymentMethod,
+                           crypto: crypto,
+                           numberOfAdvsToConsider: numberOfAdvsToConsider,
+                           tradeType: .sell) { advs, error in
+            sellAdvs = advs
+            if let error = error {
+                finalError = error
+            }
+            group.leave()
+        }
+        
+        group.enter()
+        loadAdvertisements(paymentMethod: paymentMethod,
+                           crypto: crypto,
+                           numberOfAdvsToConsider: numberOfAdvsToConsider,
+                           tradeType: .buy) { advs, error in
+            buyAdvs = advs
+            if let error = error {
+                finalError = error
+            }
+            group.leave()
+        }
+        
+        group.notify(queue: .global()) {
+            completion(buyAdvs, sellAdvs, finalError)
+        }
+    }
+    
+    func loadAdvertisements(
+        paymentMethod: String,
+        crypto: String,
+        numberOfAdvsToConsider: UInt8 = 10,
+        tradeType: TradeType,
+        completion: @escaping(_ advs: [Adv]?, _ error: Error?) -> Void
+    ) {
         let session = URLSession.shared
         let url = URL(string: "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search")!
-       
-        var sellRequest = URLRequest(url: url)
-        sellRequest.httpMethod = "POST"
-        sellRequest.setValue("Application/json", forHTTPHeaderField: "Content-Type")
-        sellRequest.setValue("p2p.binance.com", forHTTPHeaderField: "Host")
-        sellRequest.setValue("https://p2p.binance.com", forHTTPHeaderField: "Origin")
-        sellRequest.setValue("Trailers", forHTTPHeaderField: "TE")
-
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("p2p.binance.com", forHTTPHeaderField: "Host")
+        request.setValue("https://p2p.binance.com", forHTTPHeaderField: "Origin")
+        request.setValue("Trailers", forHTTPHeaderField: "TE")
+        
         let parametersDictionary: [String : Any] = [
             "asset": crypto,
             "fiat": "UAH",
             "page": 1,
             "payTypes": [paymentMethod],
             "rows": numberOfAdvsToConsider,
-//            "transAmount": "20000.00"
+            "tradeType": tradeType.rawValue
         ]
+//            "transAmount": "2000.00",
         
-        var sellParametersDictionary = parametersDictionary
-        sellParametersDictionary["tradeType"] = "SELL"
-        sellRequest.httpBody = try? JSONSerialization.data(withJSONObject: sellParametersDictionary) as Data
-        
-        group.enter()
-        session.dataTask(with: sellRequest) { [weak self] (data, response, error) in
+        request.httpBody = try? JSONSerialization.data(withJSONObject: parametersDictionary) as Data
+        session.dataTask(with: request) { [weak self] (data, response, error) in
             if let error = error {
                 self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-                finalError = error
-                group.leave()
+                completion(nil, error)
                 return
             }
             
-            guard let data = data else { return }
-            
-            do {
-                let welcome = try JSONDecoder().decode(Welcome.self, from: data) //Creates a User Object if your JSON data matches the structure of your class
-                sellAdvs = welcome.data.compactMap { $0.adv }
-                group.leave()
-            } catch (let decodingError) {
-                finalError = decodingError
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                group.leave()
-            }
-        }.resume()
-        
-        var buyParametersDictionary = parametersDictionary
-        buyParametersDictionary["tradeType"] = "BUY"
-        
-        var buyRequest = sellRequest
-        buyRequest.httpBody = try? JSONSerialization.data(withJSONObject: buyParametersDictionary) as Data
-        
-        group.enter()
-        session.dataTask(with: buyRequest) { [weak self] (data, response, error) in
-            if let error = error {
-                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-                finalError = error
-                group.leave()
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "Empty data for request: \(request.debugDescription)"))
+                completion(nil, nil)
                 return
             }
-            
-            guard let data = data else { return }
             
             do {
                 let welcome = try JSONDecoder().decode(Welcome.self, from: data)
-                buyAdvs = welcome.data.compactMap { $0.adv }
-                group.leave()
+                let advs = welcome.data.compactMap { $0.adv }
+                completion(advs, nil)
             } catch (let decodingError) {
-                finalError = decodingError
-                self?.logger.warning(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                group.leave()
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil, error)
             }
         }.resume()
-        
-        group.notify(queue: .global()) {
-            completion(buyAdvs, sellAdvs, finalError)
-        }
     }
     
 }
