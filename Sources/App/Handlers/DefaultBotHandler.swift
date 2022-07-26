@@ -77,7 +77,8 @@ final class DefaultBotHandlers {
         .whiteBit(.usdtSpot),
         .binance(.spot(.usdtUAH)),
         .exmo(.usdtUAHSpot),
-        .kuna(.usdtUAHSpot)
+        .kuna(.usdtUAHSpot),
+        .coinsbit(.usdtUAHSpot)
     ]
     
     // MARK: - METHODS
@@ -447,6 +448,15 @@ private extension DefaultBotHandlers {
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
+        case .coinsbit(let coinsbitOpportunity):
+            CoinsbitAPIService.shared.getTicker(market: coinsbitOpportunity.paymentMethod.apiDescription, completion: { [weak self] ask, bid, error in
+                guard let possibleSellPrice = bid, let possibleBuyPrice = ask else {
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR COINSBIT"))
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
+            })
         }
         
     }

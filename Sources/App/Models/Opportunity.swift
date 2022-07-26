@@ -247,6 +247,33 @@ enum Opportunity: Equatable {
         
     }
     
+    // MARK: - Coinsbit
+    
+    enum Coinsbit {
+        
+        case usdtUAHSpot
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usdtUAHSpot: return .coinsbit(.usdtuahSpot)
+            }
+        }
+        
+        var crypto: Crypto {
+            switch self {
+            case .usdtUAHSpot: return .usdt
+            }
+        }
+        
+        // in percents
+        var extraCommission: Double {
+            switch self {
+            case .usdtUAHSpot: return 1
+            }
+        }
+        
+    }
+    
     // MARK: - Cases
     
     case binance(Binance)
@@ -254,6 +281,7 @@ enum Opportunity: Equatable {
     case whiteBit(WhiteBit)
     case exmo(EXMO)
     case kuna(Kuna)
+    case coinsbit(Coinsbit)
     
     // MARK: - PARAMETERS
     
@@ -278,6 +306,8 @@ enum Opportunity: Equatable {
             return exmoOpportunity.paymentMethod.description
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.paymentMethod.description
+        case .coinsbit(let coinsbitOpportunity):
+            return coinsbitOpportunity.paymentMethod.description
         }
     }
     
@@ -298,6 +328,8 @@ enum Opportunity: Equatable {
             return exmoOpportunity.crypto.apiDescription
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.crypto.apiDescription
+        case .coinsbit(let coinsbitOpportunity):
+            return coinsbitOpportunity.crypto.apiDescription
         }
     }
     
@@ -319,6 +351,8 @@ enum Opportunity: Equatable {
             return exmoOpportunity.sellCommission
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.extraCommission
+        case .coinsbit(let coinsbitOpportunity):
+            return coinsbitOpportunity.extraCommission
         }
     }
     
@@ -340,6 +374,8 @@ enum Opportunity: Equatable {
             return exmoOpportunity.buyCommission
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.extraCommission
+        case .coinsbit(let coinsbitOpportunity):
+            return coinsbitOpportunity.extraCommission
         }
     }
     

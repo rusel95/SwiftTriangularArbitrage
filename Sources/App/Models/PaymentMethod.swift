@@ -98,11 +98,25 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - Coinsbit
+    
+    enum Coinsbit: String {
+        
+        case usdtuahSpot = "USDT_UAH"
+        
+        var description: String {
+            switch self {
+            case .usdtuahSpot: return "Coinsbit_Spot"
+            }
+        }
+    }
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
     case exmo(EXMO)
     case kuna(Kuna)
+    case coinsbit(Coinsbit)
     
     var apiDescription: String {
         switch self {
@@ -120,6 +134,8 @@ enum PaymentMethod: Equatable {
         case .exmo(let paymentMethod):
             return paymentMethod.rawValue
         case .kuna(let paymentMethod):
+            return paymentMethod.rawValue
+        case .coinsbit(let paymentMethod):
             return paymentMethod.rawValue
         }
     }
@@ -140,6 +156,8 @@ enum PaymentMethod: Equatable {
         case .exmo(let paymentMethod):
             return paymentMethod.description
         case .kuna(let paymentMethod):
+            return paymentMethod.description
+        case .coinsbit(let paymentMethod):
             return paymentMethod.description
         }
     }
