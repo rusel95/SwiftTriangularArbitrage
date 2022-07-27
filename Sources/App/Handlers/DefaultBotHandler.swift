@@ -46,6 +46,7 @@ final class DefaultBotHandlers {
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %"
     private let commandsDescription = """
         /start_trading - режим моніторингу основних схем торгівлі в режимі реального часу (відкриваємо і торгуємо);
+        /start_arbitraging - режим моніторинг арбітражних можливостей в режимі реального часу;
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
@@ -86,12 +87,14 @@ final class DefaultBotHandlers {
     func addHandlers(app: Vapor.Application, bot: TGBotPrtcl) {
         commandStartHandler(app: app, bot: bot)
         commandStartTradingHandler(app: app, bot: bot)
+        commandStartArbitragingHandler(app: app, bot: bot)
         commandStartAlertingHandler(app: app, bot: bot)
         commandStartLoggingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
         
         startTradingJob(bot: bot)
+        startArbitraging(bot: bot)
         startAlertingJob(bot: bot)
         startLoggingJob(bot: bot)
     }
@@ -123,6 +126,36 @@ final class DefaultBotHandlers {
                     }
                 }
             )
+        }
+    }
+    
+    func startArbitraging(bot: TGBotPrtcl) {
+        Jobs.add(interval: .seconds(Mode.arbitraging.jobInterval)) { [weak self] in
+            let usersInfoWithArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging)
+            
+            guard let self = self, usersInfoWithArbitragingMode.isEmpty == false else { return }
+            
+            self.getOpportunitiesResults(for: self.arbitragingOpportunities) { [weak self] opportunitiesResults in
+                var arbitragingPricesInfoDescription: String = ""
+                opportunitiesResults.forEach { opportunityResult in
+                    arbitragingPricesInfoDescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())|\((opportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())-\((opportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n")
+                }
+                usersInfoWithArbitragingMode.forEach { userInfo in let text = "\nArtitrage:\n\(arbitragingPricesInfoDescription)\nАктуально станом на \(Date().readableDescription)"
+                    do {
+                        if let arbitragingMessageId = userInfo.arbitragingMessageId {
+                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                            messageId: arbitragingMessageId,
+                                                                            inlineMessageId: nil,
+                                                                            text: text)
+                            _ = try bot.editMessageText(params: editParams)
+                        } else {
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                        }
+                    } catch (let botError) {
+                        self?.logger.report(error: botError)
+                    }
+                }
+            }
         }
     }
     
@@ -162,7 +195,8 @@ final class DefaultBotHandlers {
 
 private extension DefaultBotHandlers {
     
-    /// add handler for command "/start"
+    // MARK: /start
+    
     func commandStartHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id else { return }
@@ -183,7 +217,8 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/start_trading"
+    // MARK: /start_trading
+    
     func commandStartTradingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.trading.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
@@ -233,7 +268,37 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/start_alerting"
+    // MARK: /start_arbitraging
+    func commandStartArbitragingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
+        let handler = TGCommandHandler(commands: [Mode.arbitraging.command]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+            
+            do {
+                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging).contains(where: { $0.chatId == chatId }) {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
+                } else {
+                    let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними арбiтражними кожні \(Int(Mode.arbitraging.jobInterval)) секунд:\n"
+                    
+                    let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                    explanationMessageFutute?.whenComplete({ _ in
+                        let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
+                        editMessageFuture?.whenComplete({ result in
+                            let arbitragingMessageId = try? result.get().messageId
+                            UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
+                                                                        user: user,
+                                                                        mode: .arbitraging,
+                                                                        arbitragingMessageId: arbitragingMessageId)
+                        })
+                    })
+                }
+            } catch (let botError) {
+                self.logger.report(error: botError)
+            }
+        }
+        bot.connection.dispatcher.add(handler)
+    }
+    
+    // MARK: /start_alerting
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
@@ -268,7 +333,8 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/start_logging"
+    // MARK: /start_Logging
+    
     func commandStartLoggingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.logging.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
@@ -303,7 +369,8 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/stop"
+    // MARK: /stop
+    
     func commandStopHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: [Mode.suspended.command]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
@@ -314,7 +381,8 @@ private extension DefaultBotHandlers {
         bot.connection.dispatcher.add(handler)
     }
     
-    /// add handler for command "/test"
+    // MARK: /test
+    
     func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
         let handler = TGCommandHandler(commands: ["/test"]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id else { return }

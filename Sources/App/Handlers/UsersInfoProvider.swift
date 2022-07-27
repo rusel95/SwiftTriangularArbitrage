@@ -55,17 +55,29 @@ public final class UsersInfoProvider: NSObject {
         usersInfo.filter { $0.selectedModes.contains(selectedMode) }
     }
     
-    func handleModeSelected(chatId: Int64, user: TGUser, mode: Mode, onlineUpdatesMessageId: Int? = nil) {
+    func handleModeSelected(
+        chatId: Int64,
+        user: TGUser,
+        mode: Mode,
+        onlineUpdatesMessageId: Int? = nil,
+        arbitragingMessageId: Int? = nil
+    ) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
             if onlineUpdatesMessageId != nil {
                 userInfo.onlineUpdatesMessageId = onlineUpdatesMessageId
             }
+            if arbitragingMessageId != nil {
+                userInfo.arbitragingMessageId = arbitragingMessageId
+            }
         } else {
-            let newUserInfo = UserInfo(chatId: chatId,
-                                       user: user,
-                                       selectedModes: [mode],
-                                       onlineUpdatesMessageId: onlineUpdatesMessageId)
+            let newUserInfo = UserInfo(
+                chatId: chatId,
+                user: user,
+                selectedModes: [mode],
+                onlineUpdatesMessageId: onlineUpdatesMessageId,
+                arbitragingMessageId: arbitragingMessageId
+            )
             usersInfo.insert(newUserInfo)
         }
         syncStorage()
