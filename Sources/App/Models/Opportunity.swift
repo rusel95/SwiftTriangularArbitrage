@@ -115,9 +115,16 @@ enum Opportunity: Equatable {
             }
             
             // in percents
-            var extraCommission: Double {
+            var sellCommission: Double {
                 switch self {
-                case .usdtUAH: return 0.1
+                case .usdtUAH: return 0.0
+                }
+            }
+            
+            // in percents
+            var buyCommission: Double {
+                switch self {
+                case .usdtUAH: return 1.5
                 }
             }
             
@@ -341,7 +348,7 @@ enum Opportunity: Equatable {
             case .p2p(let binanceP2POpportunity):
                 return binanceP2POpportunity.extraCommission
             case .spot(let binanceSpotOpportunity):
-                return binanceSpotOpportunity.extraCommission
+                return binanceSpotOpportunity.sellCommission
             }
         case .whiteBit(let opportunity):
             return opportunity.extraCommission
@@ -364,7 +371,7 @@ enum Opportunity: Equatable {
             case .p2p(let binanceP2POpportunity):
                 return binanceP2POpportunity.extraCommission
             case .spot(let binanceSpotOpportunity):
-                return binanceSpotOpportunity.extraCommission
+                return binanceSpotOpportunity.buyCommission
             }
         case .whiteBit(let opportunity):
             return opportunity.extraCommission
