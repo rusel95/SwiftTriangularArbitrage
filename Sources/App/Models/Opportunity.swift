@@ -296,6 +296,27 @@ enum Opportunity: Equatable {
         "\(self.cryptoDescription)(\(self.paymentMethodDescription))"
     }
     
+    var descriptionWithSpaces: String {
+        var data = self.description
+        switch self {
+        case .binance(let binanceOpportunity):
+            switch binanceOpportunity {
+            case .p2p:
+                data.append("       ")
+            case .spot:
+                data.append("    ")
+            }
+        case .whiteBit, .coinsbit: data.append(" ")
+        case .huobi:
+            data.append("     ")
+        case .exmo:
+            data.append("     ")
+        case .kuna:
+            data.append("     ")
+        }
+        return data
+    }
+    
     var paymentMethodDescription: String {
         switch self {
         case .binance(let binanceOpportunity):

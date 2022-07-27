@@ -13,24 +13,6 @@ import Logging
 typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
 typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
 
-struct OpportunityResult {
-    
-    let opportunity: Opportunity
-    let priceInfo: PricesInfo
-    
-    var finalSellPrice: Double? {
-        guard let sellCommission = opportunity.sellCommission else { return nil }
-        
-        return priceInfo.possibleSellPrice - (priceInfo.possibleSellPrice * (sellCommission) / 100.0)
-    }
-    
-    var finalBuyPrice: Double? {
-        guard let buyCommission = opportunity.buyCommission else { return nil }
-        
-        return priceInfo.possibleBuyPrice + (priceInfo.possibleBuyPrice * (buyCommission) / 100.0)
-    }
-}
-
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
@@ -137,10 +119,29 @@ final class DefaultBotHandlers {
             
             self.getOpportunitiesResults(for: self.arbitragingOpportunities) { [weak self] opportunitiesResults in
                 var arbitragingPricesInfoDescription: String = ""
-                opportunitiesResults.forEach { opportunityResult in
-                    arbitragingPricesInfoDescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())|\((opportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())-\((opportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n")
+                
+                let sellOpportunitiesResults = opportunitiesResults
+                    .filter { $0.finalSellPrice != nil }
+                    .sorted { $0.finalSellPrice ?? 0.0 > $1.finalSellPrice ?? 0.0 }
+                
+                let buyOpportunitiesResults = opportunitiesResults
+                    .filter { $0.finalBuyPrice != nil }
+                    .sorted { $0.finalBuyPrice ?? 0.0 > $1.finalBuyPrice ?? 0.0 }
+                
+                arbitragingPricesInfoDescription.append("Можливості для продажі:\n")
+                sellOpportunitiesResults.forEach { sellOpportunityResult in
+                    let description = "\(sellOpportunityResult.opportunity.descriptionWithSpaces)|\((sellOpportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())\n"
+                    arbitragingPricesInfoDescription.append(description)
                 }
-                usersInfoWithArbitragingMode.forEach { userInfo in let text = "\nArtitrage:\n\(arbitragingPricesInfoDescription)\nАктуально станом на \(Date().readableDescription)"
+                
+                arbitragingPricesInfoDescription.append("\nМожливості для покупки:\n")
+                buyOpportunitiesResults.forEach { buyOpportunityResult in
+                    let description = "\(buyOpportunityResult.opportunity.descriptionWithSpaces)|\((buyOpportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n"
+                    arbitragingPricesInfoDescription.append(description)
+                }
+                
+                usersInfoWithArbitragingMode.forEach { userInfo in
+                    let text = "\n\(arbitragingPricesInfoDescription)\nАктуально станом на \(Date().readableDescription)"
                     do {
                         if let arbitragingMessageId = userInfo.arbitragingMessageId {
                             let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
