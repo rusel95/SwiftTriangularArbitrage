@@ -104,17 +104,21 @@ final class DefaultBotHandlers {
            
             self.getDescription(
                 earningSchemes: self.tradingSchemes,
-                completion: { totalDescription in
+                completion: { [weak self] totalDescription in
                     usersInfoWithTradingMode.forEach { userInfo in
-                        if let editMessageId = userInfo.onlineUpdatesMessageId {
-                            let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
-                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                            messageId: editMessageId,
-                                                                            inlineMessageId: nil,
-                                                                            text: text)
-                            _ = try? bot.editMessageText(params: editParams)
-                        } else {
-                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                        do {
+                            if let editMessageId = userInfo.onlineUpdatesMessageId {
+                                let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
+                                let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                                messageId: editMessageId,
+                                                                                inlineMessageId: nil,
+                                                                                text: text)
+                                _ = try bot.editMessageText(params: editParams)
+                            } else {
+                                _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                            }
+                        } catch (let botError) {
+                            self?.logger.report(error: botError)
                         }
                     }
                 }
@@ -140,9 +144,13 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithLoggingMode.isEmpty == false else { return }
             
-            self.getDescription(earningSchemes: EarningScheme.allCases) { totalDescription in
+            self.getDescription(earningSchemes: EarningScheme.allCases) { [weak self] totalDescription in
                 usersInfoWithLoggingMode.forEach { userInfo in
-                    _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                    do {
+                        _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: totalDescription))
+                    } catch (let botError) {
+                        self?.logger.report(error: botError)
+                    }
                 }
             }
         }
@@ -182,7 +190,11 @@ private extension DefaultBotHandlers {
             
             if UsersInfoProvider.shared.getUsersInfo(selectedMode: .trading).contains(where: { $0.chatId == chatId }) {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                do {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                } catch (let botError) {
+                    self.logger.report(error: botError)
+                }
             } else {
                 let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"
                 let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
@@ -201,13 +213,17 @@ private extension DefaultBotHandlers {
                         
                         self.getDescription(
                             earningSchemes: self.tradingSchemes,
-                            completion: { totalDescription in
+                            completion: { [weak self] totalDescription in
                                 let text = "\(totalDescription)\nАктуально станом на \(Date().readableDescription)"
                                 let editParams: TGEditMessageTextParams = .init(chatId: .chat(chatId),
                                                                                 messageId: onlineUpdatesMessageId,
                                                                                 inlineMessageId: nil,
                                                                                 text: text)
-                                _ = try? bot.editMessageText(params: editParams)
+                                do {
+                                    _ = try bot.editMessageText(params: editParams)
+                                } catch (let botError) {
+                                    self?.logger.report(error: botError)
+                                }
                             }
                         )
                     })
@@ -222,27 +238,31 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: [Mode.alerting.command]) { [weak self] update, bot in
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
-            } else {
-                let schemesFullDescription = self.alertingSchemes
-                    .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
-                    .joined(separator: "\n")
-                let opportunitiesFullDescription = self.arbitragingOpportunities
-                    .map { $0.description }
-                    .joined(separator: "\n")
-                
-                let text = """
-                Полювання за НадКрутими можливостями розпочато! Як тільки, так сразу я тобі скажу.
-                
-                Слідкую за наступними звязками:
-                \(schemesFullDescription)
-                
-                Намагаюся знайти найращі можливості для Арбітражу для наступних можливостей покупки/продажі на:
-                \(opportunitiesFullDescription)
-                """
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
-                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
+            do {
+                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
+                } else {
+                    let schemesFullDescription = self.alertingSchemes
+                        .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
+                        .joined(separator: "\n")
+                    let opportunitiesFullDescription = self.arbitragingOpportunities
+                        .map { $0.description }
+                        .joined(separator: "\n")
+                    
+                    let text = """
+                    Полювання за НадКрутими можливостями розпочато! Як тільки, так сразу я тобі скажу.
+                    
+                    Слідкую за наступними звязками:
+                    \(schemesFullDescription)
+                    
+                    Намагаюся знайти найращі можливості для Арбітражу для наступних можливостей покупки/продажі на:
+                    \(opportunitiesFullDescription)
+                    """
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                    UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
+                }
+            } catch (let botError) {
+                self.logger.report(error: botError)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -255,15 +275,27 @@ private extension DefaultBotHandlers {
             
             if UsersInfoProvider.shared.getUsersInfo(selectedMode: .logging).contains(where: { $0.chatId == chatId }) {
                 let infoMessage = "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                do {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                } catch (let botError) {
+                    self.logger.report(error: botError)
+                }
             } else {
                 let infoMessage = "Тепер я буду кожні \(Int(Mode.logging.jobInterval / 60.0)) хвалин відправляти тобі статус всіх торгових можливостей у форматі\n\(self.resultsFormatDescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                do {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                } catch (let botError) {
+                    self.logger.report(error: botError)
+                }
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .logging)
                 self.getDescription(
                     earningSchemes: EarningScheme.allCases,
-                    completion: { totalDescription in
-                        _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: totalDescription))
+                    completion: { [weak self] totalDescription in
+                        do {
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: totalDescription))
+                        } catch (let botError) {
+                            self?.logger.report(error: botError)
+                        }
                     }
                 )
             }
@@ -297,7 +329,11 @@ private extension DefaultBotHandlers {
                     arbitragingPricesInfodescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())|\((opportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())-\((opportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n")
                 }
                 let text = "Users:\n\(usersDescription)\n\nArtitrage:\n\(arbitragingPricesInfodescription)"
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                do {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                } catch (let botError) {
+                    self.logger.report(error: botError)
+                }
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -499,7 +535,11 @@ private extension DefaultBotHandlers {
                 let text = "Профітна можливість!!! \(description)"
                 
                 chatsIds.forEach { chatId in
-                    _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                    do {
+                        _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                    } catch (let botError) {
+                        self.logger.report(error: botError)
+                    }
                 }
             }
         }
@@ -544,7 +584,11 @@ private extension DefaultBotHandlers {
                                                               buyOpportunity: lowestBuyFinalPriceOpportunityResult.opportunity,
                                                               pricesInfo: pricesInfo)
             chatsIds.forEach { chatId in
-                _ = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Арбітражна можливість: \(prettyDescription)"))
+                do {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Арбітражна можливість: \(prettyDescription)"))
+                } catch (let botError) {
+                    self.logger.report(error: botError)
+                }
             }
         }
     }
