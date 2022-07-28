@@ -21,23 +21,25 @@ enum PaymentMethod: Equatable {
             
             var shortDescription: String {
                 switch self {
-                case .privatbank: return "P2P_Privat"
-                case .monobank: return "P2P_Mono"
-                case .pumb: return "P2P_PUMB"
-                case .abank: return "P2P_ABank"
-                case .wise: return "P2P_Wise"
-                case .binancePayUAH: return "P2P_Fiat"
+                case .privatbank:      return "P2P_Privat"
+                case .monobank:        return "P2P_Mono"
+                case .pumb:            return "P2P_PUMB"
+                case .abank:           return "P2P_ABank"
+                case .wise:            return "P2P_Wise"
+                case .binancePayUAH:   return "P2P_Fiat"
                 }
             }
         }
         
         enum Spot: String {
             
-            case usdtUAH = "USDTUAH"
+            case usdtuah =  "USDTUAH"
+            case btcuah =   "BTCUAH"
             
             var shortDescription: String {
                 switch self {
-                case .usdtUAH: return "BinanceSpot"
+                case .usdtuah: return "BinanceSpot"
+                case .btcuah:  return "BinanceSpot"
                 }
             }
         }
@@ -47,15 +49,17 @@ enum PaymentMethod: Equatable {
         
     }
     
-    // MARK: - WHITEBIT
+    // MARK: - WhiteBit
     
     enum WhiteBit: String {
         
-        case usdtuahSpot = "USDT_UAH"
+        case usdt_uah = "USDT_UAH"
+        case btc_uah = "BTC_UAH"
         
         var description: String {
             switch self {
-            case .usdtuahSpot: return "WhiteBit_Spot"
+            case .usdt_uah: return "WhiteBit"
+            case .btc_uah: return "WhiteBit"
             }
         }
     }
@@ -63,12 +67,11 @@ enum PaymentMethod: Equatable {
     // MARK: - Huobi
     
     enum Huobi: String {
-        case usdtuahSpot = "usdtuah"
+        case usdt_uah = "usdtuah"
+        case btc_uah = "btcuah"
         
         var description: String {
-            switch self {
-            case .usdtuahSpot: return "Huobi_Spot"
-            }
+            return "Huobi"
         }
     }
     
@@ -76,12 +79,11 @@ enum PaymentMethod: Equatable {
     
     enum EXMO: String {
         
-        case usdtuahSpot = "USDT_UAH"
+        case usdt_uah = "USDT_UAH"
+        case btc_uah  = "BTC_UAH"
         
         var description: String {
-            switch self {
-            case .usdtuahSpot: return "EXMO_Spot"
-            }
+            return "EXMO"
         }
     }
     
@@ -89,12 +91,11 @@ enum PaymentMethod: Equatable {
     
     enum Kuna: String {
         
-        case usdtuahSpot = "USDTUAH"
+        case usdt_uah = "USDTUAH"
+        case btc_uah = "BTCUAH"
         
         var description: String {
-            switch self {
-            case .usdtuahSpot: return "KUNA_Spot"
-            }
+            "KUNA"
         }
     }
     
@@ -102,12 +103,11 @@ enum PaymentMethod: Equatable {
     
     enum Coinsbit: String {
         
-        case usdtuahSpot = "USDT_UAH"
+        case usdt_uah = "USDT_UAH"
+        case btc_uah = "BTC_UAH"
         
         var description: String {
-            switch self {
-            case .usdtuahSpot: return "Coinsbit_Spot"
-            }
+            "Coinsbit"
         }
     }
     
@@ -115,12 +115,11 @@ enum PaymentMethod: Equatable {
     
     enum Betconix: String {
         
-        case usdtuahSpot = "usdt_uah"
+        case usdt_uah = "usdt_uah"
+        case btc_uah  = "btc_uah"
         
         var description: String {
-            switch self {
-            case .usdtuahSpot: return "Betconix_Spot"
-            }
+            "Betconix"
         }
     }
     

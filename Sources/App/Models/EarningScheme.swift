@@ -39,9 +39,9 @@ enum EarningScheme: Int, CaseIterable {
         case .wiseUSDT_wiseUSDT: return .binance(.p2p(.wiseUSDT))
         case .wiseBUSD_wiseUSDT: return .binance(.p2p(.wiseBUSD))
         case .binancePayUAH_binancePayUAH: return .binance(.p2p(.binancePayUSDT))
-        case .huobiUSDT_monobankUSDT: return .huobi(.usdtSpot)
+        case .huobiUSDT_monobankUSDT: return .huobi(.usdt_uah)
         case .monobankUSDT_huobiUSDT: return .binance(.p2p(.monobankUSDT))
-        case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdtSpot)
+        case .whiteBitUSDT_monobankUSDT: return .whiteBit(.usdt_uah)
         case .monobankUSDT_whiteBitUSDT: return .binance(.p2p(.monobankUSDT))
         case .monobankBTC_monobankBTC: return .binance(.p2p(.monobankBTC))
         case .monobankBNB_monobankBNB: return .binance(.p2p(.monobankBNB))
@@ -58,10 +58,10 @@ enum EarningScheme: Int, CaseIterable {
         case .binancePayUAH_binancePayUAH: return .binance(.p2p(.binancePayUSDT))
             
         case .huobiUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
-        case .monobankUSDT_huobiUSDT: return .huobi(.usdtSpot)
+        case .monobankUSDT_huobiUSDT: return .huobi(.usdt_uah)
             
         case .whiteBitUSDT_monobankUSDT: return .binance(.p2p(.monobankUSDT))
-        case .monobankUSDT_whiteBitUSDT: return .whiteBit(.usdtSpot)
+        case .monobankUSDT_whiteBitUSDT: return .whiteBit(.usdt_uah)
             
         case .monobankBTC_monobankBTC: return .binance(.p2p(.monobankBTC))
         case .monobankBNB_monobankBNB: return .binance(.p2p(.monobankBNB))

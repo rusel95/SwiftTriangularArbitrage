@@ -33,3 +33,5 @@ Currently implemented Markets for Spot opportunities:
 TODO:
 - English localization (currently only Ukrainian);
 - Database for storing all user's data (currently only simple file-storage);
+- Handling BTC/UAH, BNB/UAH, ETH/UAH pairs;
+

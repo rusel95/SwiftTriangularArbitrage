@@ -54,15 +54,26 @@ final class DefaultBotHandlers {
         .monobankUSDT_whiteBitUSDT
     ]
     
-    private let arbitragingOpportunities: [Opportunity] = [
+    private let usdtArbitragingOpportunities: [Opportunity] = [
         .binance(.p2p(.monobankUSDT)),
-        .huobi(.usdtSpot),
-        .whiteBit(.usdtSpot),
-        .binance(.spot(.usdtUAH)),
-        .exmo(.usdtUAHSpot),
-        .kuna(.usdtUAHSpot),
-        .coinsbit(.usdtUAHSpot),
-        .betconix(.usdtUAHSpot)
+        .binance(.spot(.usdt_uah)),
+        .huobi(.usdt_uah),
+        .whiteBit(.usdt_uah),
+        .exmo(.usdt_uah),
+        .kuna(.usdt_uah),
+        .coinsbit(.usdt_uah),
+        .betconix(.usdt_uah)
+    ]
+    
+    private let btcArbitragingOpportunities: [Opportunity] = [
+        .binance(.p2p(.monobankBTC)),
+        .binance(.spot(.btc_uah)),
+        .whiteBit(.btc_uah),
+        .huobi(.btc_uah),
+        .exmo(.btc_uah),
+        .kuna(.btc_uah),
+        .coinsbit(.btc_uah),
+        .betconix(.btc_uah)
     ]
     
     // MARK: - METHODS
@@ -118,15 +129,15 @@ final class DefaultBotHandlers {
             
             guard let self = self, usersInfoWithArbitragingMode.isEmpty == false else { return }
             
-            self.getOpportunitiesResults(for: self.arbitragingOpportunities) { [weak self] opportunitiesResults in
+            self.getOpportunitiesResults(for: self.usdtArbitragingOpportunities) { [weak self] opportunitiesResults in
                 var arbitragingPricesInfoDescription: String = ""
                 
                 let sellOpportunitiesResults = opportunitiesResults
-                    .filter { $0.finalSellPrice != nil }
+                    .filter { ($0.finalSellPrice ?? 0.0) != 0 }
                     .sorted { $0.finalSellPrice ?? 0.0 > $1.finalSellPrice ?? 0.0 }
                 
                 let buyOpportunitiesResults = opportunitiesResults
-                    .filter { $0.finalBuyPrice != nil }
+                    .filter { ($0.finalBuyPrice ?? 0.0) != 0 }
                     .sorted { $0.finalBuyPrice ?? 0.0 > $1.finalBuyPrice ?? 0.0 }
                 
                 arbitragingPricesInfoDescription.append("Можливості для продажі:\n")
@@ -169,7 +180,7 @@ final class DefaultBotHandlers {
             
             let chatsIds: [Int64] = usersInfoWithAlertingMode.map { $0.chatId }
             self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsIds: chatsIds, bot: bot)
-            self.alertAboutArbitrage(opportunities: self.arbitragingOpportunities, chatsIds: chatsIds, bot: bot)
+            self.alertAboutArbitrage(opportunities: self.usdtArbitragingOpportunities, chatsIds: chatsIds, bot: bot)
         }
     }
     
@@ -312,7 +323,7 @@ private extension DefaultBotHandlers {
                     let schemesFullDescription = self.alertingSchemes
                         .map { "\($0.shortDescription) >= \($0.valuableProfit) %" }
                         .joined(separator: "\n")
-                    let opportunitiesFullDescription = self.arbitragingOpportunities
+                    let opportunitiesFullDescription = self.usdtArbitragingOpportunities
                         .map { $0.description }
                         .joined(separator: "\n")
                     
@@ -394,7 +405,7 @@ private extension DefaultBotHandlers {
                 .joined(separator: "\n")
             
             var arbitragingPricesInfodescription = ""
-            self.getOpportunitiesResults(for: self.arbitragingOpportunities) { opportunitiesResults in
+            self.getOpportunitiesResults(for: self.btcArbitragingOpportunities) { opportunitiesResults in
                 opportunitiesResults.forEach { opportunityResult in
                     arbitragingPricesInfodescription.append("\(opportunityResult.opportunity.description)|\(opportunityResult.priceInfo.possibleSellPrice.toLocalCurrency())-\(opportunityResult.priceInfo.possibleBuyPrice.toLocalCurrency())|\((opportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())-\((opportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n")
                 }
@@ -538,7 +549,7 @@ private extension DefaultBotHandlers {
             }
             
         case .exmo(let exmoOpportunity):
-            EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
+            EXMOAPIService.shared.getOrderbook(assetsPair: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
                     self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR EXMO"))
                     completion(nil)
@@ -630,12 +641,12 @@ private extension DefaultBotHandlers {
     func alertAboutArbitrage(opportunities: [Opportunity], chatsIds: [Int64], bot: TGBotPrtcl) {
         getOpportunitiesResults(for: opportunities) { [weak self] opportunitiesResults in
             let biggestSellFinalPriceOpportunityResult = opportunitiesResults
-                .filter { $0.finalSellPrice != nil }
+                .filter { ($0.finalSellPrice ?? 0.0) != 0.0 }
                 .sorted { $0.finalSellPrice ?? 0.0 > $1.finalSellPrice ?? 0.0 }
                 .first
             
             let lowestBuyFinalPriceOpportunityResult = opportunitiesResults
-                .filter { $0.finalBuyPrice != nil }
+                .filter { ($0.finalBuyPrice ?? 0.0) != 0.0 }
                 .sorted { $0.finalBuyPrice ?? 0.0 < $1.finalBuyPrice ?? 0.0 }
                 .first
             

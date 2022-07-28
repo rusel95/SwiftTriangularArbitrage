@@ -15,16 +15,6 @@ final class EXMOAPIService {
     
     // MARK: - STRUCTS
     
-    struct Welcome: Codable {
-        
-        let usdtUah: Pair
-
-        enum CodingKeys: String, CodingKey {
-            case usdtUah = "USDT_UAH"
-        }
-        
-    }
-    
     struct Pair: Codable {
         
         let askQuantity, askAmount, askTop, bidQuantity: String
@@ -54,12 +44,12 @@ final class EXMOAPIService {
     // MARK: - METHODS
     
     func getOrderbook(
-        paymentMethod: String,
+        assetsPair: String,
         completion: @escaping(_ askTop: Double?, _ bidTop: Double?, _ error: Error?) -> Void
     ) {
         var urlComponents = URLComponents(string: "https://api.exmo.com/v1.1/order_book")!
         urlComponents.queryItems = [
-            URLQueryItem(name: "pair", value: paymentMethod),
+            URLQueryItem(name: "pair", value: assetsPair),
             URLQueryItem(name: "limit", value: "5")
         ]
         let request = URLRequest(url: urlComponents.url!)
@@ -77,8 +67,9 @@ final class EXMOAPIService {
             }
             
             do {
-                let welcome = try JSONDecoder().decode(Welcome.self, from: data)
-                completion(Double(welcome.usdtUah.askTop), Double(welcome.usdtUah.bidTop), nil)
+                let jsonData = try JSONDecoder().decode(([String: Pair]).self, from: data)
+                let pair = jsonData[assetsPair]
+                completion(Double(pair?.askTop ?? ""), Double(pair?.bidTop ?? ""), nil)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil, nil, decodingError)

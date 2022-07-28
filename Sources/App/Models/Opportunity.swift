@@ -100,31 +100,36 @@ enum Opportunity: Equatable {
         
         enum Spot {
             
-            case usdtUAH
+            case usdt_uah
+            case btc_uah
             
             var crypto: Crypto {
                 switch self {
-                case .usdtUAH: return .usdt
+                case .usdt_uah: return .usdt
+                case .btc_uah: return .btc
                 }
             }
             
             var paymentMethod: PaymentMethod.Binance.Spot {
                 switch self {
-                case .usdtUAH: return .usdtUAH
+                case .usdt_uah: return .usdtuah
+                case .btc_uah: return .btcuah
                 }
             }
             
             // in percents
             var sellCommission: Double {
                 switch self {
-                case .usdtUAH: return 0.0
+                case .usdt_uah: return 0.0
+                case .btc_uah: return 0.0
                 }
             }
             
             // in percents
             var buyCommission: Double {
                 switch self {
-                case .usdtUAH: return 1.5
+                case .usdt_uah: return 1.5
+                case .btc_uah: return 1.5
                 }
             }
             
@@ -139,57 +144,75 @@ enum Opportunity: Equatable {
     
     enum WhiteBit {
         
-        case usdtSpot
+        case usdt_uah
+        case btc_uah
         
         var paymentMethod: PaymentMethod {
             switch self {
-            case .usdtSpot: return .whiteBit(.usdtuahSpot)
+            case .usdt_uah: return .whiteBit(.usdt_uah)
+            case .btc_uah: return .whiteBit(.btc_uah)
             }
         }
         
         var crypto: Crypto {
             switch self {
-            case .usdtSpot: return .usdt
-            }
-        }
-        
-        // in percents
-        var extraCommission: Double {
-            switch self {
-            case .usdtSpot: return 0.2
-            }
-        }
-        
-    }
-    
-    // MARK: - HUOBI
-    enum Huobi {
-        
-        case usdtSpot
-        
-        var paymentMethod: PaymentMethod {
-            switch self {
-            case .usdtSpot: return .huobi(.usdtuahSpot)
-            }
-        }
-        
-        var crypto: Crypto {
-            switch self {
-            case .usdtSpot: return .usdt
+            case .usdt_uah: return .usdt
+            case .btc_uah: return .btc
             }
         }
         
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdtSpot: return 1.1
+            case .usdt_uah: return 0.1  // 1 USDT Deposit
+            case .btc_uah:  return 0.1  // BEP20 is cheap
             }
         }
         
         // in percents
         var buyCommission: Double {
             switch self {
-            case .usdtSpot: return 1.5
+            case .usdt_uah: return 0.1  // 1 USDT Withdrawal
+            case .btc_uah:  return 1    // 0.0004 BTC ± 10$
+            }
+        }
+        
+    }
+    
+    // MARK: - Huobi
+    
+    enum Huobi {
+        
+        case usdt_uah
+        case btc_uah
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usdt_uah: return .huobi(.usdt_uah)
+            case .btc_uah:  return .huobi(.btc_uah)
+            }
+        }
+        
+        var mainAsset: Crypto {
+            switch self {
+            case .usdt_uah: return .usdt
+            case .btc_uah:  return .btc
+            }
+        }
+        
+        // in percents
+        var sellCommission: Double {
+            switch self {
+            case .usdt_uah: return 1.1  // 1 USDT Deposit + 1% UAH Widthdrawal
+            case .btc_uah:  return 1.05 // Cheap BTC Deposit + 1% UAH Widthdrawal
+            }
+        }
+        
+        // in percents
+        var buyCommission: Double {
+            switch self {
+            case .usdt_uah: return 1.6  // 1.5 % UAH Deposit + 1 USDT Widthdrawal
+            case .btc_uah: return 1.55  // 1.5 % UAH Deposit + cheap widthdrawal
             }
         }
     }
@@ -198,31 +221,36 @@ enum Opportunity: Equatable {
     
     enum EXMO {
         
-        case usdtUAHSpot
+        case usdt_uah
+        case btc_uah
         
         var paymentMethod: PaymentMethod {
             switch self {
-            case .usdtUAHSpot: return .exmo(.usdtuahSpot)
+            case .usdt_uah: return .exmo(.usdt_uah)
+            case .btc_uah: return .exmo(.btc_uah)
             }
         }
         
-        var crypto: Crypto {
+        var mainAsset: Crypto {
             switch self {
-            case .usdtUAHSpot: return .usdt
+            case .usdt_uah: return .usdt
+            case .btc_uah:  return .btc
             }
         }
         
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdtUAHSpot: return 1.1
+            case .usdt_uah: return 1.1  // 1 USDT Deposit + 1% UAH Widthdrawal
+            case .btc_uah:  return 1.05 // Cheap btc Deposit + 1% UAH Widthdrawal
             }
         }
         
         // in percents
         var buyCommission: Double? {
             switch self {
-            case .usdtUAHSpot: return nil
+            case .usdt_uah: return 0.6   // 0.5% UAH Deposit + 1 USDT Widthdrawal
+            case .btc_uah:  return 0.55  // 0.5% UAH Deposit + Cheap BTC Widthdrawal
             }
         }
     }
@@ -231,24 +259,28 @@ enum Opportunity: Equatable {
     
     enum Kuna {
         
-        case usdtUAHSpot
+        case usdt_uah
+        case btc_uah
         
         var paymentMethod: PaymentMethod {
             switch self {
-            case .usdtUAHSpot: return .kuna(.usdtuahSpot)
+            case .usdt_uah: return .kuna(.usdt_uah)
+            case .btc_uah: return .kuna(.btc_uah)
             }
         }
         
-        var crypto: Crypto {
+        var mainAsset: Crypto {
             switch self {
-            case .usdtUAHSpot: return .usdt
+            case .usdt_uah: return .usdt
+            case .btc_uah:     return .btc
             }
         }
         
         // in percents
-        var extraCommission: Double {
+        var commission: Double {
             switch self {
-            case .usdtUAHSpot: return 1.6
+            case .usdt_uah: return 1.65 // 1.55% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal
+            case .btc_uah:  return 1.6  // 1.55% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal
             }
         }
         
@@ -258,24 +290,28 @@ enum Opportunity: Equatable {
     
     enum Coinsbit {
         
-        case usdtUAHSpot
+        case usdt_uah
+        case btc_uah
         
         var paymentMethod: PaymentMethod {
             switch self {
-            case .usdtUAHSpot: return .coinsbit(.usdtuahSpot)
+            case .usdt_uah: return .coinsbit(.usdt_uah)
+            case .btc_uah:  return .coinsbit(.btc_uah)
             }
         }
         
         var crypto: Crypto {
             switch self {
-            case .usdtUAHSpot: return .usdt
+            case .usdt_uah: return .usdt
+            case .btc_uah:  return .btc
             }
         }
         
         // in percents
-        var extraCommission: Double {
+        var commissions: Double {
             switch self {
-            case .usdtUAHSpot: return 1
+            case .usdt_uah: return 1.1  // 1% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal
+            case .btc_uah:  return 1.05 // 1% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal
             }
         }
         
@@ -285,31 +321,36 @@ enum Opportunity: Equatable {
     
     enum Betconix {
         
-        case usdtUAHSpot
+        case usdt_uah
+        case btc_uah
         
         var paymentMethod: PaymentMethod {
             switch self {
-            case .usdtUAHSpot: return .betconix(.usdtuahSpot)
+            case .usdt_uah: return .betconix(.usdt_uah)
+            case .btc_uah:  return .betconix(.btc_uah)
             }
         }
         
-        var crypto: Crypto {
+        var mainAsset: Crypto {
             switch self {
-            case .usdtUAHSpot: return .usdt
+            case .usdt_uah: return .usdt
+            case .btc_uah:  return .btc
             }
         }
         
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdtUAHSpot: return 0.35 // 1 USDT for Deposit + 0.25% UAH Withdrawal
+            case .usdt_uah: return 0.35 // 1 USDT for Deposit + 0.25% UAH Withdrawal
+            case .btc_uah:  return 0.3  // Cheap BTC Deposit + 0.25% UAH Withdrawal
             }
         }
         
         // in percents
         var buyCommission: Double {
             switch self {
-            case .usdtUAHSpot: return 0.5 // 0% UAH Deposit + 5 USDT Withdrawal
+            case .usdt_uah: return 0.5  // 0% UAH Deposit + 5 USDT Withdrawal
+            case .btc_uah:  return 0.05 // 0% UAH Deposit + Cheap BTC Withdrawal
             }
         }
         
@@ -328,7 +369,7 @@ enum Opportunity: Equatable {
     // MARK: - PARAMETERS
     
     var description: String {
-        "\(self.cryptoDescription)(\(self.paymentMethodDescription))"
+        "\(self.mainAssetAPIDescription)(\(self.paymentMethodDescription))"
     }
     
     var descriptionWithSpaces: String {
@@ -336,14 +377,15 @@ enum Opportunity: Equatable {
         switch self {
         case .binance(let binanceOpportunity):
             switch binanceOpportunity {
-            case .p2p:              data.append("       ")
-            case .spot:             data.append("    ")
+            case .p2p:    data.append("    ")
+            case .spot:   data.append(" ")
             }
-        case .whiteBit, .coinsbit:  data.append(" ")
-        case .huobi:                data.append("     ")
-        case .exmo:                 data.append("     ")
-        case .kuna:                 data.append("     ")
-        case .betconix:             data.append(" ")
+        case .whiteBit:   data.append("        ")
+        case .huobi:      data.append("            ")
+        case .exmo:       data.append("            ")
+        case .kuna:       data.append("            ")
+        case .coinsbit:   data.append("        ")
+        case .betconix:   data.append("        ")
         }
         return data
     }
@@ -372,7 +414,7 @@ enum Opportunity: Equatable {
         }
     }
     
-    var cryptoDescription: String {
+    var mainAssetAPIDescription: String {
         switch self {
         case .binance(let binanceOpportunity):
             switch binanceOpportunity {
@@ -384,15 +426,15 @@ enum Opportunity: Equatable {
         case .whiteBit(let opportunity):
             return opportunity.crypto.apiDescription
         case .huobi(let opportunity):
-            return opportunity.crypto.apiDescription
+            return opportunity.mainAsset.apiDescription
         case .exmo(let exmoOpportunity):
-            return exmoOpportunity.crypto.apiDescription
+            return exmoOpportunity.mainAsset.apiDescription
         case .kuna(let kunaOpportunity):
-            return kunaOpportunity.crypto.apiDescription
+            return kunaOpportunity.mainAsset.apiDescription
         case .coinsbit(let coinsbitOpportunity):
             return coinsbitOpportunity.crypto.apiDescription
         case .betconix(let betconixOpportunity):
-            return betconixOpportunity.crypto.apiDescription
+            return betconixOpportunity.mainAsset.apiDescription
         }
     }
     
@@ -407,15 +449,15 @@ enum Opportunity: Equatable {
                 return binanceSpotOpportunity.sellCommission
             }
         case .whiteBit(let opportunity):
-            return opportunity.extraCommission
+            return opportunity.sellCommission
         case .huobi(let opportunity):
             return opportunity.sellCommission
         case .exmo(let exmoOpportunity):
             return exmoOpportunity.sellCommission
         case .kuna(let kunaOpportunity):
-            return kunaOpportunity.extraCommission
+            return kunaOpportunity.commission
         case .coinsbit(let coinsbitOpportunity):
-            return coinsbitOpportunity.extraCommission
+            return coinsbitOpportunity.commissions
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.sellCommission
         }
@@ -432,15 +474,15 @@ enum Opportunity: Equatable {
                 return binanceSpotOpportunity.buyCommission
             }
         case .whiteBit(let opportunity):
-            return opportunity.extraCommission
+            return opportunity.buyCommission
         case .huobi(let opportunity):
             return opportunity.buyCommission
         case .exmo(let exmoOpportunity):
             return exmoOpportunity.buyCommission
         case .kuna(let kunaOpportunity):
-            return kunaOpportunity.extraCommission
+            return kunaOpportunity.commission
         case .coinsbit(let coinsbitOpportunity):
-            return coinsbitOpportunity.extraCommission
+            return coinsbitOpportunity.commissions
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.buyCommission
         }
