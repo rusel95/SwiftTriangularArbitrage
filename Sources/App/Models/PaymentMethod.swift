@@ -111,12 +111,26 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - Betconix
+    
+    enum Betconix: String {
+        
+        case usdtuahSpot = "usdt_uah"
+        
+        var description: String {
+            switch self {
+            case .usdtuahSpot: return "Betconix_Spot"
+            }
+        }
+    }
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
     case exmo(EXMO)
     case kuna(Kuna)
     case coinsbit(Coinsbit)
+    case betconix(Betconix)
     
     var apiDescription: String {
         switch self {
@@ -136,6 +150,8 @@ enum PaymentMethod: Equatable {
         case .kuna(let paymentMethod):
             return paymentMethod.rawValue
         case .coinsbit(let paymentMethod):
+            return paymentMethod.rawValue
+        case .betconix(let paymentMethod):
             return paymentMethod.rawValue
         }
     }
@@ -158,6 +174,8 @@ enum PaymentMethod: Equatable {
         case .kuna(let paymentMethod):
             return paymentMethod.description
         case .coinsbit(let paymentMethod):
+            return paymentMethod.description
+        case .betconix(let paymentMethod):
             return paymentMethod.description
         }
     }

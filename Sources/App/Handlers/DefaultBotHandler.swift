@@ -61,7 +61,8 @@ final class DefaultBotHandlers {
         .binance(.spot(.usdtUAH)),
         .exmo(.usdtUAHSpot),
         .kuna(.usdtUAHSpot),
-        .coinsbit(.usdtUAHSpot)
+        .coinsbit(.usdtUAHSpot),
+        .betconix(.usdtUAHSpot)
     ]
     
     // MARK: - METHODS
@@ -535,6 +536,7 @@ private extension DefaultBotHandlers {
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
+            
         case .exmo(let exmoOpportunity):
             EXMOAPIService.shared.getOrderbook(paymentMethod: exmoOpportunity.paymentMethod.apiDescription) { [weak self] askTop, bidTop, error in
                 guard let possibleSellPrice = bidTop, let possibleBuyPrice = askTop else {
@@ -544,6 +546,7 @@ private extension DefaultBotHandlers {
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
+            
         case .kuna(let kunaOpportunity):
             KunaAPIService.shared.getOrderbook(paymentMethod: kunaOpportunity.paymentMethod.apiDescription) { [weak self] asks, bids, error in
                 guard let possibleSellPrice = bids.first, let possibleBuyPrice = asks.first else {
@@ -553,17 +556,27 @@ private extension DefaultBotHandlers {
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
+            
         case .coinsbit(let coinsbitOpportunity):
-            CoinsbitAPIService.shared.getTicker(market: coinsbitOpportunity.paymentMethod.apiDescription, completion: { [weak self] ask, bid, error in
+            CoinsbitAPIService.shared.getTicker(market: coinsbitOpportunity.paymentMethod.apiDescription) { [weak self] ask, bid, error in
                 guard let possibleSellPrice = bid, let possibleBuyPrice = ask else {
                     self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR COINSBIT"))
                     completion(nil)
                     return
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
-            })
+            }
+            
+        case .betconix(let betconixOpportunity):
+            BetconixAPIService.shared.getOrderbook(assetsPair: betconixOpportunity.paymentMethod.apiDescription) { [weak self] ask, bid, error in
+                guard let possibleSellPrice = bid, let possibleBuyPrice = ask else {
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR BETCONIX"))
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
+            }
         }
-        
     }
     
     func getFilteredPrices(advs: [BinanceAPIService.Adv], binanceOpportunity: Opportunity.Binance.P2P) -> [Double] {

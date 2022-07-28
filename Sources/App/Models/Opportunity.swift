@@ -281,6 +281,40 @@ enum Opportunity: Equatable {
         
     }
     
+    // MARK: - Coinsbit
+    
+    enum Betconix {
+        
+        case usdtUAHSpot
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usdtUAHSpot: return .betconix(.usdtuahSpot)
+            }
+        }
+        
+        var crypto: Crypto {
+            switch self {
+            case .usdtUAHSpot: return .usdt
+            }
+        }
+        
+        // in percents
+        var sellCommission: Double {
+            switch self {
+            case .usdtUAHSpot: return 0.35 // 1 USDT for Deposit + 0.25% UAH Withdrawal
+            }
+        }
+        
+        // in percents
+        var buyCommission: Double {
+            switch self {
+            case .usdtUAHSpot: return 0.5 // 0% UAH Deposit + 5 USDT Withdrawal
+            }
+        }
+        
+    }
+    
     // MARK: - Cases
     
     case binance(Binance)
@@ -289,6 +323,7 @@ enum Opportunity: Equatable {
     case exmo(EXMO)
     case kuna(Kuna)
     case coinsbit(Coinsbit)
+    case betconix(Betconix)
     
     // MARK: - PARAMETERS
     
@@ -301,18 +336,14 @@ enum Opportunity: Equatable {
         switch self {
         case .binance(let binanceOpportunity):
             switch binanceOpportunity {
-            case .p2p:
-                data.append("       ")
-            case .spot:
-                data.append("    ")
+            case .p2p:              data.append("       ")
+            case .spot:             data.append("    ")
             }
-        case .whiteBit, .coinsbit: data.append(" ")
-        case .huobi:
-            data.append("     ")
-        case .exmo:
-            data.append("     ")
-        case .kuna:
-            data.append("     ")
+        case .whiteBit, .coinsbit:  data.append(" ")
+        case .huobi:                data.append("     ")
+        case .exmo:                 data.append("     ")
+        case .kuna:                 data.append("     ")
+        case .betconix:             data.append(" ")
         }
         return data
     }
@@ -336,6 +367,8 @@ enum Opportunity: Equatable {
             return kunaOpportunity.paymentMethod.description
         case .coinsbit(let coinsbitOpportunity):
             return coinsbitOpportunity.paymentMethod.description
+        case .betconix(let betconixOpportunity):
+            return betconixOpportunity.paymentMethod.description
         }
     }
     
@@ -358,6 +391,8 @@ enum Opportunity: Equatable {
             return kunaOpportunity.crypto.apiDescription
         case .coinsbit(let coinsbitOpportunity):
             return coinsbitOpportunity.crypto.apiDescription
+        case .betconix(let betconixOpportunity):
+            return betconixOpportunity.crypto.apiDescription
         }
     }
     
@@ -381,6 +416,8 @@ enum Opportunity: Equatable {
             return kunaOpportunity.extraCommission
         case .coinsbit(let coinsbitOpportunity):
             return coinsbitOpportunity.extraCommission
+        case .betconix(let betconixOpportunity):
+            return betconixOpportunity.sellCommission
         }
     }
     
@@ -404,6 +441,8 @@ enum Opportunity: Equatable {
             return kunaOpportunity.extraCommission
         case .coinsbit(let coinsbitOpportunity):
             return coinsbitOpportunity.extraCommission
+        case .betconix(let betconixOpportunity):
+            return betconixOpportunity.buyCommission
         }
     }
     
