@@ -66,7 +66,6 @@ final class DefaultBotHandlers {
     ]
     
     private let btcArbitragingOpportunities: [Opportunity] = [
-        .binance(.p2p(.monobankBTC)),
         .binance(.spot(.btc_uah)),
         .whiteBit(.btc_uah),
         .huobi(.btc_uah),
@@ -181,6 +180,7 @@ final class DefaultBotHandlers {
             let chatsIds: [Int64] = usersInfoWithAlertingMode.map { $0.chatId }
             self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsIds: chatsIds, bot: bot)
             self.alertAboutArbitrage(opportunities: self.usdtArbitragingOpportunities, chatsIds: chatsIds, bot: bot)
+            self.alertAboutArbitrage(opportunities: self.btcArbitragingOpportunities, chatsIds: chatsIds, bot: bot)
         }
     }
     
@@ -667,7 +667,7 @@ private extension DefaultBotHandlers {
                 return
             }
             let profitPercent: Double = spreadInfo.cleanSpread / pricesInfo.possibleSellPrice * 100.0
-            let valuableProfitPercent: Double = 1 // %
+            let valuableProfitPercent: Double = 0.8 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
                     profitPercent > valuableProfitPercent else { return } // %

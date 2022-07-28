@@ -98,8 +98,8 @@ enum EarningScheme: Int, CaseIterable {
         case .monobankUSDT_huobiUSDT: return 1.0
         case .whiteBitUSDT_monobankUSDT: return 1.0
         case .monobankUSDT_whiteBitUSDT: return 1.0
-        case .monobankBTC_monobankBTC: return 2.5
-        case .monobankBNB_monobankBNB: return 2.5
+        case .monobankBTC_monobankBTC: return 2.0
+        case .monobankBNB_monobankBNB: return 2.0
         }
     }
     
