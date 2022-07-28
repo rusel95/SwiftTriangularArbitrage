@@ -178,9 +178,20 @@ final class DefaultBotHandlers {
             guard let self = self, usersInfoWithAlertingMode.isEmpty == false else { return }
             
             let chatsIds: [Int64] = usersInfoWithAlertingMode.map { $0.chatId }
+            
             self.alertAboutProfitability(earningSchemes: self.alertingSchemes, chatsIds: chatsIds, bot: bot)
-            self.alertAboutArbitrage(opportunities: self.usdtArbitragingOpportunities, chatsIds: chatsIds, bot: bot)
-            self.alertAboutArbitrage(opportunities: self.btcArbitragingOpportunities, chatsIds: chatsIds, bot: bot)
+            sleep(10)
+            
+            self.alertAboutArbitrage(opportunities: self.usdtArbitragingOpportunities,
+                                     chatsIds: chatsIds,
+                                     valuableProfitPercent: 0.8,
+                                     bot: bot)
+            sleep(10)
+            
+            self.alertAboutArbitrage(opportunities: self.btcArbitragingOpportunities,
+                                     chatsIds: chatsIds,
+                                     valuableProfitPercent: 1.5,
+                                     bot: bot)
         }
     }
     
@@ -638,7 +649,12 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func alertAboutArbitrage(opportunities: [Opportunity], chatsIds: [Int64], bot: TGBotPrtcl) {
+    func alertAboutArbitrage(
+        opportunities: [Opportunity],
+        chatsIds: [Int64],
+        valuableProfitPercent: Double,
+        bot: TGBotPrtcl
+    ) {
         getOpportunitiesResults(for: opportunities) { [weak self] opportunitiesResults in
             let biggestSellFinalPriceOpportunityResult = opportunitiesResults
                 .filter { ($0.finalSellPrice ?? 0.0) != 0.0 }
@@ -667,7 +683,6 @@ private extension DefaultBotHandlers {
                 return
             }
             let profitPercent: Double = spreadInfo.cleanSpread / pricesInfo.possibleSellPrice * 100.0
-            let valuableProfitPercent: Double = 0.8 // %
             guard ((Date() - (self.lastAlertingEvents[currentArbitragePossibilityID] ?? Date())).seconds.unixTime > Duration.hours(1).unixTime ||
                    self.lastAlertingEvents[currentArbitragePossibilityID] == nil) &&
                     profitPercent > valuableProfitPercent else { return } // %
