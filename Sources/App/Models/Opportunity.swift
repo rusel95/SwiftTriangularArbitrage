@@ -120,16 +120,16 @@ enum Opportunity: Equatable {
             // in percents
             var sellCommission: Double {
                 switch self {
-                case .usdt_uah: return 0.0
-                case .btc_uah: return 0.0
+                case .usdt_uah: return 0.1  // 0.1% SPOT comission
+                case .btc_uah:  return 0.1  // 0.1% SPOT comission
                 }
             }
             
             // in percents
             var buyCommission: Double {
                 switch self {
-                case .usdt_uah: return 1.5
-                case .btc_uah: return 1.5
+                case .usdt_uah: return 1.6  // 1.5% UAH Deposit Comission + 0.1 % SPOT comission
+                case .btc_uah:  return 1.6  // 1.5% UAH Deposit Comission + 0.1 % SPOT comission
                 }
             }
             
@@ -164,16 +164,16 @@ enum Opportunity: Equatable {
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdt_uah: return 0.1  // 1 USDT Deposit
-            case .btc_uah:  return 0.1  // BEP20 is cheap
+            case .usdt_uah: return 0.2  // 1 USDT Deposit + 0.1 % SPOT comission
+            case .btc_uah:  return 0.2  // BEP20 is cheap + 0.1 % SPOT comission
             }
         }
         
         // in percents
         var buyCommission: Double {
             switch self {
-            case .usdt_uah: return 0.1  // 1 USDT Withdrawal
-            case .btc_uah:  return 1    // 0.0004 BTC ± 10$
+            case .usdt_uah: return 0.2  // 1 USDT Withdrawal + 0.1 % SPOT comission
+            case .btc_uah:  return 1.1  // 0.0004 BTC ± 10$ + 0.1 % SPOT comission
             }
         }
         
@@ -203,16 +203,16 @@ enum Opportunity: Equatable {
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdt_uah: return 1.1  // 1 USDT Deposit + 1% UAH Widthdrawal
-            case .btc_uah:  return 1.05 // Cheap BTC Deposit + 1% UAH Widthdrawal
+            case .usdt_uah: return 1.3  // 1 USDT Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
+            case .btc_uah:  return 1.25 // Cheap BTC Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
             }
         }
         
         // in percents
         var buyCommission: Double {
             switch self {
-            case .usdt_uah: return 1.6  // 1.5 % UAH Deposit + 1 USDT Widthdrawal
-            case .btc_uah: return 1.55  // 1.5 % UAH Deposit + cheap widthdrawal
+            case .usdt_uah: return 1.8  // 1.5 % UAH Deposit + 1 USDT Widthdrawal + 0.2 % SPOT comission
+            case .btc_uah: return 1.75  // 1.5 % UAH Deposit + cheap widthdrawal + 0.2 % SPOT comission
             }
         }
     }
@@ -241,16 +241,16 @@ enum Opportunity: Equatable {
         // in percents
         var sellCommission: Double {
             switch self {
-            case .usdt_uah: return 1.1  // 1 USDT Deposit + 1% UAH Widthdrawal
-            case .btc_uah:  return 1.05 // Cheap btc Deposit + 1% UAH Widthdrawal
+            case .usdt_uah: return 1.4  // 1 USDT Deposit + 1% UAH Widthdrawal + 0.3 % SPOT comission
+            case .btc_uah:  return 1.35 // Cheap btc Deposit + 1% UAH Widthdrawal + 0.3 % SPOT comission
             }
         }
         
         // in percents
         var buyCommission: Double? {
             switch self {
-            case .usdt_uah: return 0.6   // 0.5% UAH Deposit + 1 USDT Widthdrawal
-            case .btc_uah:  return 0.55  // 0.5% UAH Deposit + Cheap BTC Widthdrawal
+            case .usdt_uah: return 0.9   // 0.5% UAH Deposit + 1 USDT Widthdrawal + 0.3 % SPOT comission
+            case .btc_uah:  return 0.85  // 0.5% UAH Deposit + Cheap BTC Widthdrawal + 0.3 % SPOT comission
             }
         }
     }
@@ -279,8 +279,8 @@ enum Opportunity: Equatable {
         // in percents
         var commission: Double {
             switch self {
-            case .usdt_uah: return 1.65 // 1.55% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal
-            case .btc_uah:  return 1.6  // 1.55% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal
+            case .usdt_uah: return 1.95 // 1.55% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal + 0.25 % SPOT comission
+            case .btc_uah:  return 1.85  // 1.55% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal + 0.25 % SPOT comission
             }
         }
         
@@ -310,14 +310,14 @@ enum Opportunity: Equatable {
         // in percents
         var commissions: Double {
             switch self {
-            case .usdt_uah: return 1.1  // 1% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal
-            case .btc_uah:  return 1.05 // 1% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal
+            case .usdt_uah: return 1.3  // 1% UAH Deposit/Widthdrawal + 1 USDT Deposit/Widthdrawal + 0.2 % SPOT comission
+            case .btc_uah:  return 1.25 // 1% UAH Deposit/Widthdrawal + Cheap BTC Deposit/Widthdrawal + 0.2 % SPOT comission
             }
         }
         
     }
     
-    // MARK: - Coinsbit
+    // MARK: - Betconix
     
     enum Betconix {
         
