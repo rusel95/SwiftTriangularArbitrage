@@ -19,18 +19,7 @@ public final class UsersInfoProvider: NSObject {
     
     private var storageURL: URL {
         let fileName = "usersInfo"
-        let isDevelopment: Bool = ProcessInfo.processInfo.environment["token"] != nil
-        let fileURL: URL
-        if isDevelopment,
-            let documentsDirectory = try? FileManager.default.url(for: .desktopDirectory,
-                                                                  in: .userDomainMask,
-                                                                  appropriateFor: nil,
-                                                                  create: true) {
-            fileURL = documentsDirectory.appendingPathComponent(fileName)
-        } else {
-            fileURL = URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
-        }
-        return fileURL
+        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
     }
 
     // MARK: - INIT
