@@ -266,12 +266,12 @@ private extension DefaultBotHandlers {
                 
                 let buyOpportunitiesResults = opportunitiesResults
                     .filter { ($0.finalBuyPrice ?? 0.0) != 0 }
-                    .sorted { $0.finalBuyPrice ?? 0.0 > $1.finalBuyPrice ?? 0.0 }
+                    .sorted { $0.finalBuyPrice ?? 0.0 < $1.finalBuyPrice ?? 0.0 }
                 
                 buyPricesInfoDescription.append("\nМожливості для покупки $(з урахування всiх комісій):\n")
                 
                 buyOpportunitiesResults.forEach { buyOpportunityResult in
-                    let description = "\(buyOpportunityResult.opportunity.descriptionWithSpaces)|\((buyOpportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n"
+                    let description = "\(buyOpportunityResult.opportunity.descriptionWithSpaces)|   \((buyOpportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())   UAH/\(buyOpportunityResult.opportunity.mainAssetAPIDescription)\n"
                     buyPricesInfoDescription.append(description)
                 }
                 
