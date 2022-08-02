@@ -40,14 +40,14 @@ public final class UsersInfoProvider: NSObject {
         usersInfo
     }
     
-    func getUsersInfo(selectedMode: Mode) -> Set<UserInfo> {
+    func getUsersInfo(selectedMode: BotMode) -> Set<UserInfo> {
         usersInfo.filter { $0.selectedModes.contains(selectedMode) }
     }
     
     func handleModeSelected(
         chatId: Int64,
         user: TGUser,
-        mode: Mode,
+        mode: BotMode,
         onlineUpdatesMessageId: Int? = nil,
         arbitragingMessageId: Int? = nil
     ) {

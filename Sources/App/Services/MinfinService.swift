@@ -23,8 +23,14 @@ final class MinfinService {
     }
     
     enum AuctionType: String, CaseIterable {
+       
         case usd
         case eur
+        
+        var description: String {
+            "Обмiнники"
+        }
+        
     }
     
     struct AuctionInfo: Codable {
@@ -54,7 +60,7 @@ final class MinfinService {
     
     // MARK: - METHODS
     
-    func getAuctions(completion: @escaping([Auction]?) -> Void) {
+    private func getAuctions(completion: @escaping([Auction]?) -> Void) {
         let url = URL(string: "https://api.minfin.com.ua/auction/info/\(token)/")!
         URLSession.shared.dataTask(with: url, completionHandler: { [weak self] data, response, error in
             if let error = error {

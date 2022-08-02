@@ -8,6 +8,8 @@
 enum Currency: String, Equatable {
     
     case uah = "UAH"
+    case usd = "USD"
+    case eur = "EUR"
     case usdt = "USDT"
     case busd = "BUSD"
     case btc = "BTC"

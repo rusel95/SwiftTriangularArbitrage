@@ -5,8 +5,9 @@
 //  Created by Ruslan Popesku on 18.07.2022.
 //
 
-enum Mode: Codable, Hashable {
+enum BotMode: Codable, Hashable {
     
+    case whereToBuy
     case trading
     case alerting /*
                    example 1: USDT/UAH spot -> UAH Crypto to UAH fiat -> UAH fiat to USDT
@@ -23,12 +24,13 @@ enum Mode: Codable, Hashable {
         case .alerting: return 60
         case .arbitraging: return 15
         case .logging: return 900
-        case .suspended: return .infinity
+        case .suspended, .whereToBuy: return .infinity
         }
     }
     
     var command: String {
         switch self {
+        case .whereToBuy: return "/where_to_buy"
         case .trading: return "/start_trading"
         case .alerting: return "/start_alerting"
         case .arbitraging: return "/start_arbitraging"

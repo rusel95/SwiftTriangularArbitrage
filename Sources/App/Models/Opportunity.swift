@@ -357,6 +357,34 @@ enum Opportunity: Equatable {
         
     }
     
+    // MARK: - Minfin
+    
+    enum Minfin {
+        
+        case usd_uah
+        case eur_uah
+        
+        var paymentMethod: PaymentMethod {
+            switch self {
+            case .usd_uah: return .minfin(.usd)
+            case .eur_uah:  return .minfin(.eur)
+            }
+        }
+        
+        var mainAsset: Currency {
+            switch self {
+            case .usd_uah: return .usd
+            case .eur_uah:  return .eur
+            }
+        }
+        
+        // in percents
+        var commissions: Double {
+            return 0.0
+        }
+        
+    }
+    
     // MARK: - Cases
     
     case binance(Binance)
@@ -366,6 +394,7 @@ enum Opportunity: Equatable {
     case kuna(Kuna)
     case coinsbit(Coinsbit)
     case betconix(Betconix)
+    case minfin(Minfin)
     
     // MARK: - PARAMETERS
     
@@ -387,6 +416,7 @@ enum Opportunity: Equatable {
         case .kuna:       data.append("            ")
         case .coinsbit:   data.append("        ")
         case .betconix:   data.append("        ")
+        case .minfin:     data.append("     ")
         }
         return data
     }
@@ -412,6 +442,8 @@ enum Opportunity: Equatable {
             return coinsbitOpportunity.paymentMethod.description
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.paymentMethod.description
+        case .minfin(let minfinOpportunity):
+            return minfinOpportunity.paymentMethod.description
         }
     }
     
@@ -436,6 +468,8 @@ enum Opportunity: Equatable {
             return coinsbitOpportunity.mainAsset.apiDescription
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.mainAsset.apiDescription
+        case .minfin(let minfinOpportunity):
+            return minfinOpportunity.mainAsset.apiDescription
         }
     }
     
@@ -461,6 +495,8 @@ enum Opportunity: Equatable {
             return coinsbitOpportunity.commissions
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.sellCommission
+        case .minfin(let minfinOpportunity):
+            return minfinOpportunity.commissions
         }
     }
     
@@ -486,6 +522,8 @@ enum Opportunity: Equatable {
             return coinsbitOpportunity.commissions
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.buyCommission
+        case .minfin(let minfinOpportunity):
+            return minfinOpportunity.commissions
         }
     }
     

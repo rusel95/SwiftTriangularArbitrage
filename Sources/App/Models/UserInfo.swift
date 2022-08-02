@@ -16,7 +16,7 @@ final class UserInfo: Codable, Hashable, Equatable {
     let username: String?
     let languageCode: String?
     
-    var selectedModes: Set<Mode> = []
+    var selectedModes: Set<BotMode> = []
     
     var onlineUpdatesMessageId: Int?
     var arbitragingMessageId: Int?
@@ -24,7 +24,7 @@ final class UserInfo: Codable, Hashable, Equatable {
     init(
         chatId: Int64,
         user: TGUser,
-        selectedModes: Set<Mode>,
+        selectedModes: Set<BotMode>,
         onlineUpdatesMessageId: Int? = nil,
         arbitragingMessageId: Int? = nil
     ) {

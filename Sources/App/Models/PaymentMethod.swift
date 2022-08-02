@@ -130,6 +130,7 @@ enum PaymentMethod: Equatable {
     case kuna(Kuna)
     case coinsbit(Coinsbit)
     case betconix(Betconix)
+    case minfin(MinfinService.AuctionType)
     
     var apiDescription: String {
         switch self {
@@ -151,6 +152,8 @@ enum PaymentMethod: Equatable {
         case .coinsbit(let paymentMethod):
             return paymentMethod.rawValue
         case .betconix(let paymentMethod):
+            return paymentMethod.rawValue
+        case .minfin(let paymentMethod):
             return paymentMethod.rawValue
         }
     }
@@ -175,6 +178,8 @@ enum PaymentMethod: Equatable {
         case .coinsbit(let paymentMethod):
             return paymentMethod.description
         case .betconix(let paymentMethod):
+            return paymentMethod.description
+        case .minfin(let paymentMethod):
             return paymentMethod.description
         }
     }
