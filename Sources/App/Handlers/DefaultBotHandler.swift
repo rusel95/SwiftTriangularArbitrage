@@ -255,7 +255,7 @@ private extension DefaultBotHandlers {
                     self.logger.report(error: botError)
                 }
             } else {
-                let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"
+                let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними розцінками кожні \(Int(Mode.trading.jobInterval)) секунд у наступному форматі:\n\(self.resultsFormatDescription)"
                 let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                 explanationMessageFutute?.whenComplete({ _ in
                     let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
@@ -301,7 +301,7 @@ private extension DefaultBotHandlers {
                 if UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging).contains(where: { $0.chatId == chatId }) {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
                 } else {
-                    let infoMessage = "Тепер Ви будете бачете повідовлення, яке буде оновлюватися акутальними арбiтражними кожні \(Int(Mode.arbitraging.jobInterval)) секунд:\n"
+                    let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними арбiтражними цынами кожні \(Int(Mode.arbitraging.jobInterval)) секунд:\n"
                     
                     let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                     explanationMessageFutute?.whenComplete({ _ in
@@ -512,7 +512,7 @@ private extension DefaultBotHandlers {
             case .p2p(let binanceP2POpportunity):
                 BinanceAPIService.shared.loadAdvertisements(
                     paymentMethod: binanceP2POpportunity.paymentMethod.apiDescription,
-                    crypto: binanceP2POpportunity.crypto.apiDescription
+                    crypto: binanceP2POpportunity.mainAsset.apiDescription
                 ) { [weak self] buyAdvs, sellAdvs, error in
                     guard let self = self, let buyAdvs = buyAdvs, let sellAdvs = sellAdvs else {
                         self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR BINANCE P2P"))

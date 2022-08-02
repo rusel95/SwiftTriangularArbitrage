@@ -15,7 +15,7 @@ final class HuobiAPIService {
 
     // MARK: - Structs
     
-    struct MarketData: Codable {
+    struct ResponseBody: Codable {
         let ch, status: String
         let ts: Int
         let tick: Tick
@@ -59,7 +59,7 @@ final class HuobiAPIService {
             }
             
             do {
-                let marketData = try JSONDecoder().decode(MarketData.self, from: data)
+                let marketData = try JSONDecoder().decode(ResponseBody.self, from: data)
                 let asks = marketData.tick.asks.compactMap { $0.first }.compactMap { Double($0) }
                 let bids = marketData.tick.bids.compactMap { $0.first }.compactMap { Double($0) }
                 completion(asks, bids, nil)

@@ -11,6 +11,7 @@ enum Opportunity: Equatable {
     
     enum Binance: Equatable {
         
+        // Should be MAKER/NON-maker opportunity also
         enum P2P {
             
             case monobankUSDT
@@ -26,7 +27,7 @@ enum Opportunity: Equatable {
             case monobankBTC
             case monobankBNB
             
-            var crypto: Crypto {
+            var mainAsset: Currency {
                 switch self {
                 case .monobankUSDT, .privatbankUSDT, .abankUSDT, .pumbUSDT, .wiseUSDT, .binancePayUSDT: return .usdt
                 case .monobankBUSD, .privatbankBUSD, .wiseBUSD: return .busd
@@ -103,7 +104,7 @@ enum Opportunity: Equatable {
             case usdt_uah
             case btc_uah
             
-            var crypto: Crypto {
+            var mainAsset: Currency {
                 switch self {
                 case .usdt_uah: return .usdt
                 case .btc_uah: return .btc
@@ -154,7 +155,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var crypto: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah: return .btc
@@ -193,7 +194,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var mainAsset: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah:  return .btc
@@ -231,7 +232,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var mainAsset: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah:  return .btc
@@ -269,7 +270,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var mainAsset: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah:     return .btc
@@ -300,7 +301,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var crypto: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah:  return .btc
@@ -331,7 +332,7 @@ enum Opportunity: Equatable {
             }
         }
         
-        var mainAsset: Crypto {
+        var mainAsset: Currency {
             switch self {
             case .usdt_uah: return .usdt
             case .btc_uah:  return .btc
@@ -419,12 +420,12 @@ enum Opportunity: Equatable {
         case .binance(let binanceOpportunity):
             switch binanceOpportunity {
             case .p2p(let binanceP2POpportunity):
-                return binanceP2POpportunity.crypto.apiDescription
+                return binanceP2POpportunity.mainAsset.apiDescription
             case .spot(let binanceSpotOpportunity):
-                return binanceSpotOpportunity.crypto.apiDescription
+                return binanceSpotOpportunity.mainAsset.apiDescription
             }
         case .whiteBit(let opportunity):
-            return opportunity.crypto.apiDescription
+            return opportunity.mainAsset.apiDescription
         case .huobi(let opportunity):
             return opportunity.mainAsset.apiDescription
         case .exmo(let exmoOpportunity):
@@ -432,7 +433,7 @@ enum Opportunity: Equatable {
         case .kuna(let kunaOpportunity):
             return kunaOpportunity.mainAsset.apiDescription
         case .coinsbit(let coinsbitOpportunity):
-            return coinsbitOpportunity.crypto.apiDescription
+            return coinsbitOpportunity.mainAsset.apiDescription
         case .betconix(let betconixOpportunity):
             return betconixOpportunity.mainAsset.apiDescription
         }

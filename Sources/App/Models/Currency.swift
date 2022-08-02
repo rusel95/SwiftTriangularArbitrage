@@ -5,8 +5,9 @@
 //  Created by Ruslan Popesku on 30.06.2022.
 //
 
-enum Crypto: String, Equatable {
+enum Currency: String, Equatable {
     
+    case uah = "UAH"
     case usdt = "USDT"
     case busd = "BUSD"
     case btc = "BTC"

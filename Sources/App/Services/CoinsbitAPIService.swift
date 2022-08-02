@@ -15,7 +15,7 @@ final class CoinsbitAPIService {
     
     // MARK: - STRUCTS
     
-    struct Welcome: Codable {
+    struct ResponseBody: Codable {
         let code: Int
         let success: Bool
         let message: String
@@ -55,7 +55,7 @@ final class CoinsbitAPIService {
             }
             
             do {
-               let responseBody = try JSONDecoder().decode(Welcome.self, from: data)
+               let responseBody = try JSONDecoder().decode(ResponseBody.self, from: data)
                completion(Double(responseBody.result.ask), Double(responseBody.result.ask), nil)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
