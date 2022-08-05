@@ -119,11 +119,13 @@ enum Opportunity: Equatable {
             }
             
             // in percents
-            var sellCommission: Double {
-                switch self {
-                case .usdt_uah: return 0.1  // 0.1% SPOT comission
-                case .btc_uah:  return 0.1  // 0.1% SPOT comission
-                }
+            var sellCommission: Double? {
+                return nil
+                // NOTE: - currently works only for privat24
+//                switch self {
+//                case .usdt_uah: return 0.1  // 0.1% SPOT comission
+//                case .btc_uah:  return 0.1  // 0.1% SPOT comission
+//                }
             }
             
             // in percents
