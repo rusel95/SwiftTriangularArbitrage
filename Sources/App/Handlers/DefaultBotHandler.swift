@@ -10,8 +10,15 @@ import telegram_vapor_bot
 import Jobs
 import Logging
 
-typealias PricesInfo = (possibleSellPrice: Double, possibleBuyPrice: Double)
-typealias SpreadInfo = (dirtySpread: Double, cleanSpread: Double)
+struct PricesInfo {
+    let possibleSellPrice: Double
+    let possibleBuyPrice: Double
+}
+
+struct SpreadInfo {
+    let dirtySpread: Double
+    let cleanSpread: Double
+}
 
 final class DefaultBotHandlers {
     
@@ -28,7 +35,7 @@ final class DefaultBotHandlers {
     private let resultsFormatDescription = "Крипто продажа(платіжний спосіб) - покупка(платіжний спосіб) | можлива ціна Продажі - Покупки | спред повний - чистий | чистий профіт у %"
     private let commandsDescription = """
         /where_to_buy - бот вiдповiсть де дешевше купити $ (або USDT, щоб потiм помiняти його на $);
-        /start_trading - режим моніторингу p2p-ринку на Binance в режимы реального часу;
+        /start_trading - режим моніторингу p2p-ринку на Binance в режимi реального часу;
         /start_arbitraging - режим моніторинг арбітражних можливостей в режимі реального часу;
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
@@ -63,7 +70,8 @@ final class DefaultBotHandlers {
         .exmo(.usdt_uah),
         .kuna(.usdt_uah),
         .coinsbit(.usdt_uah),
-        .betconix(.usdt_uah)
+        .betconix(.usdt_uah),
+        .btcTrade(.usdt_uah)
     ]
     
     private let btcArbitragingOpportunities: [Opportunity] = [
@@ -85,7 +93,8 @@ final class DefaultBotHandlers {
         .kuna(.usdt_uah),
         .coinsbit(.usdt_uah),
         .betconix(.usdt_uah),
-        .minfin(.usd_uah)
+        .minfin(.usd_uah),
+        .btcTrade(.usdt_uah)
     ]
     
     // MARK: - METHODS
@@ -153,13 +162,13 @@ final class DefaultBotHandlers {
                     .filter { ($0.finalBuyPrice ?? 0.0) != 0 }
                     .sorted { $0.finalBuyPrice ?? 0.0 > $1.finalBuyPrice ?? 0.0 }
                 
-                arbitragingPricesInfoDescription.append("Можливості для продажі:\n")
+                arbitragingPricesInfoDescription.append("Можливості для продажі (VISA/MASTERCARD):\n")
                 sellOpportunitiesResults.forEach { sellOpportunityResult in
                     let description = "\(sellOpportunityResult.opportunity.descriptionWithSpaces)|\((sellOpportunityResult.finalSellPrice ?? 0.0).toLocalCurrency())\n"
                     arbitragingPricesInfoDescription.append(description)
                 }
                 
-                arbitragingPricesInfoDescription.append("\nМожливості для покупки:\n")
+                arbitragingPricesInfoDescription.append("\nМожливості для покупки (VISA/MASTERCARD):\n")
                 buyOpportunitiesResults.forEach { buyOpportunityResult in
                     let description = "\(buyOpportunityResult.opportunity.descriptionWithSpaces)|\((buyOpportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())\n"
                     arbitragingPricesInfoDescription.append(description)
@@ -268,7 +277,7 @@ private extension DefaultBotHandlers {
                     .filter { ($0.finalBuyPrice ?? 0.0) != 0 }
                     .sorted { $0.finalBuyPrice ?? 0.0 < $1.finalBuyPrice ?? 0.0 }
                 
-                buyPricesInfoDescription.append("\nМожливості для покупки $(з урахування всiх комісій):\n")
+                buyPricesInfoDescription.append("\n(VISA/MASTERCARD) Можливості для покупки $(з урахування всiх комісій):\n")
                 
                 buyOpportunitiesResults.forEach { buyOpportunityResult in
                     let description = "\(buyOpportunityResult.opportunity.descriptionWithSpaces)|   \((buyOpportunityResult.finalBuyPrice ?? 0.0).toLocalCurrency())   UAH/\(buyOpportunityResult.opportunity.mainAssetAPIDescription)\n"
@@ -347,7 +356,7 @@ private extension DefaultBotHandlers {
                 if UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging).contains(where: { $0.chatId == chatId }) {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
                 } else {
-                    let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними арбiтражними цынами кожні \(Int(BotMode.arbitraging.jobInterval)) секунд:\n"
+                    let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними арбiтражними цiнами кожні \(Int(BotMode.arbitraging.jobInterval)) секунд:\n"
                     
                     let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                     explanationMessageFutute?.whenComplete({ _ in
@@ -645,6 +654,14 @@ private extension DefaultBotHandlers {
                 }
                 completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
             }
+            
+        case .btcTrade(let btcTradeOpportunity):
+            BTCTradeAPIService.shared.loadPriceInfo(ticker: btcTradeOpportunity.paymentMethod.apiDescription) { pricesInfo in
+                completion(pricesInfo)
+            } failure: { _ in
+                completion(nil)
+            }
+            
         case .minfin(let minfinOpportunity):
             if let auction = MinfinService.shared.auctions?.first(where: { $0.type.rawValue == minfinOpportunity.paymentMethod.apiDescription }),
                let possibleSellPrice = Double(auction.info.bid),
@@ -800,7 +817,7 @@ private extension DefaultBotHandlers {
         let sellComissionAmount = pricesInfo.possibleSellPrice * sellCommission / 100.0
         let buyCommissionAmount = pricesInfo.possibleBuyPrice * buyCommission / 100.0
         let cleanSpread = dirtySpread - sellComissionAmount - buyCommissionAmount
-        return SpreadInfo(dirtySpread, cleanSpread)
+        return SpreadInfo(dirtySpread: dirtySpread, cleanSpread: cleanSpread)
     }
     
 }

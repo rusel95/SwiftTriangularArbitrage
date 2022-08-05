@@ -123,6 +123,17 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - BTCTrade
+    
+    enum BTCTrade: String {
+        
+        case usdt_uah = "usdt_uah"
+        
+        var description: String {
+            "BTCTrade"
+        }
+    }
+    
     case binance(Binance)
     case huobi(Huobi)
     case whiteBit(WhiteBit)
@@ -131,6 +142,7 @@ enum PaymentMethod: Equatable {
     case coinsbit(Coinsbit)
     case betconix(Betconix)
     case minfin(MinfinService.AuctionType)
+    case btcTrade(BTCTrade)
     
     var apiDescription: String {
         switch self {
@@ -154,6 +166,8 @@ enum PaymentMethod: Equatable {
         case .betconix(let paymentMethod):
             return paymentMethod.rawValue
         case .minfin(let paymentMethod):
+            return paymentMethod.rawValue
+        case .btcTrade(let paymentMethod):
             return paymentMethod.rawValue
         }
     }
@@ -180,6 +194,8 @@ enum PaymentMethod: Equatable {
         case .betconix(let paymentMethod):
             return paymentMethod.description
         case .minfin(let paymentMethod):
+            return paymentMethod.description
+        case .btcTrade(let paymentMethod):
             return paymentMethod.description
         }
     }
