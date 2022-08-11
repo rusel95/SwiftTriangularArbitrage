@@ -1,10 +1,10 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.4
 import PackageDescription
 
 let package = Package(
     name: "p2pHelper",
     platforms: [
-       .macOS(.v12)
+        .macOS(.v11)
     ],
     dependencies: [
         // 💧 A server-side Swift web framework.
