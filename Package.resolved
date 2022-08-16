@@ -173,15 +173,6 @@
         }
       },
       {
-        "package": "SwiftSentry",
-        "repositoryURL": "https://github.com/swift-sentry/swift-sentry.git",
-        "state": {
-          "branch": null,
-          "revision": "f34a083938258965eb21e9434269043f9c1376e9",
-          "version": "1.0.1"
-        }
-      },
-      {
         "package": "telegram-vapor-bot",
         "repositoryURL": "https://github.com/nerzh/telegram-vapor-bot",
         "state": {

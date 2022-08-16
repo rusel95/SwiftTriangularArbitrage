@@ -1,15 +1,11 @@
 import Vapor
 import telegram_vapor_bot
 import Logging
-import SwiftSentry
 
 public func configure(_ app: Application) throws {
-    
-    let sentry = try Sentry(dsn:  String.readToken(from: "sentryDSN"))
 
     LoggingSystem.bootstrap { label in
         MultiplexLogHandler([
-            SentryLogHandler(label: label, sentry: sentry, level: .error),
             StreamLogHandler.standardOutput(label: label)
         ])
     }
