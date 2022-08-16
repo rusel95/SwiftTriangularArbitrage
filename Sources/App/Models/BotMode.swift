@@ -5,7 +5,7 @@
 //  Created by Ruslan Popesku on 18.07.2022.
 //
 
-enum BotMode: Codable, Hashable {
+enum BotMode: String, Codable {
     
     case whereToBuy
     case trading
@@ -38,4 +38,5 @@ enum BotMode: Codable, Hashable {
         case .suspended: return "/stop"
         }
     }
+    
 }
