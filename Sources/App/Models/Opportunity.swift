@@ -120,19 +120,17 @@ enum Opportunity: Equatable {
             
             // in percents
             var sellCommission: Double? {
-                return nil
-                // NOTE: - currently works only for privat24
-//                switch self {
-//                case .usdt_uah: return 0.1  // 0.1% SPOT comission
-//                case .btc_uah:  return 0.1  // 0.1% SPOT comission
-//                }
+                switch self {
+                case .usdt_uah: return 1.1  // 1% SettlePay + 0.1% SPOT comission
+                case .btc_uah:  return 1.1  // 1% SettlePay + 0.1% SPOT comission
+                }
             }
             
             // in percents
             var buyCommission: Double {
                 switch self {
-                case .usdt_uah: return 1.6  // 1.5% UAH Deposit Comission + 0.1 % SPOT comission
-                case .btc_uah:  return 1.6  // 1.5% UAH Deposit Comission + 0.1 % SPOT comission
+                case .usdt_uah: return 1.6  // 1.5% SettlePay Deposit Comission + 0.1 % SPOT comission
+                case .btc_uah:  return 1.6  // 1.5% SettlePay Deposit Comission + 0.1 % SPOT comission
                 }
             }
             
@@ -204,11 +202,12 @@ enum Opportunity: Equatable {
         }
         
         // in percents
-        var sellCommission: Double {
-            switch self {
-            case .usdt_uah: return 1.3  // 1 USDT Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
-            case .btc_uah:  return 1.25 // Cheap BTC Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
-            }
+        var sellCommission: Double? {
+            return nil // currently available only AdvCach
+//            switch self {
+//            case .usdt_uah: return 1.3  // 1 USDT Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
+//            case .btc_uah:  return 1.25 // Cheap BTC Deposit + 1% UAH Widthdrawal + 0.2 % SPOT comission
+//            }
         }
         
         // in percents
