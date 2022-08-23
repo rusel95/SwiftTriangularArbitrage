@@ -71,6 +71,7 @@ final class DefaultBotHandlers {
         .kuna(.usdt_uah),
         .coinsbit(.usdt_uah),
         .betconix(.usdt_uah),
+        .qmall(.usdt_uah),
         .btcTrade(.usdt_uah)
     ]
     
@@ -81,6 +82,7 @@ final class DefaultBotHandlers {
         .exmo(.btc_uah),
         .kuna(.btc_uah),
         .coinsbit(.btc_uah),
+        .qmall(.btc_uah),
         .betconix(.btc_uah)
     ]
     
@@ -93,6 +95,7 @@ final class DefaultBotHandlers {
         .kuna(.usdt_uah),
         .coinsbit(.usdt_uah),
         .betconix(.usdt_uah),
+        .qmall(.usdt_uah),
         .minfin(.usd_uah),
         .btcTrade(.usdt_uah)
     ]
@@ -649,6 +652,15 @@ private extension DefaultBotHandlers {
             BetconixAPIService.shared.getOrderbook(assetsPair: betconixOpportunity.paymentMethod.apiDescription) { [weak self] ask, bid, error in
                 guard let possibleSellPrice = bid, let possibleBuyPrice = ask else {
                     self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR BETCONIX"))
+                    completion(nil)
+                    return
+                }
+                completion(PricesInfo(possibleSellPrice: possibleSellPrice, possibleBuyPrice: possibleBuyPrice))
+            }
+        case .qmall(let qmallOpportunity):
+            QMallAPIService.shared.getTicker(market: qmallOpportunity.paymentMethod.apiDescription) { [weak self] ask, bid, error in
+                guard let possibleSellPrice = bid, let possibleBuyPrice = ask else {
+                    self?.logger.info(Logger.Message(stringLiteral: "NO PRICES FOR QMALL"))
                     completion(nil)
                     return
                 }

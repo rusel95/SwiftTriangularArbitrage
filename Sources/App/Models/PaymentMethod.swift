@@ -123,6 +123,18 @@ enum PaymentMethod: Equatable {
         }
     }
     
+    // MARK: - QMall
+    
+    enum QMall: String {
+        
+        case usdt_uah = "USDT_UAH"
+        case btc_uah  = "BTC_UAH"
+        
+        var description: String {
+            "QMall"
+        }
+    }
+    
     // MARK: - BTCTrade
     
     enum BTCTrade: String {
@@ -141,6 +153,7 @@ enum PaymentMethod: Equatable {
     case kuna(Kuna)
     case coinsbit(Coinsbit)
     case betconix(Betconix)
+    case qmall(QMall)
     case minfin(MinfinService.AuctionType)
     case btcTrade(BTCTrade)
     
@@ -164,6 +177,8 @@ enum PaymentMethod: Equatable {
         case .coinsbit(let paymentMethod):
             return paymentMethod.rawValue
         case .betconix(let paymentMethod):
+            return paymentMethod.rawValue
+        case .qmall(let paymentMethod):
             return paymentMethod.rawValue
         case .minfin(let paymentMethod):
             return paymentMethod.rawValue
@@ -192,6 +207,8 @@ enum PaymentMethod: Equatable {
         case .coinsbit(let paymentMethod):
             return paymentMethod.description
         case .betconix(let paymentMethod):
+            return paymentMethod.description
+        case .qmall(let paymentMethod):
             return paymentMethod.description
         case .minfin(let paymentMethod):
             return paymentMethod.description
