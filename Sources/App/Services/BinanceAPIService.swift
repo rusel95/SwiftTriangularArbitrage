@@ -98,6 +98,36 @@ final class BinanceAPIService {
         }.resume()
     }
     
+    func getAllBookTickers(completion: @escaping(_ tickers: [BookTicker]?) -> Void) {
+        let session = URLSession.shared
+        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "Get"
+        
+        session.dataTask(with: request) { [weak self] (data, response, error) in
+            if let error = error {
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+                completion(nil)
+                return
+            }
+            
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Tickers \(url.debugDescription)"))
+                completion(nil)
+                return
+            }
+            
+            do {
+                let ticker = try JSONDecoder().decode([BookTicker].self, from: data)
+                completion(ticker)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil)
+            }
+        }.resume()
+    }
+    
     func loadAdvertisements(
         paymentMethod: String,
         crypto: String,
