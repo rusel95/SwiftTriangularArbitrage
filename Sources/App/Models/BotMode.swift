@@ -15,6 +15,7 @@ enum BotMode: String, Codable {
                    example 3: Stable Coin/Stable Coin price >= 3% difference then normal level
                    */
     case arbitraging
+    case triangularArtibraging
     case logging
     case suspended
     
@@ -23,6 +24,7 @@ enum BotMode: String, Codable {
         case .trading: return 15
         case .alerting: return 60
         case .arbitraging: return 15
+        case .triangularArtibraging: return 5
         case .logging: return 900
         case .suspended, .whereToBuy: return .infinity
         }
@@ -36,6 +38,7 @@ enum BotMode: String, Codable {
         case .arbitraging: return "/start_arbitraging"
         case .logging: return "/start_logging"
         case .suspended: return "/stop"
+        case .triangularArtibraging: return "/start_binance_triangular_arbitrage"
         }
     }
     

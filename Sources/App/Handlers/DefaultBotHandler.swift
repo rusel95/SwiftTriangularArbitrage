@@ -37,6 +37,7 @@ final class DefaultBotHandlers {
         /where_to_buy - бот вiдповiсть де дешевше купити $ (або USDT, щоб потiм помiняти його на $);
         /start_trading - режим моніторингу p2p-ринку на Binance в режимi реального часу;
         /start_arbitraging - режим моніторинг арбітражних можливостей в режимі реального часу;
+        /start_binance_triangular_arbitrage - режим моніторингу трикутного внутрішньобіржового арбітражу на Binance;
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
@@ -113,7 +114,8 @@ final class DefaultBotHandlers {
         commandTestHandler(app: app, bot: bot)
         
         startTradingJob(bot: bot)
-        startArbitraging(bot: bot)
+        startArbitragingMonitoring(bot: bot)
+        startTriangularArbitragingMonitoring(bot: bot)
         startAlertingJob(bot: bot)
         startLoggingJob(bot: bot)
     }
@@ -148,7 +150,16 @@ final class DefaultBotHandlers {
         }
     }
     
-    func startArbitraging(bot: TGBotPrtcl) {
+    func startArbitragingMonitoring(bot: TGBotPrtcl) {
+        Jobs.add(interval: .seconds(BotMode.triangularArtibraging.jobInterval)) { [weak self] in
+//            let usersInfoWithTriangularArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging)
+//            guard let self = self, usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
+            
+            ArbitrageCalculator.shared.collectTradables()
+        }
+    }
+    
+    func startTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.arbitraging.jobInterval)) { [weak self] in
             let usersInfoWithArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging)
             
