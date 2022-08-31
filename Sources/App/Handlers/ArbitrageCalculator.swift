@@ -19,12 +19,10 @@ final class ArbitrageCalculator {
     
     func collectTradables() {
         // Extracting list of coind and prices from Exchange
-        BinanceAPIService.shared.getAllBookTickers { tickers in
-            guard let tickers = tickers else { return }
+        BinanceAPIService.shared.getExchangeInfo { symbols in
+            guard let symbols = symbols else { return }
 
-            let pairsToCount = tickers
-                .filter { $0.symbol.count == 6 } // TODO: - use base/quote instead of this hard String
-                .map { $0.symbol }[0...100] // TODO: - optimize to get full amout
+            let pairsToCount = symbols[0...100] // TODO: - optimize to get full amout
             
             let start = CFAbsoluteTimeGetCurrent()
             
@@ -34,30 +32,27 @@ final class ArbitrageCalculator {
             // Get Pair A - Start from A
             // NOTE - should make https://api.binance.com/api/v3/exchangeInfo request to now that
             for pairA in pairsToCount {
-                let pairASplit = pairA.splitStringInHalf()
-                let aBase = pairASplit.firstHalf
-                let aQuote = pairASplit.secondHalf
+                let aBase: String = pairA.baseAsset
+                let aQuote: String = pairA.quoteAsset
                 
                 // Get Pair B - Find B pair where one coint matched
                 for pairB in pairsToCount {
-                    let pairBSplit = pairB.splitStringInHalf()
-                    let bBase = pairBSplit.firstHalf
-                    let bQuote = pairBSplit.secondHalf
+                    let bBase: String = pairB.baseAsset
+                    let bQuote: String = pairB.quoteAsset
                     
-                    if pairBSplit != pairASplit {
-                        if (pairASplit.firstHalf == bBase || pairASplit.secondHalf == bBase) ||
-                            (pairASplit.firstHalf == bQuote || pairASplit.secondHalf == bQuote) {
+                    if pairB.symbol != pairA.symbol {
+                        if (aBase == bBase || aQuote == bBase) ||
+                            (aBase == bQuote || aQuote == bQuote) {
                             
                             // Get Pair C - Find C pair where base and quote exist in A and B configurations
                             for pairC in pairsToCount {
-                                let pairCSplit = pairC.splitStringInHalf()
-                                let cBase = pairCSplit.firstHalf
-                                let cQuote = pairCSplit.secondHalf
+                                let cBase: String = pairC.baseAsset
+                                let cQuote: String = pairC.quoteAsset
                                 
                                 // Count the number of matching C items
-                                if pairCSplit != pairASplit && pairCSplit != pairBSplit {
-                                    let combineAll = [pairA, pairB, pairC]
-                                    let pairBox = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
+                                if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
+                                    let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
+                                    let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
                                     
                                     let cBaseCount = pairBox.filter { $0 == cBase }.count
                                     let cQuoteCount = pairBox.filter { $0 == cQuote }.count
@@ -73,9 +68,9 @@ final class ArbitrageCalculator {
                                             "a_quote": aQuote,
                                             "b_quote": bQuote,
                                             "c_quote": cQuote,
-                                            "pair_a": pairA,
-                                            "pair_b": pairB,
-                                            "pair_c": pairC,
+                                            "pair_a": pairA.symbol,
+                                            "pair_b": pairB.symbol,
+                                            "pair_c": pairC.symbol,
                                             "combined": uniqueItem.joined(separator: "_")
                                         ]
                                         triangularPairsSet.insert(matchDict)
@@ -90,16 +85,6 @@ final class ArbitrageCalculator {
             let diff = CFAbsoluteTimeGetCurrent() - start
             print(diff, " seconds\n", triangularPairsSet.count)
         }
-    }
-    
-}
-
-extension String {
-    
-   func splitStringInHalf() -> (firstHalf: String, secondHalf: String) {
-        let firstHalf = self.prefix(3)
-        let secondHalf = self.suffix(3)
-        return (firstHalf: String(firstHalf), secondHalf: String(secondHalf))
     }
     
 }
