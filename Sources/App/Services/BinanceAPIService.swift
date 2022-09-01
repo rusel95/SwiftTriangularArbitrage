@@ -77,59 +77,59 @@ final class BinanceAPIService {
         let symbol: String
         let status: Status
         let baseAsset: String
-        let baseAssetPrecision: Int
+//        let baseAssetPrecision: Int
         let quoteAsset: String
-        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
-        let orderTypes: [OrderType]
-        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
-        let cancelReplaceAllowed, isSpotTradingAllowed, isMarginTradingAllowed: Bool
-        let filters: [Filter]
-        let permissions: [Permission]
+//        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
+//        let orderTypes: [OrderType]
+//        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
+//        let cancelReplaceAllowed, isSpotTradingAllowed, isMarginTradingAllowed: Bool
+//        let filters: [Filter]
+//        let permissions: [Permission]
     }
 
     // MARK: - Filter
-    struct Filter: Codable {
-        let filterType: FilterType
-        let minPrice, maxPrice, tickSize, multiplierUp: String?
-        let multiplierDown: String?
-        let avgPriceMins: Int?
-        let minQty, maxQty, stepSize, minNotional: String?
-        let applyToMarket: Bool?
-        let limit, minTrailingAboveDelta, maxTrailingAboveDelta, minTrailingBelowDelta: Int?
-        let maxTrailingBelowDelta, maxNumOrders, maxNumAlgoOrders: Int?
-        let bidMultiplierUp, bidMultiplierDown, askMultiplierUp, askMultiplierDown: String?
-        let maxPosition: String?
-    }
+//    struct Filter: Codable {
+//        let filterType: FilterType
+//        let minPrice, maxPrice, tickSize, multiplierUp: String?
+//        let multiplierDown: String?
+//        let avgPriceMins: Int?
+//        let minQty, maxQty, stepSize, minNotional: String?
+//        let applyToMarket: Bool?
+//        let limit, minTrailingAboveDelta, maxTrailingAboveDelta, minTrailingBelowDelta: Int?
+//        let maxTrailingBelowDelta, maxNumOrders, maxNumAlgoOrders: Int?
+//        let bidMultiplierUp, bidMultiplierDown, askMultiplierUp, askMultiplierDown: String?
+//        let maxPosition: String?
+//    }
+//
+//    enum FilterType: String, Codable {
+//        case icebergParts = "ICEBERG_PARTS"
+//        case lotSize = "LOT_SIZE"
+//        case marketLotSize = "MARKET_LOT_SIZE"
+//        case maxNumAlgoOrders = "MAX_NUM_ALGO_ORDERS"
+//        case maxNumOrders = "MAX_NUM_ORDERS"
+//        case maxPosition = "MAX_POSITION"
+//        case minNotional = "MIN_NOTIONAL"
+//        case percentPrice = "PERCENT_PRICE"
+//        case percentPriceBySide = "PERCENT_PRICE_BY_SIDE"
+//        case priceFilter = "PRICE_FILTER"
+//        case trailingDelta = "TRAILING_DELTA"
+//    }
 
-    enum FilterType: String, Codable {
-        case icebergParts = "ICEBERG_PARTS"
-        case lotSize = "LOT_SIZE"
-        case marketLotSize = "MARKET_LOT_SIZE"
-        case maxNumAlgoOrders = "MAX_NUM_ALGO_ORDERS"
-        case maxNumOrders = "MAX_NUM_ORDERS"
-        case maxPosition = "MAX_POSITION"
-        case minNotional = "MIN_NOTIONAL"
-        case percentPrice = "PERCENT_PRICE"
-        case percentPriceBySide = "PERCENT_PRICE_BY_SIDE"
-        case priceFilter = "PRICE_FILTER"
-        case trailingDelta = "TRAILING_DELTA"
-    }
-
-    enum OrderType: String, Codable {
-        case limit = "LIMIT"
-        case limitMaker = "LIMIT_MAKER"
-        case market = "MARKET"
-        case stopLossLimit = "STOP_LOSS_LIMIT"
-        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
-    }
-
-    enum Permission: String, Codable {
-        case leveraged = "LEVERAGED"
-        case margin = "MARGIN"
-        case spot = "SPOT"
-        case trdGrp003 = "TRD_GRP_003"
-        case trdGrp004 = "TRD_GRP_004"
-    }
+//    enum OrderType: String, Codable {
+//        case limit = "LIMIT"
+//        case limitMaker = "LIMIT_MAKER"
+//        case market = "MARKET"
+//        case stopLossLimit = "STOP_LOSS_LIMIT"
+//        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
+//    }
+//
+//    enum Permission: String, Codable {
+//        case leveraged = "LEVERAGED"
+//        case margin = "MARGIN"
+//        case spot = "SPOT"
+//        case trdGrp003 = "TRD_GRP_003"
+//        case trdGrp004 = "TRD_GRP_004"
+//    }
 
     enum Status: String, Codable {
         case statusBREAK = "BREAK"

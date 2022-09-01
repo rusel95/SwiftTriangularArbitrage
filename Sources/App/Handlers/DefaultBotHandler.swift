@@ -155,7 +155,7 @@ final class DefaultBotHandlers {
 //            let usersInfoWithTriangularArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging)
 //            guard let self = self, usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
             
-            ArbitrageCalculator.shared.collectTradables()
+            ArbitrageCalculator.shared.getArbitragingOpportunities()
         }
     }
     

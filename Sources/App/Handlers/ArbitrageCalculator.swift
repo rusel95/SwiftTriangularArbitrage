@@ -14,20 +14,23 @@ final class ArbitrageCalculator {
     private init() {}
     
     func getArbitragingOpportunities() {
-        
+        collectTriangularPairs { triangulars in
+            
+        }
     }
     
-    func collectTradables() {
+    // Step 0 and 1
+    func collectTriangularPairs(completion: @escaping(Set<[String: String]>) -> Void) {
         // Extracting list of coind and prices from Exchange
         BinanceAPIService.shared.getExchangeInfo { symbols in
             guard let symbols = symbols else { return }
 
-            let pairsToCount = symbols[0...100] // TODO: - optimize to get full amout
+            let pairsToCount = symbols.filter { $0.status == .trading }[0...100] // TODO: - optimize to get full amout
             
-            let start = CFAbsoluteTimeGetCurrent()
+            let startTime = CFAbsoluteTimeGetCurrent()
             
-            var triangularPairsSet: Set<[String: String]> = Set()
             var removeDuplicatesSet: Set<[String]> = Set()
+            var triangularPairsSet: Set<[String: String]> = Set()
             
             // Get Pair A - Start from A
             // NOTE - should make https://api.binance.com/api/v3/exchangeInfo request to now that
@@ -60,20 +63,23 @@ final class ArbitrageCalculator {
                                     // Determining Triangular Match
                                     if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
                                         let uniqueItem = combineAll.sorted()
-                                        removeDuplicatesSet.insert(uniqueItem)
-                                        let matchDict: [String: String] = [
-                                            "a_base": aBase,
-                                            "b_base": bBase,
-                                            "c_base": cBase,
-                                            "a_quote": aQuote,
-                                            "b_quote": bQuote,
-                                            "c_quote": cQuote,
-                                            "pair_a": pairA.symbol,
-                                            "pair_b": pairB.symbol,
-                                            "pair_c": pairC.symbol,
-                                            "combined": uniqueItem.joined(separator: "_")
-                                        ]
-                                        triangularPairsSet.insert(matchDict)
+                                        
+                                        if removeDuplicatesSet.contains(uniqueItem) == false {
+                                            removeDuplicatesSet.insert(uniqueItem)
+                                            let matchDictionary: [String: String] = [
+                                                "aBase": aBase,
+                                                "bBase": bBase,
+                                                "cBase": cBase,
+                                                "aQuote": aQuote,
+                                                "bQuote": bQuote,
+                                                "cQuote": cQuote,
+                                                "pairA": pairA.symbol,
+                                                "pairB": pairB.symbol,
+                                                "pairC": pairC.symbol,
+                                                "combined": uniqueItem.joined(separator: "_")
+                                            ]
+                                            triangularPairsSet.insert(matchDictionary)
+                                        }
                                     }
                                 }
                             }
@@ -82,8 +88,9 @@ final class ArbitrageCalculator {
                 }
             }
             
-            let diff = CFAbsoluteTimeGetCurrent() - start
-            print(diff, " seconds\n", triangularPairsSet.count)
+            let diffTime = CFAbsoluteTimeGetCurrent() - startTime
+            print("Calculated \(triangularPairsSet.count) Triangulars in \(diffTime) seconds\n")
+            completion(triangularPairsSet)
         }
     }
     
