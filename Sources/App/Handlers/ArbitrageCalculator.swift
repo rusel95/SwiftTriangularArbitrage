@@ -6,17 +6,47 @@
 //
 
 import Foundation
+import Jobs
 
 final class ArbitrageCalculator {
     
+    // MARK: - Enums
+    
+    
+    // MARK: - Properties
+    
     static let shared = ArbitrageCalculator()
     
-    private init() {}
+    private var currentTriangulars: Set<[String: String]> = Set()
+    private var currentBookTickers: [BinanceAPIService.BookTicker] = [] {
+        didSet {
+            currentTriangulars.forEach { triangle in
+                print(getCurrentPrices(triangular: triangle))
+            }
+        }
+    }
+    
+    // MARK: - Init
+    
+    private init() {
+        print("!!!!!! ArbitrageCalculator init")
+        Jobs.add(interval: .seconds(5)) { [weak self] in
+            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+                print("!!!!! Current amount tickers: \(tickers?.count ?? 0)")
+                self?.currentBookTickers = tickers ?? []
+            }
+        }
+        Jobs.add(interval: .seconds(30)) { [weak self] in
+            self?.collectTriangularPairs { [weak self] triangulars in
+                self?.currentTriangulars = triangulars
+            }
+        }
+    }
+    
+    // MARK: - Methods
     
     func getArbitragingOpportunities() {
-        collectTriangularPairs { triangulars in
-            
-        }
+        
     }
     
     // Step 0 and 1
@@ -89,9 +119,38 @@ final class ArbitrageCalculator {
             }
             
             let diffTime = CFAbsoluteTimeGetCurrent() - startTime
-            print("Calculated \(triangularPairsSet.count) Triangulars in \(diffTime) seconds\n")
+            print("!!!!!!! Calculated \(triangularPairsSet.count) Triangulars in \(diffTime) seconds\n")
             completion(triangularPairsSet)
         }
+    }
+    
+   
+    
+    // Calculate Surface Rate of arbitrage opportunity
+    func calculateSurfaceRate(triangle: [String: String]) {
+        let minSurfaceRate = 0
+        let surfaceDictionary: [String: String] = [:]
+    }
+    
+}
+
+private extension ArbitrageCalculator {
+    
+    func getCurrentPrices(triangular: [String: String]) -> [String: String]? {
+        guard let pairAPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairA"] }),
+              let pairBPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairB"] }),
+              let pairCPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairC"] }) else {
+                return nil
+            }
+        
+        return [
+            "pairAAsk": pairAPrice.askPrice,
+            "pairABid": pairAPrice.bidPrice,
+            "pairBAsk": pairBPrice.askPrice,
+            "pairBBid": pairBPrice.bidPrice,
+            "pairCAsk": pairCPrice.askPrice,
+            "pairCBid": pairCPrice.bidPrice
+        ]
     }
     
 }

@@ -115,9 +115,10 @@ final class DefaultBotHandlers {
         
         startTradingJob(bot: bot)
         startArbitragingMonitoring(bot: bot)
-        startTriangularArbitragingMonitoring(bot: bot)
         startAlertingJob(bot: bot)
         startLoggingJob(bot: bot)
+        
+        ArbitrageCalculator.shared.getArbitragingOpportunities()
     }
     
     func startTradingJob(bot: TGBotPrtcl) {
@@ -151,15 +152,6 @@ final class DefaultBotHandlers {
     }
     
     func startArbitragingMonitoring(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(BotMode.triangularArtibraging.jobInterval)) { [weak self] in
-//            let usersInfoWithTriangularArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging)
-//            guard let self = self, usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
-            
-            ArbitrageCalculator.shared.getArbitragingOpportunities()
-        }
-    }
-    
-    func startTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.arbitraging.jobInterval)) { [weak self] in
             let usersInfoWithArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging)
             
