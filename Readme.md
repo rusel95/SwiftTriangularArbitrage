@@ -50,3 +50,6 @@ https://t.me/p2p_analyzer_bot
     ### Get Pair A
     
     
+## STEP 2: Calculate Surface Arbitrage Opportunities
+    Exhange: Binance
+    
