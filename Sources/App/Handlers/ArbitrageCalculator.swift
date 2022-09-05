@@ -18,18 +18,21 @@ final class ArbitrageCalculator {
     static let shared = ArbitrageCalculator()
     
     private var currentTriangulars: Set<[String: String]> = Set()
-    private var currentBookTickers: [BinanceAPIService.BookTicker] = [] {
+    private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil {
         didSet {
+            guard currentBookTickers?.isEmpty == false else { return }
+            
+            let startTime = CFAbsoluteTimeGetCurrent()
             currentTriangulars.forEach { triangle in
                 calculateSurfaceRate(triangle: triangle)
             }
+            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
         }
     }
     
     // MARK: - Init
     
     private init() {
-        print("!!!!!! ArbitrageCalculator init")
         Jobs.add(interval: .seconds(5)) { [weak self] in
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 print("!!!!! Current amount tickers: \(tickers?.count ?? 0)")
@@ -118,8 +121,7 @@ final class ArbitrageCalculator {
                 }
             }
             
-            let diffTime = CFAbsoluteTimeGetCurrent() - startTime
-            print("!!!!!!! Calculated \(triangularPairsSet.count) Triangulars in \(diffTime) seconds\n")
+            print("!!!!!!! Calculated \(triangularPairsSet.count) Triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
             completion(triangularPairsSet)
         }
     }
@@ -176,7 +178,6 @@ final class ArbitrageCalculator {
             var swap1Rate: Double = 0.0
             var swap2Rate: Double = 0.0
             var swap3Rate: Double = 0.0
-            var directionTrade1 = ""
             
             // If we are swapping the coin on the left (Base) to the right (Quote) then * (1 / Ask)
             // If we are swapping the coin on the right (Quite) to the left (Base) then * Bid
@@ -198,12 +199,8 @@ final class ArbitrageCalculator {
             contract1 = pairA
             acquiredCoinT1 = startingAmount * swap1Rate
             
-            print(direction, pairA, startingAmount, acquiredCoinT1)
-            
-            /*
-             FORWARD
-             */
-            // 1.0 Check if aQoute (acquired_coun) batches bQuote
+            /* FORWARD */
+            // SCENARIO 1.0 Check if aQoute (acquired_coun) batches bQuote
             if direction == "forward" {
                 if aQuote == bQuote && calculated == 0 {
                     swap2Rate = bBid
@@ -233,7 +230,7 @@ final class ArbitrageCalculator {
                 
             }
             
-            // 2.0 Check if aQoute (acquired_coun) batches bBase
+            // SCENARIO 2.0 Check if aQoute (acquired_coun) batches bBase
             if direction == "forward" {
                 if aQuote == bBase && calculated == 0 {
                     swap2Rate = 1.0 / bAsk
@@ -262,6 +259,67 @@ final class ArbitrageCalculator {
                 }
             }
             
+            // SCENARIO 3.0 Check if aQoute (acquired_coun) batches cQuote
+            if direction == "forward" {
+                if aQuote == cQuote && calculated == 0 {
+                    swap2Rate = cBid
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "quote_to_base"
+                    contract2 = pairC
+                    
+                    // if cBase (aquiredCoin) mathces bBase
+                    if cBase == bBase {
+                        swap3 = bBase
+                        swap3Rate = 1.0 / bAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairB
+                    }
+                    
+                    // if bBase (aquiredCoin) mathces bQuote
+                    if cBase == bQuote {
+                        swap3 = bQuote
+                        swap3Rate = bBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairB
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+            }
+            
+            // SCENARIO 4.0 Check if aQoute (acquired_coun) batches cBase
+            if direction == "forward" {
+                if aQuote == cBase && calculated == 0 {
+                    swap2Rate = 1.0 / cAsk
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "quote_to_base"
+                    contract2 = pairC
+                    
+                    // if cQuote (aquiredCoin) mathces bBase
+                    if cQuote == bBase {
+                        swap3 = bBase
+                        swap3Rate = 1.0 / bAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairB
+                    }
+                    
+                    // if cQuote (aquiredCoin) mathces bQuote
+                    if cQuote == bQuote {
+                        swap3 = bQuote
+                        swap3Rate = bBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairB
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+            }
+            
+            if acquiredCoinT3 > startingAmount {
+                print(pairA, pairB, pairC, startingAmount, acquiredCoinT3)
+            }
         }
     }
     
@@ -270,9 +328,9 @@ final class ArbitrageCalculator {
 private extension ArbitrageCalculator {
     
     func getCurrentPrices(triangular: [String: String]) -> [String: Double]? {
-        guard let pairAPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairA"] }),
-              let pairBPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairB"] }),
-              let pairCPrice = currentBookTickers.first(where: { $0.symbol == triangular["pairC"] }) else {
+        guard let pairAPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairA"] }),
+              let pairBPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairB"] }),
+              let pairCPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairC"] }) else {
                 return nil
             }
         
