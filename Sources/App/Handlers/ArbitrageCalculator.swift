@@ -41,18 +41,31 @@ final class ArbitrageCalculator {
         let tradeDescription3: String
     }
     
+    struct Triangular: Hashable, Equatable {
+        let aBase: String
+        let bBase: String
+        let cBase: String
+        let aQuote: String
+        let bQuote: String
+        let cQuote: String
+        let pairA: String
+        let pairB: String
+        let pairC: String
+        let combined: String
+    }
+    
     // MARK: - Properties
     
     static let shared = ArbitrageCalculator()
     
-    private var currentTriangulars: Set<[String: String]> = Set()
+    private var currentTriangulars: [Triangular] = []
     private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil {
         didSet {
             guard currentBookTickers?.isEmpty == false else { return }
             
-            //            let startTime = CFAbsoluteTimeGetCurrent()
-            currentTriangulars.forEach { triangle in
-                guard let surfaceResult = calculateSurfaceRate(triangle: triangle) else { return }
+            let startTime = CFAbsoluteTimeGetCurrent()
+            DispatchQueue.concurrentPerform(iterations: currentTriangulars.count) { i in
+                guard let surfaceResult = calculateSurfaceRate(triangular: currentTriangulars[i]) else { return }
                 
                 print("""
                       \nNew Opportunity:
@@ -63,19 +76,21 @@ final class ArbitrageCalculator {
                       \(String(format: "Profit: %.4f", surfaceResult.profitLossPercent)) %
                       """)
             }
-            //            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
+            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
         }
     }
+    
+    private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .seconds(5)) { [weak self] in
+        Jobs.add(interval: .seconds(30)) { [weak self] in
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 self?.currentBookTickers = tickers ?? []
             }
         }
-        Jobs.add(interval: .seconds(30)) { [weak self] in
+        Jobs.add(interval: .hours(6)) { [weak self] in
             BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                 guard let self = self, let symbols = symbols else { return }
                 
@@ -91,18 +106,18 @@ final class ArbitrageCalculator {
     }
     
     // MARK: - Collect Triangles
-    func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> Set<[String: String]> {
+    func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
         // Extracting list of coind and prices from Exchange
-        let pairsToCount = symbols.filter { $0.status == .trading }[0...200] // TODO: - optimize to get full amout
+        let pairsToCount = symbols.filter { $0.status == .trading }//[0...300] // TODO: - optimize to get full amout
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        var removeDuplicatesSet: Set<[String]> = Set()
-        var triangularPairsSet: Set<[String: String]> = Set()
+        var removeDuplicates: [[String]] = []
+        var triangulars: [Triangular] = []
         
         // Get Pair A - Start from A
-        // NOTE - should make https://api.binance.com/api/v3/exchangeInfo request to now that
-        for pairA in pairsToCount {
+        DispatchQueue.concurrentPerform(iterations: pairsToCount.count) { i in
+            let pairA = pairsToCount[i]
             let aBase: String = pairA.baseAsset
             let aQuote: String = pairA.quoteAsset
             
@@ -132,21 +147,20 @@ final class ArbitrageCalculator {
                                 if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
                                     let uniqueItem = combineAll.sorted()
                                     
-                                    if removeDuplicatesSet.contains(uniqueItem) == false {
-                                        removeDuplicatesSet.insert(uniqueItem)
-                                        let matchDictionary: [String: String] = [
-                                            "aBase": aBase,
-                                            "bBase": bBase,
-                                            "cBase": cBase,
-                                            "aQuote": aQuote,
-                                            "bQuote": bQuote,
-                                            "cQuote": cQuote,
-                                            "pairA": pairA.symbol,
-                                            "pairB": pairB.symbol,
-                                            "pairC": pairC.symbol,
-                                            "combined": uniqueItem.joined(separator: "_")
-                                        ]
-                                        triangularPairsSet.insert(matchDictionary)
+                                    if removeDuplicates.contains(uniqueItem) == false {
+                                        dispatchQueue.async(flags: .barrier) {
+                                            removeDuplicates.append(uniqueItem)
+                                            triangulars.append(Triangular(aBase: aBase,
+                                                                          bBase: bBase,
+                                                                          cBase: cBase,
+                                                                          aQuote: aQuote,
+                                                                          bQuote: bQuote,
+                                                                          cQuote: cQuote,
+                                                                          pairA: pairA.symbol,
+                                                                          pairB: pairB.symbol,
+                                                                          pairC: pairC.symbol,
+                                                                          combined: uniqueItem.joined(separator: "_")))
+                                        }
                                     }
                                 }
                             }
@@ -156,14 +170,14 @@ final class ArbitrageCalculator {
             }
         }
         
-        print("!!!!!!! Calculated \(triangularPairsSet.count) Triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
-        return triangularPairsSet
+        print("!!!!!!! Calculated \(triangulars.count) Triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
+        return triangulars
     }
     
     
     
     // MARK: - Calculate Surface Rates
-    func calculateSurfaceRate(triangle: [String: String]) -> SurfaceResult? {
+    func calculateSurfaceRate(triangular: Triangular) -> SurfaceResult? {
         // Set Variables
         let startingAmount: Double = 1.0
         
@@ -181,24 +195,24 @@ final class ArbitrageCalculator {
         
         var calculated: Double = 0.0
         
-        let aBase = triangle["aBase"]!
-        let aQuote = triangle["aQuote"]!
-        let bBase = triangle["bBase"]!
-        let bQuote = triangle["bQuote"]!
-        let cBase = triangle["cBase"]!
-        let cQuote = triangle["cQuote"]!
-        let pairA = triangle["pairA"]!
-        let pairB = triangle["pairB"]!
-        let pairC = triangle["pairC"]!
+        let aBase = triangular.aBase
+        let aQuote = triangular.aQuote
+        let bBase = triangular.bBase
+        let bQuote = triangular.bQuote
+        let cBase = triangular.cBase
+        let cQuote = triangular.cQuote
+        let pairA = triangular.pairA
+        let pairB = triangular.pairB
+        let pairC = triangular.pairC
         
-        guard let prices = getCurrentPrices(triangular: triangle) else { return nil }
+        guard let prices = getCurrentPrices(triangular: triangular) else { return nil }
         
-        let aAsk: Double = prices["pairAAsk"]!
-        let aBid: Double = prices["pairABid"]!
-        let bAsk: Double = prices["pairBAsk"]!
-        let bBid: Double = prices["pairBBid"]!
-        let cAsk: Double = prices["pairCAsk"]!
-        let cBid: Double = prices["pairCBid"]!
+        let aAsk: Double = prices.pairAAsk
+        let aBid: Double = prices.pairABid
+        let bAsk: Double = prices.pairBAsk
+        let bBid: Double = prices.pairBBid
+        let cAsk: Double = prices.pairCAsk
+        let cBid: Double = prices.pairCBid
         
         // Set direction and loop through
         let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
@@ -521,21 +535,43 @@ final class ArbitrageCalculator {
 // MARK: - Helpers
 private extension ArbitrageCalculator {
     
-    func getCurrentPrices(triangular: [String: String]) -> [String: Double]? {
-        guard let pairAPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairA"] }),
-              let pairBPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairB"] }),
-              let pairCPrice = currentBookTickers?.first(where: { $0.symbol == triangular["pairC"] }) else {
-            return nil
-        }
-        
-        return [
-            "pairAAsk": Double(pairAPrice.askPrice)!,
-            "pairABid": Double(pairAPrice.bidPrice)!,
-            "pairBAsk": Double(pairBPrice.askPrice)!,
-            "pairBBid": Double(pairBPrice.bidPrice)!,
-            "pairCAsk": Double(pairCPrice.askPrice)!,
-            "pairCBid": Double(pairCPrice.bidPrice)!
-        ]
+    struct TriangularPrice {
+        let pairAAsk: Double
+        let pairABid: Double
+        let pairBAsk: Double
+        let pairBBid: Double
+        let pairCAsk: Double
+        let pairCBid: Double
     }
     
+    func getCurrentPrices(triangular: Triangular) -> TriangularPrice? {
+        if let pairAPrice = currentBookTickers?.first(where: { $0.symbol == triangular.pairA }),
+           let pairAAsk = Double(pairAPrice.askPrice),
+           let pairABid = Double(pairAPrice.bidPrice),
+           let pairBPrice = currentBookTickers?.first(where: { $0.symbol == triangular.pairB }),
+           let pairBAsk = Double(pairBPrice.askPrice),
+           let pairBBid = Double(pairBPrice.bidPrice),
+           let pairCPrice = currentBookTickers?.first(where: { $0.symbol == triangular.pairC }),
+           let pairCAsk = Double(pairCPrice.askPrice),
+           let pairCBid = Double(pairCPrice.bidPrice) {
+            return TriangularPrice(pairAAsk: pairAAsk, pairABid: pairABid, pairBAsk: pairBAsk, pairBBid: pairBBid, pairCAsk: pairCAsk, pairCBid: pairCBid)
+        } else {
+            return nil
+        }
+    }
+    
+}
+
+extension Array where Element: Hashable {
+    func uniqued() -> Array {
+        var buffer = Array()
+        var added = Set<Element>()
+        for elem in self {
+            if !added.contains(elem) {
+                buffer.append(elem)
+                added.insert(elem)
+            }
+        }
+        return buffer
+    }
 }
