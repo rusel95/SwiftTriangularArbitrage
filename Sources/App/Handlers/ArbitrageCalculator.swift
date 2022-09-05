@@ -13,6 +13,12 @@ final class ArbitrageCalculator {
     // MARK: - Structs
     
     struct SurfaceResult {
+        
+        enum Direction: String {
+            case forward
+            case reverse
+        }
+        
         let swap1: String
         let swap2: String
         let swap3: String
@@ -29,7 +35,7 @@ final class ArbitrageCalculator {
         let swap2Rate: Double
         let swap3Rate: Double
         let profitLossPercent: Double
-        let direction: String
+        let direction: Direction
         let tradeDescription1: String
         let tradeDescription2: String
         let tradeDescription3: String
@@ -195,8 +201,8 @@ final class ArbitrageCalculator {
         let cBid: Double = prices["pairCBid"]!
         
         // Set direction and loop through
-        let directionList = ["forward", "reverse"]
-        for direction in directionList {
+        let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
+        for direction in directionsList {
             // Set additional variables for swap information
             var swap1 = ""
             var swap2 = ""
@@ -210,12 +216,13 @@ final class ArbitrageCalculator {
             
             // Assume starting aBase and swapping for aQuote
             
-            if direction == "forward" {
+            switch direction {
+            case .forward:
                 swap1 = aBase
                 swap2 = aQuote
                 swap1Rate = 1.0 / aAsk
                 directionTrade1 = "base_to_quote"
-            } else {
+            case .reverse:
                 swap1 = aQuote
                 swap2 = aBase
                 swap1Rate = aBid
@@ -228,7 +235,7 @@ final class ArbitrageCalculator {
             /* FORWARD */
             // MARK: SCENARIO 1
             // Check if aQoute (acquired_coun) batches bQuote
-            if direction == "forward" {
+            if direction == .forward {
                 if aQuote == bQuote && calculated == 0 {
                     swap2Rate = bBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -259,7 +266,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 2
             // Check if aQoute (acquired_coun) batches bBase
-            if direction == "forward" {
+            if direction == .forward {
                 if aQuote == bBase && calculated == 0 {
                     swap2Rate = 1.0 / bAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -289,7 +296,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 3
             // Check if aQoute (acquired_coun) batches cQuote
-            if direction == "forward" {
+            if direction == .forward {
                 if aQuote == cQuote && calculated == 0 {
                     swap2Rate = cBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -319,7 +326,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 4
             // Check if aQoute (acquired_coun) batches cBase
-            if direction == "forward" {
+            if direction == .forward {
                 if aQuote == cBase && calculated == 0 {
                     swap2Rate = 1.0 / cAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -350,7 +357,7 @@ final class ArbitrageCalculator {
             /* REVERSE */
             // MARK: SCENARIO 5
             // Check if aBase (acquired_coun) batches bQuote
-            if direction == "reverse" {
+            if direction == .reverse {
                 if aBase == bQuote && calculated == 0 {
                     swap2Rate = bBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -381,7 +388,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 6
             // Check if aBase (acquired_coun) batches bBase
-            if direction == "reverse" {
+            if direction == .reverse {
                 if aBase == bBase && calculated == 0 {
                     swap2Rate = 1.0 / bAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -411,7 +418,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 7
             // Check if aBase (acquired_coun) batches cQuote
-            if direction == "reverse" {
+            if direction == .reverse {
                 if aBase == cQuote && calculated == 0 {
                     swap2Rate = cBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
@@ -441,7 +448,7 @@ final class ArbitrageCalculator {
             
             // MARK: SCENARIO 8
             // Check if aBase (acquired_coun) batches cBase
-            if direction == "reverse" {
+            if direction == .reverse {
                 if aBase == cBase && calculated == 0 {
                     swap2Rate = 1.0 / cAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
