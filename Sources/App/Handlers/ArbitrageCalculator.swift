@@ -70,7 +70,7 @@ final class ArbitrageCalculator {
 #if DEBUG
         return 500
 #else
-        return 400 // TODO: - optimize to get full amout
+        return 500 // TODO: - optimize to get full amout
 #endif
     }
     
