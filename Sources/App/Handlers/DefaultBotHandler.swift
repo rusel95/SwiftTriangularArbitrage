@@ -222,6 +222,7 @@ final class DefaultBotHandlers {
                     }
                     .joined(separator: "\n")
                     .appending(statusText)
+                    .appending("\nАктуально станом на \(Date().readableDescription)")
                 
                 usersInfoWithTriangularArbitragingMode.forEach { userInfo in
                     do {

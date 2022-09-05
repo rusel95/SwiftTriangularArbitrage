@@ -65,13 +65,15 @@ final class ArbitrageCalculator {
     
     private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
-    private var triangularsCalculationRestictAmount: Int { // TODO: - optimize to get full amout
-//#if DEBUG
-        return 400
-//#else
-//        return .max
-//#endif
+    private var triangularsCalculationRestictAmount: Int {
+#if DEBUG
+        return 500
+#else
+        return 300 // TODO: - optimize to get full amout
+#endif
     }
+    
+    private var lastTriangularsStatusText: String = ""
     
     // MARK: - Init
     
@@ -80,7 +82,9 @@ final class ArbitrageCalculator {
             BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                 guard let self = self, let symbols = symbols else { return }
                 
-                self.currentTriangulars = self.getTriangulars(from: symbols)
+                let triangularsInfo = self.getTriangulars(from: symbols)
+                self.currentTriangulars = triangularsInfo.0
+                self.lastTriangularsStatusText = triangularsInfo.1
             }
         }
     }
@@ -102,13 +106,14 @@ final class ArbitrageCalculator {
                     surfaceResults.append(surfaceResult)
                 }
             }
-            let statusText = "\n \(self.triangularsCalculationRestictAmount) Tickers calculated; Calculated Profits for \(self.currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n"
+            let duration = String(format: "Profit: %.2f", CFAbsoluteTimeGetCurrent() - startTime)
+            let statusText = "\n \(self.lastTriangularsStatusText)\nCalculated Profits for \(self.currentTriangulars.count) triangulars in \(duration) seconds"
             completion(surfaceResults, statusText)
         }
     }
     
     // MARK: - Collect Triangles
-    private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
+    private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
         let pairsToCount = symbols
             .filter { $0.status == .trading }
             .prefix(triangularsCalculationRestictAmount)
@@ -172,8 +177,8 @@ final class ArbitrageCalculator {
                 }
             }
         }
-        print("!!!!!!! Calculated \(triangulars.count) Triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
-        return triangulars
+        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) in \(CFAbsoluteTimeGetCurrent() - startTime) seconds"
+        return (triangulars, statusText)
     }
     
     
