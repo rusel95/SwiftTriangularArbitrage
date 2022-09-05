@@ -22,11 +22,11 @@ final class ArbitrageCalculator {
         didSet {
             guard currentBookTickers?.isEmpty == false else { return }
             
-            let startTime = CFAbsoluteTimeGetCurrent()
+//            let startTime = CFAbsoluteTimeGetCurrent()
             currentTriangulars.forEach { triangle in
                 calculateSurfaceRate(triangle: triangle)
             }
-            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
+//            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
         }
     }
     
@@ -35,7 +35,6 @@ final class ArbitrageCalculator {
     private init() {
         Jobs.add(interval: .seconds(5)) { [weak self] in
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-                print("!!!!! Current amount tickers: \(tickers?.count ?? 0)")
                 self?.currentBookTickers = tickers ?? []
             }
         }
@@ -200,7 +199,8 @@ final class ArbitrageCalculator {
             acquiredCoinT1 = startingAmount * swap1Rate
             
             /* FORWARD */
-            // SCENARIO 1.0 Check if aQoute (acquired_coun) batches bQuote
+            // MARK: SCENARIO 1
+            // Check if aQoute (acquired_coun) batches bQuote
             if direction == "forward" {
                 if aQuote == bQuote && calculated == 0 {
                     swap2Rate = bBid
@@ -230,7 +230,8 @@ final class ArbitrageCalculator {
                 
             }
             
-            // SCENARIO 2.0 Check if aQoute (acquired_coun) batches bBase
+            // MARK: SCENARIO 2
+            // Check if aQoute (acquired_coun) batches bBase
             if direction == "forward" {
                 if aQuote == bBase && calculated == 0 {
                     swap2Rate = 1.0 / bAsk
@@ -259,7 +260,8 @@ final class ArbitrageCalculator {
                 }
             }
             
-            // SCENARIO 3.0 Check if aQoute (acquired_coun) batches cQuote
+            // MARK: SCENARIO 3
+            // Check if aQoute (acquired_coun) batches cQuote
             if direction == "forward" {
                 if aQuote == cQuote && calculated == 0 {
                     swap2Rate = cBid
@@ -288,7 +290,8 @@ final class ArbitrageCalculator {
                 }
             }
             
-            // SCENARIO 4.0 Check if aQoute (acquired_coun) batches cBase
+            // MARK: SCENARIO 4
+            // Check if aQoute (acquired_coun) batches cBase
             if direction == "forward" {
                 if aQuote == cBase && calculated == 0 {
                     swap2Rate = 1.0 / cAsk
@@ -318,7 +321,8 @@ final class ArbitrageCalculator {
             }
             
             /* REVERSE */
-            // SCENARIO 5.0 Check if aBase (acquired_coun) batches bQuote
+            // MARK: SCENARIO 5
+            // Check if aBase (acquired_coun) batches bQuote
             if direction == "reverse" {
                 if aBase == bQuote && calculated == 0 {
                     swap2Rate = bBid
@@ -348,7 +352,8 @@ final class ArbitrageCalculator {
                 
             }
             
-            // SCENARIO 6.0 Check if aBase (acquired_coun) batches bBase
+            // MARK: SCENARIO 6
+            // Check if aBase (acquired_coun) batches bBase
             if direction == "reverse" {
                 if aBase == bBase && calculated == 0 {
                     swap2Rate = 1.0 / bAsk
@@ -377,7 +382,8 @@ final class ArbitrageCalculator {
                 }
             }
             
-            // SCENARIO 7.0 Check if aBase (acquired_coun) batches cQuote
+            // MARK: SCENARIO 7
+            // Check if aBase (acquired_coun) batches cQuote
             if direction == "reverse" {
                 if aBase == cQuote && calculated == 0 {
                     swap2Rate = cBid
@@ -406,7 +412,8 @@ final class ArbitrageCalculator {
                 }
             }
             
-            // SCENARIO 8.0 Check if aBase (acquired_coun) batches cBase
+            // MARK: SCENARIO 8
+            // Check if aBase (acquired_coun) batches cBase
             if direction == "reverse" {
                 if aBase == cBase && calculated == 0 {
                     swap2Rate = 1.0 / cAsk
@@ -436,14 +443,24 @@ final class ArbitrageCalculator {
             }
             
             if acquiredCoinT3 > startingAmount {
-                print(getCurrentPrices(triangular: triangle)!)
-                print(direction, pairA, pairB, pairC, startingAmount, acquiredCoinT3)
+                // MARK: Profit Loss ouput
+                // Profit and Loss calculations
+                let profitLoss = acquiredCoinT3 - startingAmount
+                let profitLossPercent = (profitLoss / startingAmount) * 100
+                
+                // Trade Description
+                print("\nNEW TRADE", direction, pairA, pairB, pairC)
+                print("Step 1: Start with \(swap1) of \(startingAmount). Swap at \(swap1Rate) for \(swap2) acquiring \(acquiredCoinT1)")
+                print("Step 2: Swap \(acquiredCoinT1) of \(swap2) at \(swap2Rate) for \(swap3) acquiring \(acquiredCoinT2)")
+                print("Step 3: Swap \(acquiredCoinT2) of \(swap3) at \(swap3Rate) for \(swap1) acquiring \(acquiredCoinT3)")
+                print(profitLossPercent, "%")
             }
         }
     }
     
 }
 
+// MARK: - Helpers
 private extension ArbitrageCalculator {
     
     func getCurrentPrices(triangular: [String: String]) -> [String: Double]? {
