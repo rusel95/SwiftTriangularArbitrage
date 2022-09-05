@@ -317,8 +317,127 @@ final class ArbitrageCalculator {
                 }
             }
             
+            /* REVERSE */
+            // SCENARIO 5.0 Check if aBase (acquired_coun) batches bQuote
+            if direction == "reverse" {
+                if aBase == bQuote && calculated == 0 {
+                    swap2Rate = bBid
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "quote_to_base"
+                    contract2 = pairB
+                    
+                    // if bBase (aquiredCoin) mathces cBase
+                    if bBase == cBase {
+                        swap3 = cBase
+                        swap3Rate = 1.0 / cAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairC
+                    }
+                    
+                    // if bBase (aquiredCoin) mathces cQuote
+                    if bBase == cQuote {
+                        swap3 = cQuote
+                        swap3Rate = cBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairC
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+                
+            }
+            
+            // SCENARIO 6.0 Check if aBase (acquired_coun) batches bBase
+            if direction == "reverse" {
+                if aBase == bBase && calculated == 0 {
+                    swap2Rate = 1.0 / bAsk
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "base_to_qoute"
+                    contract2 = pairB
+                    
+                    // if bQuote (aquiredCoin) mathces cBase
+                    if bBase == cBase {
+                        swap3 = cBase
+                        swap3Rate = 1.0 / cAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairC
+                    }
+                    
+                    // if bQoute (aquiredCoin) mathces cQuote
+                    if bQuote == cQuote {
+                        swap3 = cQuote
+                        swap3Rate = cBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairC
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+            }
+            
+            // SCENARIO 7.0 Check if aBase (acquired_coun) batches cQuote
+            if direction == "reverse" {
+                if aBase == cQuote && calculated == 0 {
+                    swap2Rate = cBid
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "quote_to_base"
+                    contract2 = pairC
+                    
+                    // if cBase (aquiredCoin) mathces bBase
+                    if cBase == bBase {
+                        swap3 = bBase
+                        swap3Rate = 1.0 / bAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairB
+                    }
+                    
+                    // if bBase (aquiredCoin) mathces bQuote
+                    if cBase == bQuote {
+                        swap3 = bQuote
+                        swap3Rate = bBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairB
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+            }
+            
+            // SCENARIO 8.0 Check if aBase (acquired_coun) batches cBase
+            if direction == "reverse" {
+                if aBase == cBase && calculated == 0 {
+                    swap2Rate = 1.0 / cAsk
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate
+                    directionTrade2 = "quote_to_base"
+                    contract2 = pairC
+                    
+                    // if cQuote (aquiredCoin) mathces bBase
+                    if cQuote == bBase {
+                        swap3 = bBase
+                        swap3Rate = 1.0 / bAsk
+                        directionTrade3 = "base_to_quote"
+                        contract3 = pairB
+                    }
+                    
+                    // if cQuote (aquiredCoin) mathces bQuote
+                    if cQuote == bQuote {
+                        swap3 = bQuote
+                        swap3Rate = bBid
+                        directionTrade3 = "quote_to_base"
+                        contract3 = pairB
+                    }
+                    
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate
+                    calculated = 1
+                }
+            }
+            
             if acquiredCoinT3 > startingAmount {
-                print(pairA, pairB, pairC, startingAmount, acquiredCoinT3)
+                print(getCurrentPrices(triangular: triangle)!)
+                print(direction, pairA, pairB, pairC, startingAmount, acquiredCoinT3)
             }
         }
     }
