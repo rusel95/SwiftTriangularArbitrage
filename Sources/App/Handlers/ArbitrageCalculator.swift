@@ -60,6 +60,7 @@ final class ArbitrageCalculator {
     
     static let shared = ArbitrageCalculator()
     
+    private var tradeableSymbols: [BinanceAPIService.Symbol] = []
     private var currentTriangulars: [Triangular] = []
     private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil
     private var surfaceResults: [SurfaceResult] = []
@@ -68,9 +69,9 @@ final class ArbitrageCalculator {
     
     private var triangularsCalculationRestictAmount: Int {
 #if DEBUG
-        return .max
+        return 400
 #else
-        return .max // TODO: - optimize to get full amout
+        return tradeableSymbols.count // TODO: - optimize to get full amout
 #endif
     }
     
@@ -82,30 +83,39 @@ final class ArbitrageCalculator {
     }
     
     private var logger = Logger(label: "logget.artitrage.triangular")
+    private var isFirstUpdateCycle: Bool = true
     
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .hours(6)) { [weak self] in
-            BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
-                guard let self = self, let symbols = symbols else { return }
-                
-                let triangularsInfo = self.getTriangulars(from: symbols)
-                self.currentTriangulars = triangularsInfo.0
+        Jobs.add(interval: .hours(1)) { [weak self] in
+            guard let self = self else { return }
+            
+            if self.isFirstUpdateCycle {
                 do {
-                    let endcodedData = try JSONEncoder().encode(self.currentTriangulars)
-                    try endcodedData.write(to: self.triangularsStorageURL)
+                    let jsonData = try Data(contentsOf: self.triangularsStorageURL)
+                    self.currentTriangulars = try JSONDecoder().decode([Triangular].self, from: jsonData)
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                 }
-                self.lastTriangularsStatusText = triangularsInfo.1
+                self.isFirstUpdateCycle = false
+            } else {
+                BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
+                    guard let self = self, let symbols = symbols else { return }
+                    
+                    
+                    self.tradeableSymbols = symbols.filter { $0.status == .trading }
+                    let triangularsInfo = self.getTriangulars(from: self.tradeableSymbols)
+                    self.currentTriangulars = triangularsInfo.0
+                    do {
+                        let endcodedData = try JSONEncoder().encode(self.currentTriangulars)
+                        try endcodedData.write(to: self.triangularsStorageURL)
+                    } catch {
+                        self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                    }
+                    self.lastTriangularsStatusText = triangularsInfo.1
+                }
             }
-        }
-        do {
-            let jsonData = try Data(contentsOf: triangularsStorageURL)
-            self.currentTriangulars = try JSONDecoder().decode([Triangular].self, from: jsonData)
-        } catch {
-            logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
         }
     }
     
@@ -133,10 +143,8 @@ final class ArbitrageCalculator {
     }
     
     // MARK: - Collect Triangles
-    private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
-        let pairsToCount = symbols
-            .filter { $0.status == .trading }
-            .prefix(triangularsCalculationRestictAmount)
+    private func getTriangulars(from tradeableSymbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
+        let pairsToCount = tradeableSymbols.prefix(triangularsCalculationRestictAmount)
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
@@ -198,7 +206,7 @@ final class ArbitrageCalculator {
             }
         }
         let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) symbols in \(duration) seconds"
+        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
         return (triangulars, statusText)
     }
     
@@ -524,11 +532,11 @@ final class ArbitrageCalculator {
             let profitLossPercent = (profitLoss / startingAmount) * 100.0
             
             // Output results
-            if profitLossPercent > 0.0 {
+            if profitLossPercent > 0.01 {
                 // Trade Description
-                let tradeDescription1 = "Step 1: Start with \(swap1) of \(startingAmount) Swap at \(swap1Rate) for \(swap2) acquiring \(acquiredCoinT1)"
-                let tradeDescription2 = "Step 2: Swap \(acquiredCoinT1) of \(swap2) at \(swap2Rate) for \(swap3) acquiring \(acquiredCoinT2)"
-                let tradeDescription3 = "Step 3: Swap \(acquiredCoinT2) of \(swap3) at \(swap3Rate) for \(swap1) acquiring \(acquiredCoinT3)"
+                let tradeDescription1 = "Step 1: Start with \(swap1) of \(startingAmount) Swap at \(String(format: "%.5f", swap1Rate)) for \(swap2) acquiring \(String(format: "%.5f", acquiredCoinT1))"
+                let tradeDescription2 = "Step 2: Swap \(String(format: "%.5f", acquiredCoinT1)) of \(swap2) at \(String(format: "%.5f", swap2Rate)) for \(swap3) acquiring \(String(format: "%.5f", acquiredCoinT2))"
+                let tradeDescription3 = "Step 3: Swap \(String(format: "%.5f", acquiredCoinT2)) of \(swap3) at \(String(format: "%.5f", swap3Rate)) for \(swap1) acquiring \(String(format: "%.5f", acquiredCoinT3))"
                 
                 return SurfaceResult(
                     swap1: swap1,
