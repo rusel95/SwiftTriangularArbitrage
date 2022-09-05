@@ -8,6 +8,7 @@
 import Foundation
 import CoreFoundation
 import Jobs
+import Logging
 
 final class ArbitrageCalculator {
     
@@ -42,7 +43,7 @@ final class ArbitrageCalculator {
         let tradeDescription3: String
     }
     
-    struct Triangular: Hashable, Equatable {
+    struct Triangular: Hashable, Codable {
         let aBase: String
         let bBase: String
         let cBase: String
@@ -75,6 +76,13 @@ final class ArbitrageCalculator {
     
     private var lastTriangularsStatusText: String = ""
     
+    private var triangularsStorageURL: URL {
+        let fileName = "triangulars"
+        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+    }
+    
+    private var logger = Logger(label: "logget.artitrage.triangular")
+    
     // MARK: - Init
     
     private init() {
@@ -84,8 +92,20 @@ final class ArbitrageCalculator {
                 
                 let triangularsInfo = self.getTriangulars(from: symbols)
                 self.currentTriangulars = triangularsInfo.0
+                do {
+                    let endcodedData = try JSONEncoder().encode(self.currentTriangulars)
+                    try endcodedData.write(to: self.triangularsStorageURL)
+                } catch {
+                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                }
                 self.lastTriangularsStatusText = triangularsInfo.1
             }
+        }
+        do {
+            let jsonData = try Data(contentsOf: triangularsStorageURL)
+            self.currentTriangulars = try JSONDecoder().decode([Triangular].self, from: jsonData)
+        } catch {
+            logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
         }
     }
     
@@ -503,7 +523,7 @@ final class ArbitrageCalculator {
             let profitLossPercent = (profitLoss / startingAmount) * 100.0
             
             // Output results
-            if profitLossPercent > 0.01 {
+            if profitLossPercent > 0.0 {
                 // Trade Description
                 let tradeDescription1 = "Step 1: Start with \(swap1) of \(startingAmount) Swap at \(swap1Rate) for \(swap2) acquiring \(acquiredCoinT1)"
                 let tradeDescription2 = "Step 2: Swap \(acquiredCoinT1) of \(swap2) at \(swap2Rate) for \(swap3) acquiring \(acquiredCoinT2)"

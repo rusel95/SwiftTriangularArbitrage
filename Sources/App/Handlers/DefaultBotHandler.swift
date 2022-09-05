@@ -436,8 +436,7 @@ private extension DefaultBotHandlers {
                 if UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging).contains(where: { $0.chatId == chatId }) {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
                 } else {
-                    let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними Трикутними арбитражними можливостями кожні \(Int(BotMode.triangularArtibraging.jobInterval)) секунд:\n"
-                    
+                    let infoMessage = "Binance Трикутні арбитражні можливості з profit > 0.0 % (оновлення кожні\(Int(BotMode.triangularArtibraging.jobInterval)) секунд):\n"
                     let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                     explanationMessageFutute?.whenComplete({ _ in
                         let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
