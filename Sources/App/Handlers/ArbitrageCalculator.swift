@@ -59,37 +59,14 @@ final class ArbitrageCalculator {
     static let shared = ArbitrageCalculator()
     
     private var currentTriangulars: [Triangular] = []
-    private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil {
-        didSet {
-            guard currentBookTickers?.isEmpty == false else { return }
-            
-            let startTime = CFAbsoluteTimeGetCurrent()
-            DispatchQueue.concurrentPerform(iterations: currentTriangulars.count) { i in
-                guard let surfaceResult = calculateSurfaceRate(triangular: currentTriangulars[i]) else { return }
-                
-                print("""
-                      \nNew Opportunity:
-                      \(surfaceResult.direction) \(surfaceResult.contract1) \(surfaceResult.contract2) \(surfaceResult.contract3)
-                      \(surfaceResult.tradeDescription1)
-                      \(surfaceResult.tradeDescription2)
-                      \(surfaceResult.tradeDescription3)
-                      \(String(format: "Profit: %.4f", surfaceResult.profitLossPercent)) %
-                      """)
-            }
-            print("!!!!!!! Calculated arbitraging rates for \(currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
-        }
-    }
+    private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil
+    private var surfaceResults: [SurfaceResult] = []
     
     private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .seconds(30)) { [weak self] in
-            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-                self?.currentBookTickers = tickers ?? []
-            }
-        }
         Jobs.add(interval: .hours(6)) { [weak self] in
             BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                 guard let self = self, let symbols = symbols else { return }
@@ -101,14 +78,30 @@ final class ArbitrageCalculator {
     
     // MARK: - Methods
     
-    func getArbitragingOpportunities() {
-        
+    func getSurfaceResults(completion: @escaping ([SurfaceResult]?) -> Void) {
+        BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+            guard let self = self, tickers?.isEmpty == false else { return }
+            
+            self.currentBookTickers = tickers
+            var surfaceResults: [SurfaceResult] = []
+            
+            let startTime = CFAbsoluteTimeGetCurrent()
+            DispatchQueue.concurrentPerform(iterations: self.currentTriangulars.count) { i in
+                guard let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i]) else { return }
+                
+                self.dispatchQueue.async(flags: .barrier) {
+                    surfaceResults.append(surfaceResult)
+                }
+            }
+            print("!!!!!!! Calculated arbitraging rates for \(self.currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
+            completion(surfaceResults)
+        }
     }
     
     // MARK: - Collect Triangles
-    func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
+    private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
         // Extracting list of coind and prices from Exchange
-        let pairsToCount = symbols.filter { $0.status == .trading }//[0...300] // TODO: - optimize to get full amout
+        let pairsToCount = symbols.filter { $0.status == .trading }[0...300] // TODO: - optimize to get full amout
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
@@ -177,7 +170,7 @@ final class ArbitrageCalculator {
     
     
     // MARK: - Calculate Surface Rates
-    func calculateSurfaceRate(triangular: Triangular) -> SurfaceResult? {
+    private func calculateSurfaceRate(triangular: Triangular) -> SurfaceResult? {
         // Set Variables
         let startingAmount: Double = 1.0
         
@@ -496,9 +489,9 @@ final class ArbitrageCalculator {
             let profitLossPercent = (profitLoss / startingAmount) * 100.0
             
             // Output results
-            if acquiredCoinT3 > startingAmount {
+            if profitLossPercent > 0.01 {
                 // Trade Description
-                let tradeDescription1 = "Step 1: Start with \(swap1) of \(startingAmount). Swap at \(swap1Rate) for \(swap2) acquiring \(acquiredCoinT1)"
+                let tradeDescription1 = "Step 1: Start with \(swap1) of \(startingAmount) Swap at \(swap1Rate) for \(swap2) acquiring \(acquiredCoinT1)"
                 let tradeDescription2 = "Step 2: Swap \(acquiredCoinT1) of \(swap2) at \(swap2Rate) for \(swap3) acquiring \(acquiredCoinT2)"
                 let tradeDescription3 = "Step 3: Swap \(acquiredCoinT2) of \(swap3) at \(swap3Rate) for \(swap1) acquiring \(acquiredCoinT3)"
                 

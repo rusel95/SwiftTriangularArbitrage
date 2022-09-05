@@ -24,7 +24,7 @@ enum BotMode: String, Codable {
         case .trading: return 15
         case .alerting: return 60
         case .arbitraging: return 15
-        case .triangularArtibraging: return 5
+        case .triangularArtibraging: return 30
         case .logging: return 900
         case .suspended, .whereToBuy: return .infinity
         }
