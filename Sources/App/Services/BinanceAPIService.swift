@@ -57,6 +57,85 @@ final class BinanceAPIService {
         
     }
     
+    // MARK: - Welcome
+    struct ExchangeInfoResponse: Codable {
+        let timezone: String
+        let serverTime: Int
+        let rateLimits: [RateLimit]
+//        let exchangeFilters: [JSONAny]
+        let symbols: [Symbol]
+    }
+
+    // MARK: - RateLimit
+    struct RateLimit: Codable {
+        let rateLimitType, interval: String
+        let intervalNum, limit: Int
+    }
+
+    // MARK: - Symbol
+    struct Symbol: Codable {
+        let symbol: String
+        let status: Status
+        let baseAsset: String
+//        let baseAssetPrecision: Int
+        let quoteAsset: String
+//        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
+//        let orderTypes: [OrderType]
+//        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
+//        let cancelReplaceAllowed, isSpotTradingAllowed, isMarginTradingAllowed: Bool
+//        let filters: [Filter]
+//        let permissions: [Permission]
+    }
+
+    // MARK: - Filter
+//    struct Filter: Codable {
+//        let filterType: FilterType
+//        let minPrice, maxPrice, tickSize, multiplierUp: String?
+//        let multiplierDown: String?
+//        let avgPriceMins: Int?
+//        let minQty, maxQty, stepSize, minNotional: String?
+//        let applyToMarket: Bool?
+//        let limit, minTrailingAboveDelta, maxTrailingAboveDelta, minTrailingBelowDelta: Int?
+//        let maxTrailingBelowDelta, maxNumOrders, maxNumAlgoOrders: Int?
+//        let bidMultiplierUp, bidMultiplierDown, askMultiplierUp, askMultiplierDown: String?
+//        let maxPosition: String?
+//    }
+//
+//    enum FilterType: String, Codable {
+//        case icebergParts = "ICEBERG_PARTS"
+//        case lotSize = "LOT_SIZE"
+//        case marketLotSize = "MARKET_LOT_SIZE"
+//        case maxNumAlgoOrders = "MAX_NUM_ALGO_ORDERS"
+//        case maxNumOrders = "MAX_NUM_ORDERS"
+//        case maxPosition = "MAX_POSITION"
+//        case minNotional = "MIN_NOTIONAL"
+//        case percentPrice = "PERCENT_PRICE"
+//        case percentPriceBySide = "PERCENT_PRICE_BY_SIDE"
+//        case priceFilter = "PRICE_FILTER"
+//        case trailingDelta = "TRAILING_DELTA"
+//    }
+
+//    enum OrderType: String, Codable {
+//        case limit = "LIMIT"
+//        case limitMaker = "LIMIT_MAKER"
+//        case market = "MARKET"
+//        case stopLossLimit = "STOP_LOSS_LIMIT"
+//        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
+//    }
+//
+//    enum Permission: String, Codable {
+//        case leveraged = "LEVERAGED"
+//        case margin = "MARGIN"
+//        case spot = "SPOT"
+//        case trdGrp003 = "TRD_GRP_003"
+//        case trdGrp004 = "TRD_GRP_004"
+//    }
+
+    enum Status: String, Codable {
+        case statusBREAK = "BREAK"
+        case trading = "TRADING"
+    }
+    
     // MARK: - PROPERTIES
     
     static let shared = BinanceAPIService()
@@ -91,6 +170,66 @@ final class BinanceAPIService {
             do {
                 let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
                 completion(ticker)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil)
+            }
+        }.resume()
+    }
+    
+    func getAllBookTickers(completion: @escaping(_ tickers: [BookTicker]?) -> Void) {
+        let session = URLSession.shared
+        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "Get"
+        
+        session.dataTask(with: request) { [weak self] (data, response, error) in
+            if let error = error {
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+                completion(nil)
+                return
+            }
+            
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Tickers \(url.debugDescription)"))
+                completion(nil)
+                return
+            }
+            
+            do {
+                let ticker = try JSONDecoder().decode([BookTicker].self, from: data)
+                completion(ticker)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(nil)
+            }
+        }.resume()
+    }
+    
+    func getExchangeInfo(completion: @escaping(_ symbols: [Symbol]?) -> Void) {
+        let session = URLSession.shared
+        let url = URL(string: "https://api.binance.com/api/v3/exchangeInfo")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "Get"
+        
+        session.dataTask(with: request) { [weak self] (data, response, error) in
+            if let error = error {
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+                completion(nil)
+                return
+            }
+            
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Symbols \(url.debugDescription)"))
+                completion(nil)
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(ExchangeInfoResponse.self, from: data)
+                completion(response.symbols)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil)

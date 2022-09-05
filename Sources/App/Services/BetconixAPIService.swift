@@ -50,6 +50,8 @@ final class BetconixAPIService {
     static let shared = BetconixAPIService()
     
     private var logger = Logger(label: "api.betconix")
+    
+    private init() {}
 
     // MARK: - METHODS
     

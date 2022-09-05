@@ -20,13 +20,15 @@ final class UserInfo: Codable, Hashable, Equatable {
     
     var onlineUpdatesMessageId: Int?
     var arbitragingMessageId: Int?
+    var triangularArbitragingMessageId: Int?
     
     init(
         chatId: Int64,
         user: TGUser,
         selectedModes: Set<BotMode>,
         onlineUpdatesMessageId: Int? = nil,
-        arbitragingMessageId: Int? = nil
+        arbitragingMessageId: Int? = nil,
+        triangularArbitragingMessageId: Int? = nil
     ) {
         self.chatId = chatId
         self.userId = user.id

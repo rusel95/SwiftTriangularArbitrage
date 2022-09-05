@@ -37,6 +37,7 @@ final class DefaultBotHandlers {
         /where_to_buy - бот вiдповiсть де дешевше купити $ (або USDT, щоб потiм помiняти його на $);
         /start_trading - режим моніторингу p2p-ринку на Binance в режимi реального часу;
         /start_arbitraging - режим моніторинг арбітражних можливостей в режимі реального часу;
+        /start_binance_triangular_arbitrage - режим моніторингу трикутного внутрішньобіржового арбітражу на Binance;
         /start_alerting - режим, завдяки якому я сповіщу тебе як тільки в якійсь зі схім торгівлі зявляється чудова дохідність (максимум одне повідомлення на одну схему за годину);
         /start_logging - режим логування всіх наявних можливостей с певною періодичність (треба для ретроспективного бачення особливостей ринку і його подальшого аналізу);
         /stop - зупинка всіх режимів (очікування);
@@ -107,13 +108,15 @@ final class DefaultBotHandlers {
         commandWhereToBuyHandler(app: app, bot: bot)
         commandStartTradingHandler(app: app, bot: bot)
         commandStartArbitragingHandler(app: app, bot: bot)
+        commandStartTriangularArbitragingHandler(app: app, bot: bot)
         commandStartAlertingHandler(app: app, bot: bot)
         commandStartLoggingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
         
         startTradingJob(bot: bot)
-        startArbitraging(bot: bot)
+        startArbitragingMonitoring(bot: bot)
+        startTriangularArbitragingMonitoring(bot: bot)
         startAlertingJob(bot: bot)
         startLoggingJob(bot: bot)
     }
@@ -148,7 +151,7 @@ final class DefaultBotHandlers {
         }
     }
     
-    func startArbitraging(bot: TGBotPrtcl) {
+    func startArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.arbitraging.jobInterval)) { [weak self] in
             let usersInfoWithArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .arbitraging)
             
@@ -183,6 +186,49 @@ final class DefaultBotHandlers {
                         if let arbitragingMessageId = userInfo.arbitragingMessageId {
                             let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                             messageId: arbitragingMessageId,
+                                                                            inlineMessageId: nil,
+                                                                            text: text)
+                            _ = try bot.editMessageText(params: editParams)
+                        } else {
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                        }
+                    } catch (let botError) {
+                        self?.logger.report(error: botError)
+                    }
+                }
+            }
+        }
+    }
+    
+    func startTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
+        let usersInfoWithTriangularArbitragingMode = UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging)
+        
+        Jobs.add(interval: .seconds(BotMode.triangularArtibraging.jobInterval)) { [weak self] in
+            guard usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
+            
+            ArbitrageCalculator.shared.getSurfaceResults { surfaceResults in
+                guard let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else {
+                    return
+                }
+
+                let text = surfaceResults
+                    .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
+                    .map {
+                        String("""
+                                  \($0.direction) \($0.contract1) \($0.contract2) \($0.contract3)
+                                  \($0.tradeDescription1)
+                                  \($0.tradeDescription2)
+                                  \($0.tradeDescription3)
+                                  \(String(format: "Profit: %.4f", $0.profitLossPercent)) %\n
+                                  """)
+                    }
+                    .joined(separator: "\n")
+                
+                usersInfoWithTriangularArbitragingMode.forEach { userInfo in
+                    do {
+                        if let triangularArbitragingMessageId = userInfo.triangularArbitragingMessageId {
+                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                            messageId: triangularArbitragingMessageId,
                                                                             inlineMessageId: nil,
                                                                             text: text)
                             _ = try bot.editMessageText(params: editParams)
@@ -370,6 +416,37 @@ private extension DefaultBotHandlers {
                                                                         user: user,
                                                                         mode: .arbitraging,
                                                                         arbitragingMessageId: arbitragingMessageId)
+                        })
+                    })
+                }
+            } catch (let botError) {
+                self.logger.report(error: botError)
+            }
+        }
+        bot.connection.dispatcher.add(handler)
+    }
+    
+    // MARK: /start_triangular_arbitraging
+    
+    func commandStartTriangularArbitragingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
+        let handler = TGCommandHandler(commands: [BotMode.triangularArtibraging.command]) { [weak self] update, bot in
+            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+            
+            do {
+                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .triangularArtibraging).contains(where: { $0.chatId == chatId }) {
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Та все й так пашу. Можешь мене зупинить якшо не нравиться /stop"))
+                } else {
+                    let infoMessage = "Тепер Ви будете бачите повідовлення, яке буде оновлюватися акутальними Трикутними арбитражними можливостями кожні \(Int(BotMode.triangularArtibraging.jobInterval)) секунд:\n"
+                    
+                    let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+                    explanationMessageFutute?.whenComplete({ _ in
+                        let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Оновлюю.."))
+                        editMessageFuture?.whenComplete({ result in
+                            let triangularArbitragingMessageId = try? result.get().messageId
+                            UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
+                                                                        user: user,
+                                                                        mode: .triangularArtibraging,
+                                                                        triangularArbitragingMessageId: triangularArbitragingMessageId)
                         })
                     })
                 }
