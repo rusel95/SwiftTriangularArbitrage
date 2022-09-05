@@ -101,11 +101,19 @@ final class ArbitrageCalculator {
     // MARK: - Collect Triangles
     private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
         // Extracting list of coind and prices from Exchange
-        let pairsToCount = symbols.filter { $0.status == .trading }[0...300] // TODO: - optimize to get full amout
+        let restictAmount: Int // TODO: - optimize to get full amout
+#if DEBUG
+        restictAmount = 400
+#else
+        restictAmount = symbols.count
+#endif
+        let pairsToCount = symbols
+            .filter { $0.status == .trading }
+            .prefix(restictAmount)
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        var removeDuplicates: [[String]] = []
+        var removeDuplicatesSet: Set<[String]> = Set()
         var triangulars: [Triangular] = []
         
         // Get Pair A - Start from A
@@ -140,9 +148,9 @@ final class ArbitrageCalculator {
                                 if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
                                     let uniqueItem = combineAll.sorted()
                                     
-                                    if removeDuplicates.contains(uniqueItem) == false {
-                                        dispatchQueue.async(flags: .barrier) {
-                                            removeDuplicates.append(uniqueItem)
+                                    dispatchQueue.async(flags: .barrier) {
+                                        if removeDuplicatesSet.contains(uniqueItem) == false {
+                                            removeDuplicatesSet.insert(uniqueItem)
                                             triangulars.append(Triangular(aBase: aBase,
                                                                           bBase: bBase,
                                                                           cBase: cBase,
@@ -162,7 +170,6 @@ final class ArbitrageCalculator {
                 }
             }
         }
-        
         print("!!!!!!! Calculated \(triangulars.count) Triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
         return triangulars
     }
@@ -553,18 +560,4 @@ private extension ArbitrageCalculator {
         }
     }
     
-}
-
-extension Array where Element: Hashable {
-    func uniqued() -> Array {
-        var buffer = Array()
-        var added = Set<Element>()
-        for elem in self {
-            if !added.contains(elem) {
-                buffer.append(elem)
-                added.insert(elem)
-            }
-        }
-        return buffer
-    }
 }
