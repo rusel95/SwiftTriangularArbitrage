@@ -126,7 +126,7 @@ final class ArbitrageCalculator {
                     surfaceResults.append(surfaceResult)
                 }
             }
-            let duration = String(format: "%.2f", CFAbsoluteTimeGetCurrent() - startTime)
+            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
             let statusText = "\n \(self.lastTriangularsStatusText)\nCalculated Profits for \(self.currentTriangulars.count) triangulars in \(duration) seconds"
             completion(surfaceResults, statusText)
         }
@@ -197,7 +197,8 @@ final class ArbitrageCalculator {
                 }
             }
         }
-        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) symbols in \(CFAbsoluteTimeGetCurrent() - startTime) seconds"
+        let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) symbols in \(duration) seconds"
         return (triangulars, statusText)
     }
     
