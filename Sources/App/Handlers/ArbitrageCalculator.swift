@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreFoundation
 import Jobs
 
 final class ArbitrageCalculator {
