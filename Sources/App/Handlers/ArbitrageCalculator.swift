@@ -68,7 +68,7 @@ final class ArbitrageCalculator {
     
     private var triangularsCalculationRestictAmount: Int {
 #if DEBUG
-        return 600
+        return 700
 #else
         return 500 // TODO: - optimize to get full amout
 #endif
