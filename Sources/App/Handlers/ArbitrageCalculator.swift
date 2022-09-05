@@ -65,6 +65,14 @@ final class ArbitrageCalculator {
     
     private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
+    private var triangularsCalculationRestictAmount: Int { // TODO: - optimize to get full amout
+#if DEBUG
+        return 400
+#else
+        return .max
+#endif
+    }
+    
     // MARK: - Init
     
     private init() {
@@ -79,7 +87,7 @@ final class ArbitrageCalculator {
     
     // MARK: - Methods
     
-    func getSurfaceResults(completion: @escaping ([SurfaceResult]?) -> Void) {
+    func getSurfaceResults(completion: @escaping ([SurfaceResult]?, String) -> Void) {
         BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
             guard let self = self, tickers?.isEmpty == false else { return }
             
@@ -94,23 +102,16 @@ final class ArbitrageCalculator {
                     surfaceResults.append(surfaceResult)
                 }
             }
-            print("!!!!!!! Calculated arbitraging rates for \(self.currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n")
-            completion(surfaceResults)
+            let statusText = "\n \(self.triangularsCalculationRestictAmount) Tickers calculated; Calculated Profits for \(self.currentTriangulars.count) triangulars in \(CFAbsoluteTimeGetCurrent() - startTime) seconds\n"
+            completion(surfaceResults, statusText)
         }
     }
     
     // MARK: - Collect Triangles
     private func getTriangulars(from symbols: [BinanceAPIService.Symbol]) -> [Triangular] {
-        // Extracting list of coind and prices from Exchange
-        let restictAmount: Int // TODO: - optimize to get full amout
-#if DEBUG
-        restictAmount = 400
-#else
-        restictAmount = symbols.count
-#endif
         let pairsToCount = symbols
             .filter { $0.status == .trading }
-            .prefix(restictAmount)
+            .prefix(triangularsCalculationRestictAmount)
         
         let startTime = CFAbsoluteTimeGetCurrent()
         

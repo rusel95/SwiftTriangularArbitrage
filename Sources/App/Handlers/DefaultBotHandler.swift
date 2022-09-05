@@ -206,10 +206,8 @@ final class DefaultBotHandlers {
         Jobs.add(interval: .seconds(BotMode.triangularArtibraging.jobInterval)) { [weak self] in
             guard usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
             
-            ArbitrageCalculator.shared.getSurfaceResults { surfaceResults in
-                guard let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else {
-                    return
-                }
+            ArbitrageCalculator.shared.getSurfaceResults { surfaceResults, statusText in
+                guard let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
 
                 let text = surfaceResults
                     .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
@@ -223,6 +221,7 @@ final class DefaultBotHandlers {
                                   """)
                     }
                     .joined(separator: "\n")
+                    .appending(statusText)
                 
                 usersInfoWithTriangularArbitragingMode.forEach { userInfo in
                     do {
