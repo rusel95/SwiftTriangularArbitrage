@@ -66,11 +66,11 @@ final class ArbitrageCalculator {
     private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
     private var triangularsCalculationRestictAmount: Int { // TODO: - optimize to get full amout
-#if DEBUG
+//#if DEBUG
         return 400
-#else
-        return .max
-#endif
+//#else
+//        return .max
+//#endif
     }
     
     // MARK: - Init
