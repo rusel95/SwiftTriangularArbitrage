@@ -233,8 +233,6 @@ final class ArbitrageCalculator {
         var acquiredCoinT2: Double = 0.0
         var acquiredCoinT3: Double = 0.0
         
-        var calculated: Double = 0.0
-        
         let aBase = triangular.aBase
         let aQuote = triangular.aQuote
         let bBase = triangular.bBase
@@ -272,12 +270,12 @@ final class ArbitrageCalculator {
             case .forward:
                 swap1 = aBase
                 swap2 = aQuote
-                swap1Rate = 1.0 / aAsk
+                swap1Rate = aBid
                 directionTrade1 = "base_to_quote"
             case .reverse:
                 swap1 = aQuote
                 swap2 = aBase
-                swap1Rate = aBid
+                swap1Rate = 1.0 / aAsk
                 directionTrade1 = "quote_to_base"
             }
             // Place first trade
@@ -287,10 +285,10 @@ final class ArbitrageCalculator {
             // TODO: - only once scenario at a time can be used - so need to use "else if"
             /* FORWARD */
             // MARK: SCENARIO 1
-            // Check if aQoute (acquired_coun) batches bQuote
+            // Check if aQoute (acquired_coun) matches bQuote
             if direction == .forward {
-                if aQuote == bQuote && calculated == 0 {
-                    swap2Rate = bBid
+                if aQuote == bQuote {
+                    swap2Rate = 1 / bAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "quote_to_base"
                     contract2 = pairB
@@ -298,7 +296,7 @@ final class ArbitrageCalculator {
                     // if bBase (aquiredCoin) mathces cBase
                     if bBase == cBase {
                         swap3 = cBase
-                        swap3Rate = 1.0 / cAsk
+                        swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
                     }
@@ -306,21 +304,18 @@ final class ArbitrageCalculator {
                     // if bBase (aquiredCoin) mathces cQuote
                     if bBase == cQuote {
                         swap3 = cQuote
-                        swap3Rate = cBid
+                        swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
                 
-            }
-            // MARK: SCENARIO 2
-            // Check if aQoute (acquired_coun) batches bBase
-            else if direction == .forward {
-                if aQuote == bBase && calculated == 0 {
-                    swap2Rate = 1.0 / bAsk
+                // MARK: SCENARIO 2
+                // Check if aQoute (acquired_coun) matches bBase
+                else if aQuote == bBase {
+                    swap2Rate = bBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "base_to_qoute"
                     contract2 = pairB
@@ -328,7 +323,7 @@ final class ArbitrageCalculator {
                     // if bQuote (aquiredCoin) mathces cBase
                     if bBase == cBase {
                         swap3 = cBase
-                        swap3Rate = 1.0 / cAsk
+                        swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
                     }
@@ -336,20 +331,17 @@ final class ArbitrageCalculator {
                     // if bQoute (aquiredCoin) mathces cQuote
                     if bQuote == cQuote {
                         swap3 = cQuote
-                        swap3Rate = cBid
+                        swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
-            }
-            // MARK: SCENARIO 3
-            // Check if aQoute (acquired_coun) batches cQuote
-            else if direction == .forward {
-                if aQuote == cQuote && calculated == 0 {
-                    swap2Rate = cBid
+                // MARK: SCENARIO 3
+                // Check if aQoute (acquired_coun) matches cQuote
+                else if aQuote == cQuote {
+                    swap2Rate = 1.0 / cAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
@@ -357,28 +349,25 @@ final class ArbitrageCalculator {
                     // if cBase (aquiredCoin) mathces bBase
                     if cBase == bBase {
                         swap3 = bBase
-                        swap3Rate = 1.0 / bAsk
+                        swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
                     }
                     
-                    // if bBase (aquiredCoin) mathces bQuote
+                    // if cBase (aquiredCoin) mathces bQuote
                     if cBase == bQuote {
                         swap3 = bQuote
-                        swap3Rate = bBid
+                        swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
-            }
-            // MARK: SCENARIO 4
-            // Check if aQoute (acquired_coun) batches cBase
-            else if direction == .forward {
-                if aQuote == cBase && calculated == 0 {
-                    swap2Rate = 1.0 / cAsk
+                // MARK: SCENARIO 4
+                // Check if aQoute (acquired_coun) matches cBase
+                else if aQuote == cBase {
+                    swap2Rate = cBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
@@ -386,7 +375,7 @@ final class ArbitrageCalculator {
                     // if cQuote (aquiredCoin) mathces bBase
                     if cQuote == bBase {
                         swap3 = bBase
-                        swap3Rate = 1.0 / bAsk
+                        swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
                     }
@@ -394,21 +383,20 @@ final class ArbitrageCalculator {
                     // if cQuote (aquiredCoin) mathces bQuote
                     if cQuote == bQuote {
                         swap3 = bQuote
-                        swap3Rate = bBid
+                        swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
             }
             /* REVERSE */
             // MARK: SCENARIO 5
-            // Check if aBase (acquired_coun) batches bQuote
-            else if direction == .reverse {
-                if aBase == bQuote && calculated == 0 {
-                    swap2Rate = bBid
+            // Check if aBase (acquired_coun) matches bQuote
+            if direction == .reverse {
+                if aBase == bQuote {
+                    swap2Rate = 1.0 / bAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "quote_to_base"
                     contract2 = pairB
@@ -416,7 +404,7 @@ final class ArbitrageCalculator {
                     // if bBase (aquiredCoin) mathces cBase
                     if bBase == cBase {
                         swap3 = cBase
-                        swap3Rate = 1.0 / cAsk
+                        swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
                     }
@@ -424,21 +412,17 @@ final class ArbitrageCalculator {
                     // if bBase (aquiredCoin) mathces cQuote
                     if bBase == cQuote {
                         swap3 = cQuote
-                        swap3Rate = cBid
+                        swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
-                
-            }
-            // MARK: SCENARIO 6
-            // Check if aBase (acquired_coun) batches bBase
-            else if direction == .reverse {
-                if aBase == bBase && calculated == 0 {
-                    swap2Rate = 1.0 / bAsk
+                // MARK: SCENARIO 6
+                // Check if aBase (acquired_coun) matches bBase
+                else if aBase == bBase {
+                    swap2Rate = bBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "base_to_qoute"
                     contract2 = pairB
@@ -446,7 +430,7 @@ final class ArbitrageCalculator {
                     // if bQuote (aquiredCoin) mathces cBase
                     if bBase == cBase {
                         swap3 = cBase
-                        swap3Rate = 1.0 / cAsk
+                        swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
                     }
@@ -454,20 +438,17 @@ final class ArbitrageCalculator {
                     // if bQoute (aquiredCoin) mathces cQuote
                     if bQuote == cQuote {
                         swap3 = cQuote
-                        swap3Rate = cBid
+                        swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
-            }
-            // MARK: SCENARIO 7
-            // Check if aBase (acquired_coun) batches cQuote
-            else if direction == .reverse {
-                if aBase == cQuote && calculated == 0 {
-                    swap2Rate = cBid
+                // MARK: SCENARIO 7
+                // Check if aBase (acquired_coun) matches cQuote
+                else if aBase == cQuote {
+                    swap2Rate = 1.0 / cAsk
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
@@ -475,7 +456,7 @@ final class ArbitrageCalculator {
                     // if cBase (aquiredCoin) mathces bBase
                     if cBase == bBase {
                         swap3 = bBase
-                        swap3Rate = 1.0 / bAsk
+                        swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
                     }
@@ -483,28 +464,25 @@ final class ArbitrageCalculator {
                     // if bBase (aquiredCoin) mathces bQuote
                     if cBase == bQuote {
                         swap3 = bQuote
-                        swap3Rate = bBid
+                        swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
-            }
-            // MARK: SCENARIO 8
-            // Check if aBase (acquired_coun) batches cBase
-            else if direction == .reverse {
-                if aBase == cBase && calculated == 0 {
-                    swap2Rate = 1.0 / cAsk
+                // MARK: SCENARIO 8
+                // Check if aBase (acquired_coun) atches cBase
+                else if aBase == cBase {
+                    swap2Rate = cBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate
-                    directionTrade2 = "quote_to_base"
+                    directionTrade2 = "base_to_quote"
                     contract2 = pairC
                     
                     // if cQuote (aquiredCoin) mathces bBase
                     if cQuote == bBase {
                         swap3 = bBase
-                        swap3Rate = 1.0 / bAsk
+                        swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
                     }
@@ -512,13 +490,12 @@ final class ArbitrageCalculator {
                     // if cQuote (aquiredCoin) mathces bQuote
                     if cQuote == bQuote {
                         swap3 = bQuote
-                        swap3Rate = bBid
+                        swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
                     }
                     
                     acquiredCoinT3 = acquiredCoinT2 * swap3Rate
-                    calculated = 1
                 }
             }
             
