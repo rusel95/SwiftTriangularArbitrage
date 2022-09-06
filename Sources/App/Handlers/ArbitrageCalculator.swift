@@ -129,15 +129,16 @@ final class ArbitrageCalculator {
             var surfaceResults: [SurfaceResult] = []
             
             let startTime = CFAbsoluteTimeGetCurrent()
-            DispatchQueue.concurrentPerform(iterations: self.currentTriangulars.count) { i in
-                guard let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i]) else { return }
+            DispatchQueue.concurrentPerform(iterations: self.currentTriangulars.count) { [weak self] i in
+                guard let self = self, let prices = self.getCurrentPrices(triangular: self.currentTriangulars[i]),
+                      let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i], prices: prices) else { return }
                 
                 self.dispatchQueue.async(flags: .barrier) {
                     surfaceResults.append(surfaceResult)
                 }
             }
             let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            let statusText = "\n \(self.lastTriangularsStatusText)\nCalculated Profits for \(self.currentTriangulars.count) triangulars in \(duration) seconds"
+            let statusText = "\n \(self.lastTriangularsStatusText)\nCalculated Profits for \(self.currentTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             completion(surfaceResults, statusText)
         }
     }
@@ -186,16 +187,20 @@ final class ArbitrageCalculator {
                                     dispatchQueue.async(flags: .barrier) {
                                         if removeDuplicatesSet.contains(uniqueItem) == false {
                                             removeDuplicatesSet.insert(uniqueItem)
-                                            triangulars.append(Triangular(aBase: aBase,
-                                                                          bBase: bBase,
-                                                                          cBase: cBase,
-                                                                          aQuote: aQuote,
-                                                                          bQuote: bQuote,
-                                                                          cQuote: cQuote,
-                                                                          pairA: pairA.symbol,
-                                                                          pairB: pairB.symbol,
-                                                                          pairC: pairC.symbol,
-                                                                          combined: uniqueItem.joined(separator: "_")))
+                                            triangulars.append(
+                                                Triangular(
+                                                    aBase: aBase,
+                                                    bBase: bBase,
+                                                    cBase: cBase,
+                                                    aQuote: aQuote,
+                                                    bQuote: bQuote,
+                                                    cQuote: cQuote,
+                                                    pairA: pairA.symbol,
+                                                    pairB: pairB.symbol,
+                                                    pairC: pairC.symbol,
+                                                    combined: uniqueItem.joined(separator: "_")
+                                                )
+                                            )
                                         }
                                     }
                                 }
@@ -241,8 +246,6 @@ final class ArbitrageCalculator {
         let pairB = triangular.pairB
         let pairC = triangular.pairC
         
-        guard let prices = getCurrentPrices(triangular: triangular) else { return nil }
-        
         let aAsk: Double = prices.pairAAsk
         let aBid: Double = prices.pairABid
         let bAsk: Double = prices.pairBAsk
@@ -282,6 +285,7 @@ final class ArbitrageCalculator {
             contract1 = pairA
             acquiredCoinT1 = startingAmount * swap1Rate
             
+            // TODO: - only once scenario at a time can be used - so need to use "else if"
             /* FORWARD */
             // MARK: SCENARIO 1
             // Check if aQoute (acquired_coun) batches bQuote
