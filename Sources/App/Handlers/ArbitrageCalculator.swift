@@ -56,6 +56,15 @@ final class ArbitrageCalculator {
         let combined: String
     }
     
+    struct TriangularPrices {
+        let pairAAsk: Double
+        let pairABid: Double
+        let pairBAsk: Double
+        let pairBBid: Double
+        let pairCAsk: Double
+        let pairCBid: Double
+    }
+    
     // MARK: - Properties
     
     static let shared = ArbitrageCalculator()
@@ -66,14 +75,6 @@ final class ArbitrageCalculator {
     private var surfaceResults: [SurfaceResult] = []
     
     private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
-    
-    private var triangularsCalculationRestictAmount: Int {
-#if DEBUG
-        return 400
-#else
-        return tradeableSymbols.count // TODO: - optimize to get full amout
-#endif
-    }
     
     private var lastTriangularsStatusText: String = ""
     
@@ -145,21 +146,19 @@ final class ArbitrageCalculator {
     
     // MARK: - Collect Triangles
     private func getTriangulars(from tradeableSymbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
-        let pairsToCount = tradeableSymbols.prefix(triangularsCalculationRestictAmount)
-        
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        var removeDuplicatesSet: Set<[String]> = Set()
+        var removeDuplicates: [[String]] = []
         var triangulars: [Triangular] = []
         
         // Get Pair A - Start from A
-        DispatchQueue.concurrentPerform(iterations: pairsToCount.count) { i in
-            let pairA = pairsToCount[i]
+        DispatchQueue.concurrentPerform(iterations: tradeableSymbols.count) { i in
+            let pairA = tradeableSymbols[i]
             let aBase: String = pairA.baseAsset
             let aQuote: String = pairA.quoteAsset
             
             // Get Pair B - Find B pair where one coint matched
-            for pairB in pairsToCount {
+            for pairB in tradeableSymbols {
                 let bBase: String = pairB.baseAsset
                 let bQuote: String = pairB.quoteAsset
                 
@@ -168,7 +167,7 @@ final class ArbitrageCalculator {
                         (aBase == bQuote || aQuote == bQuote) {
                         
                         // Get Pair C - Find C pair where base and quote exist in A and B configurations
-                        for pairC in pairsToCount {
+                        for pairC in tradeableSymbols {
                             let cBase: String = pairC.baseAsset
                             let cQuote: String = pairC.quoteAsset
                             
@@ -184,9 +183,9 @@ final class ArbitrageCalculator {
                                 if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
                                     let uniqueItem = combineAll.sorted()
                                     
-                                    dispatchQueue.async(flags: .barrier) {
-                                        if removeDuplicatesSet.contains(uniqueItem) == false {
-                                            removeDuplicatesSet.insert(uniqueItem)
+                                    if removeDuplicates.contains(uniqueItem) == false {
+                                        dispatchQueue.async(flags: .barrier) {
+                                            removeDuplicates.append(uniqueItem)
                                             triangulars.append(
                                                 Triangular(
                                                     aBase: aBase,
@@ -211,14 +210,14 @@ final class ArbitrageCalculator {
             }
         }
         let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-        let statusText = "Calculated \(triangulars.count) Triangulars from \(self.triangularsCalculationRestictAmount) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+        let statusText = "Calculated \(triangulars.count) Triangulars from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
         return (triangulars, statusText)
     }
     
     
     
     // MARK: - Calculate Surface Rates
-    private func calculateSurfaceRate(triangular: Triangular) -> SurfaceResult? {
+    private func calculateSurfaceRate(triangular: Triangular, prices: TriangularPrices) -> SurfaceResult? {
         // Set Variables
         let startingAmount: Double = 1.0
         
@@ -575,16 +574,7 @@ final class ArbitrageCalculator {
 // MARK: - Helpers
 private extension ArbitrageCalculator {
     
-    struct TriangularPrice {
-        let pairAAsk: Double
-        let pairABid: Double
-        let pairBAsk: Double
-        let pairBBid: Double
-        let pairCAsk: Double
-        let pairCBid: Double
-    }
-    
-    func getCurrentPrices(triangular: Triangular) -> TriangularPrice? {
+    func getCurrentPrices(triangular: Triangular) -> TriangularPrices? {
         if let pairAPrice = currentBookTickers?.first(where: { $0.symbol == triangular.pairA }),
            let pairAAsk = Double(pairAPrice.askPrice),
            let pairABid = Double(pairAPrice.bidPrice),
@@ -594,7 +584,7 @@ private extension ArbitrageCalculator {
            let pairCPrice = currentBookTickers?.first(where: { $0.symbol == triangular.pairC }),
            let pairCAsk = Double(pairCPrice.askPrice),
            let pairCBid = Double(pairCPrice.bidPrice) {
-            return TriangularPrice(pairAAsk: pairAAsk, pairABid: pairABid, pairBAsk: pairBAsk, pairBBid: pairBBid, pairCAsk: pairCAsk, pairCBid: pairCBid)
+            return TriangularPrices(pairAAsk: pairAAsk, pairABid: pairABid, pairBAsk: pairBAsk, pairBBid: pairBBid, pairCAsk: pairCAsk, pairCBid: pairCBid)
         } else {
             return nil
         }
