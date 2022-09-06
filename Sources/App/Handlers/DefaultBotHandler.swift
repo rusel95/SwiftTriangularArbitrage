@@ -211,18 +211,18 @@ final class DefaultBotHandlers {
 
                 let text = surfaceResults
                     .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
-                    .map {
-                        String("""
-                                  \($0.direction) \($0.contract1) \($0.contract2) \($0.contract3)
-                                  \($0.tradeDescription1)
-                                  \($0.tradeDescription2)
-                                  \($0.tradeDescription3)
-                                  \(String(format: "Profit: %.4f", $0.profitLossPercent)) %\n
-                                  """)
-                    }
+                    .prefix(10)
+                    .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
                     .appending("\nАктуально станом на \(Date().readableDescription)")
+                
+                let extraResultsText = surfaceResults
+                    .filter { $0.profitLossPercent >= 0.3 }
+                    .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
+                    .prefix(10)
+                    .map { $0.description }
+                    .joined(separator: "\n")
                 
                 usersInfoWithTriangularArbitragingMode.forEach { userInfo in
                     do {
@@ -234,6 +234,9 @@ final class DefaultBotHandlers {
                             _ = try bot.editMessageText(params: editParams)
                         } else {
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                        }
+                        if extraResultsText.isEmpty == false {
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: extraResultsText))
                         }
                     } catch (let botError) {
                         self?.logger.report(error: botError)

@@ -14,8 +14,8 @@ final class ArbitrageCalculator {
     
     // MARK: - Structs
     
-    struct SurfaceResult {
-        
+    struct SurfaceResult: CustomStringConvertible {
+
         enum Direction: String {
             case forward
             case reverse
@@ -41,6 +41,17 @@ final class ArbitrageCalculator {
         let tradeDescription1: String
         let tradeDescription2: String
         let tradeDescription3: String
+        
+        var description: String {
+            String("""
+                      \(direction) \(contract1) \(contract2) \(contract3)
+                      \(tradeDescription1)
+                      \(tradeDescription2)
+                      \(tradeDescription3)
+                      \(String(format: "Profit: %.4f", profitLossPercent)) %\n
+                      """)
+        }
+        
     }
     
     struct Triangular: Hashable, Codable {
