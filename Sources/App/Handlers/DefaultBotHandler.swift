@@ -218,7 +218,7 @@ final class DefaultBotHandlers {
                     .appending("\nАктуально станом на \(Date().readableDescription)")
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitLossPercent >= 0.3 }
+                    .filter { $0.profitLossPercent >= 0.5 }
                     .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
                     .prefix(10)
                     .map { $0.description }
