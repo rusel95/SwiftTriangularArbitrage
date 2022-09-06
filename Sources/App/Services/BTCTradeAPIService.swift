@@ -35,17 +35,17 @@ final class BTCTradeAPIService {
     }
     
     struct Ticker: Codable {
-        let status: Bool
-        let startPrice, avaragePrice: String
+//        let status: Bool
+//        let startPrice, avaragePrice: String
         let endPrice: String
-        let orders: [Order]
+//        let orders: [Order]
 
         enum CodingKeys: String, CodingKey {
-            case status
-            case startPrice = "start_price"
-            case avaragePrice = "avarage_price"
+//            case status
+//            case startPrice = "start_price"
+//            case avaragePrice = "avarage_price"
             case endPrice = "end_price"
-            case orders
+//            case orders
         }
     }
 

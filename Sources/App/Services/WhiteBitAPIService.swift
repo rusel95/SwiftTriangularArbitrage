@@ -15,7 +15,7 @@ final class WhiteBitAPIService {
     
     struct OrderbookData: Codable {
         
-        let timestamp: Int
+//        let timestamp: Int
         let asks: [[String]]
         let bids: [[String]]
         

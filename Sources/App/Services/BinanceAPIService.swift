@@ -43,9 +43,9 @@ final class BinanceAPIService {
         
         let symbol: String
         let bidPrice: String
-        let bidQty: String
+//        let bidQty: String
         let askPrice: String
-        let askQty: String
+//        let askQty: String
         
         var sellPrice: Double? {
             Double(bidPrice)
@@ -59,9 +59,9 @@ final class BinanceAPIService {
     
     // MARK: - Welcome
     struct ExchangeInfoResponse: Codable {
-        let timezone: String
-        let serverTime: Int
-        let rateLimits: [RateLimit]
+//        let timezone: String
+//        let serverTime: Int
+//        let rateLimits: [RateLimit]
 //        let exchangeFilters: [JSONAny]
         let symbols: [Symbol]
     }

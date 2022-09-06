@@ -16,22 +16,18 @@ final class QMallAPIService {
     // MARK: - STRUCTS
     
     struct ResponseBody: Codable {
-        let code: Int
-        let success: Bool
-        let message: String
+//        let code: Int
+//        let success: Bool
+//        let message: String
         let result: Result
     }
 
     struct Result: Codable {
-        let name, bid, ask, resultOpen: String
-        let high, low, last, volume: String?
-        let deal, change: String?
-
-        enum CodingKeys: String, CodingKey {
-            case name, bid, ask
-            case resultOpen = "open"
-            case high, low, last, volume, deal, change
-        }
+//        let name: String
+        let bid, ask: String
+//        let open: String
+//        let high, low, last, volume: String?
+//        let deal, change: String?
     }
     
     // MARK: - PROPERTIES
@@ -63,7 +59,7 @@ final class QMallAPIService {
             
             do {
                let responseBody = try JSONDecoder().decode(ResponseBody.self, from: data)
-               completion(Double(responseBody.result.ask), Double(responseBody.result.ask), nil)
+               completion(Double(responseBody.result.ask), Double(responseBody.result.bid), nil)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil, nil, decodingError)

@@ -16,9 +16,9 @@ final class CoinsbitAPIService {
     // MARK: - STRUCTS
     
     struct ResponseBody: Codable {
-        let code: Int
-        let success: Bool
-        let message: String
+//        let code: Int
+//        let success: Bool
+//        let message: String
         let result: Result
     }
 

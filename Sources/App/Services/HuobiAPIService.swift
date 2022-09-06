@@ -16,14 +16,14 @@ final class HuobiAPIService {
     // MARK: - Structs
     
     struct ResponseBody: Codable {
-        let ch, status: String
-        let ts: Int
+//        let ch, status: String
+//        let ts: Int
         let tick: Tick
     }
 
     struct Tick: Codable {
         let bids, asks: [[Double]]
-        let version, ts: Int
+//        let version, ts: Int
     }
 
     

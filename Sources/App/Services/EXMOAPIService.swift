@@ -17,19 +17,22 @@ final class EXMOAPIService {
     
     struct Pair: Codable {
         
-        let askQuantity, askAmount, askTop, bidQuantity: String
-        let bidAmount, bidTop: String
-        let ask: [[String]]
-        let bid: [[String]]
+//        let askQuantity, askAmount: String
+        let askTop: String
+//        let bidQuantity: String
+//        let bidAmount: String
+        let bidTop: String
+//        let ask: [[String]]
+//        let bid: [[String]]
 
         enum CodingKeys: String, CodingKey {
-            case askQuantity = "ask_quantity"
-            case askAmount = "ask_amount"
+//            case askQuantity = "ask_quantity"
+//            case askAmount = "ask_amount"
             case askTop = "ask_top"
-            case bidQuantity = "bid_quantity"
-            case bidAmount = "bid_amount"
+//            case bidQuantity = "bid_quantity"
+//            case bidAmount = "bid_amount"
             case bidTop = "bid_top"
-            case ask, bid
+//            case ask, bid
         }
         
     }

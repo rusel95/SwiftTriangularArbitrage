@@ -16,34 +16,34 @@ final class BetconixAPIService {
     // MARK: - STRUCTS
 
     struct Welcome: Codable {
-        let pair: String
-        let ask, bid: [Ask]
-        let askQuantity: Int
+//        let pair: String
+//        let ask, bid: [Ask]
+//        let askQuantity: Int
         let askAmount, askTop: Double
-        let bidQuantity: Int
+//        let bidQuantity: Int
         let bidAmount, bidTop: Double
 
         enum CodingKeys: String, CodingKey {
-            case pair, ask, bid
-            case askQuantity = "ask_quantity"
+//            case pair, ask, bid
+//            case askQuantity = "ask_quantity"
             case askAmount = "ask_amount"
             case askTop = "ask_top"
-            case bidQuantity = "bid_quantity"
+//            case bidQuantity = "bid_quantity"
             case bidAmount = "bid_amount"
             case bidTop = "bid_top"
         }
     }
 
-    struct Ask: Codable {
-        let collapsed: Int
-        let price, quantity, quantityLeft, total: String
-
-        enum CodingKeys: String, CodingKey {
-            case collapsed, price, quantity
-            case quantityLeft = "quantity_left"
-            case total
-        }
-    }
+//    struct Ask: Codable {
+//        let collapsed: Int
+//        let price, quantity, quantityLeft, total: String
+//
+//        enum CodingKeys: String, CodingKey {
+//            case collapsed, price, quantity
+//            case quantityLeft = "quantity_left"
+//            case total
+//        }
+//    }
 
     // MARK: - PROPERTIES
     
