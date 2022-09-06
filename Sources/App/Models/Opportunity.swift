@@ -351,8 +351,8 @@ enum Opportunity: Equatable {
         // in percents
         var buyCommission: Double {
             switch self {
-            case .usdt_uah: return 0.5  // 0% UAH Deposit + 5 USDT Withdrawal
-            case .btc_uah:  return 0.05 // 0% UAH Deposit + Cheap BTC Withdrawal
+            case .usdt_uah: return 1.8  // 1.3% UAH Deposit + 5 USDT Withdrawal
+            case .btc_uah:  return 1.35 // 1.3% UAH Deposit + Cheap BTC Withdrawal
             }
         }
         
