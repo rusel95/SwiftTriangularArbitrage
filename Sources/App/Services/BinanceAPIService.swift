@@ -82,7 +82,9 @@ final class BinanceAPIService {
 //        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
 //        let orderTypes: [OrderType]
 //        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
-//        let cancelReplaceAllowed, isSpotTradingAllowed, isMarginTradingAllowed: Bool
+//        let cancelReplaceAllowed: String
+        let isSpotTradingAllowed: Bool
+//        let isMarginTradingAllowed: Bool
 //        let filters: [Filter]
 //        let permissions: [Permission]
     }

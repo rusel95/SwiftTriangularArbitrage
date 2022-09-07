@@ -115,8 +115,7 @@ final class ArbitrageCalculator {
                 BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                     guard let self = self, let symbols = symbols else { return }
                     
-                    
-                    self.tradeableSymbols = symbols.filter { $0.status == .trading }
+                    self.tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
                     let triangularsInfo = self.getTriangulars(from: self.tradeableSymbols)
                     self.currentTriangulars = triangularsInfo.0
                     do {
