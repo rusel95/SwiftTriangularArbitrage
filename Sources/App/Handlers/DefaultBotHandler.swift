@@ -207,10 +207,10 @@ final class DefaultBotHandlers {
             guard usersInfoWithTriangularArbitragingMode.isEmpty == false else { return }
             
             ArbitrageCalculator.shared.getSurfaceResults { surfaceResults, statusText in
-                guard let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+                guard let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
-                    .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
+                    .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
@@ -218,8 +218,8 @@ final class DefaultBotHandlers {
                     .appending("\nАктуально станом на \(Date().readableDescription)")
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitLossPercent >= 0.8 }
-                    .sorted(by: { $0.profitLossPercent > $1.profitLossPercent })
+                    .filter { $0.profitPercent >= 0.3 }
+                    .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
