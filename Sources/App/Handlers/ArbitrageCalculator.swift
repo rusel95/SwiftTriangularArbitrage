@@ -15,7 +15,7 @@ final class ArbitrageCalculator {
     // MARK: - Structs
     
     struct SurfaceResult: CustomStringConvertible {
-
+        
         enum Direction: String {
             case forward
             case reverse
@@ -38,7 +38,7 @@ final class ArbitrageCalculator {
         let swap3Rate: Double
         let profitPercent: Double
         let direction: Direction
-
+        
         var description: String {
             String("""
                       \(direction) \(contract1) \(contract2) \(contract3)
@@ -64,35 +64,23 @@ final class ArbitrageCalculator {
         let combined: String
     }
     
-    struct TriangularPrices {
-        let pairAAsk: Double
-        let pairABid: Double
-        let pairBAsk: Double
-        let pairBBid: Double
-        let pairCAsk: Double
-        let pairCBid: Double
-    }
-    
     // MARK: - Properties
     
     static let shared = ArbitrageCalculator()
     
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
     private var currentTriangulars: [Triangular] = []
-    private var currentBookTickers: [BinanceAPIService.BookTicker]? = nil
-    private var surfaceResults: [SurfaceResult] = []
-    
-    private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
     private var lastTriangularsStatusText: String = ""
+    private var logger = Logger(label: "logget.artitrage.triangular")
+    private var isFirstUpdateCycle: Bool = true
+    
+    private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
     
     private var triangularsStorageURL: URL {
         let fileName = "triangulars"
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
     }
-    
-    private var logger = Logger(label: "logget.artitrage.triangular")
-    private var isFirstUpdateCycle: Bool = true
     
     // MARK: - Init
     
@@ -131,17 +119,14 @@ final class ArbitrageCalculator {
     
     func getSurfaceResults(completion: @escaping ([SurfaceResult]?, String) -> Void) {
         BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-            guard let self = self, tickers?.isEmpty == false else { return }
-            
-            self.currentBookTickers = tickers
+            guard let self = self, let tickers = tickers else { return }
             
             var surfaceResults: [SurfaceResult] = []
             
             let startTime = CFAbsoluteTimeGetCurrent()
             DispatchQueue.concurrentPerform(iterations: self.currentTriangulars.count) { [weak self] i in
                 guard let self = self,
-                      let prices = self.getCurrentPrices(triangular: self.currentTriangulars[i], currentBookTickers: tickers ?? []),
-                      let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i], prices: prices) else { return }
+                      let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i], tickers: tickers) else { return }
                 
                 self.dispatchQueue.async(flags: .barrier) {
                     surfaceResults.append(surfaceResult)
@@ -152,9 +137,13 @@ final class ArbitrageCalculator {
             completion(surfaceResults, statusText)
         }
     }
+}
+    
+// MARK: - Helpers
+private extension ArbitrageCalculator {
     
     // MARK: - Collect Triangles
-    private func getTriangulars(from tradeableSymbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
+    func getTriangulars(from tradeableSymbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         var removeDuplicates: [[String]] = []
@@ -226,7 +215,7 @@ final class ArbitrageCalculator {
     
     
     // MARK: - Calculate Surface Rates
-    private func calculateSurfaceRate(triangular: Triangular, prices: TriangularPrices) -> SurfaceResult? {
+    private func calculateSurfaceRate(triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
         let comissionPerTradePercent: Double = 0.075
         let comissionMultipler: Double = (1.0 - comissionPerTradePercent / 100.0)
         let startingAmount: Double = 1.0
@@ -253,12 +242,18 @@ final class ArbitrageCalculator {
         let pairB = triangular.pairB
         let pairC = triangular.pairC
         
-        let aAsk: Double = prices.pairAAsk
-        let aBid: Double = prices.pairABid
-        let bAsk: Double = prices.pairBAsk
-        let bBid: Double = prices.pairBBid
-        let cAsk: Double = prices.pairCAsk
-        let cBid: Double = prices.pairCBid
+        guard let pairAPrice = tickers.first(where: { $0.symbol == triangular.pairA }),
+              let aAsk = Double(pairAPrice.askPrice),
+              let aBid = Double(pairAPrice.bidPrice),
+              let pairBPrice = tickers.first(where: { $0.symbol == triangular.pairB }),
+              let bAsk = Double(pairBPrice.askPrice),
+              let bBid = Double(pairBPrice.bidPrice),
+              let pairCPrice = tickers.first(where: { $0.symbol == triangular.pairC }),
+              let cAsk = Double(pairCPrice.askPrice),
+              let cBid = Double(pairCPrice.bidPrice) else {
+            logger.critical("No prices for \(triangular)")
+            return nil
+        }
         
         // Set direction and loop through
         let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
@@ -539,27 +534,6 @@ final class ArbitrageCalculator {
         }
         
         return nil
-    }
-    
-}
-
-// MARK: - Helpers
-private extension ArbitrageCalculator {
-    
-    func getCurrentPrices(triangular: Triangular, currentBookTickers: [BinanceAPIService.BookTicker]) -> TriangularPrices? {
-        if let pairAPrice = currentBookTickers.first(where: { $0.symbol == triangular.pairA }),
-           let pairAAsk = Double(pairAPrice.askPrice),
-           let pairABid = Double(pairAPrice.bidPrice),
-           let pairBPrice = currentBookTickers.first(where: { $0.symbol == triangular.pairB }),
-           let pairBAsk = Double(pairBPrice.askPrice),
-           let pairBBid = Double(pairBPrice.bidPrice),
-           let pairCPrice = currentBookTickers.first(where: { $0.symbol == triangular.pairC }),
-           let pairCAsk = Double(pairCPrice.askPrice),
-           let pairCBid = Double(pairCPrice.bidPrice) {
-            return TriangularPrices(pairAAsk: pairAAsk, pairABid: pairABid, pairBAsk: pairBAsk, pairBBid: pairBBid, pairCAsk: pairCAsk, pairCBid: pairCBid)
-        } else {
-            return nil
-        }
     }
     
 }
