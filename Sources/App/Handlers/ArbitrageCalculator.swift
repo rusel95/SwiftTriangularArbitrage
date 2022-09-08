@@ -82,6 +82,8 @@ final class ArbitrageCalculator {
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
     }
     
+    private let symbolsWithoutComissions: [String] =  ["BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT", "ETHBUSD"]
+    
     // MARK: - Init
     
     private init() {
@@ -101,15 +103,15 @@ final class ArbitrageCalculator {
                     guard let self = self, let symbols = symbols else { return }
                     
                     self.tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                    let triangularsInfo = self.getTriangulars(from: self.tradeableSymbols)
-                    self.currentTriangulars = triangularsInfo.0
+                    let triangularsInfo = self.getTriangularsInfo(from: self.tradeableSymbols)
+                    self.currentTriangulars = triangularsInfo.triangulars
                     do {
                         let endcodedData = try JSONEncoder().encode(self.currentTriangulars)
                         try endcodedData.write(to: self.triangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                     }
-                    self.lastTriangularsStatusText = triangularsInfo.1
+                    self.lastTriangularsStatusText = triangularsInfo.calculationDescription
                 }
             }
         }
@@ -143,7 +145,7 @@ final class ArbitrageCalculator {
 private extension ArbitrageCalculator {
     
     // MARK: - Collect Triangles
-    func getTriangulars(from tradeableSymbols: [BinanceAPIService.Symbol]) -> ([Triangular], String) {
+    func getTriangularsInfo(from tradeableSymbols: [BinanceAPIService.Symbol]) -> (triangulars: [Triangular], calculationDescription: String) {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         var removeDuplicates: [[String]] = []
@@ -211,13 +213,9 @@ private extension ArbitrageCalculator {
         let statusText = "Calculated \(triangulars.count) Triangulars from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
         return (triangulars, statusText)
     }
-    
-    
-    
+
     // MARK: - Calculate Surface Rates
     private func calculateSurfaceRate(triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
-        let comissionPerTradePercent: Double = 0.075
-        let comissionMultipler: Double = (1.0 - comissionPerTradePercent / 100.0)
         let startingAmount: Double = 1.0
         
         var contract1 = ""
@@ -241,6 +239,10 @@ private extension ArbitrageCalculator {
         let pairA = triangular.pairA
         let pairB = triangular.pairB
         let pairC = triangular.pairC
+        
+        let pairAComissionMultipler = getCommissionMultipler(symbol: pairA)
+        let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
+        let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
         
         guard let pairAPrice = tickers.first(where: { $0.symbol == triangular.pairA }),
               let aAsk = Double(pairAPrice.askPrice),
@@ -285,7 +287,7 @@ private extension ArbitrageCalculator {
             }
             // Place first trade
             contract1 = pairA
-            acquiredCoinT1 = startingAmount * swap1Rate * comissionMultipler
+            acquiredCoinT1 = startingAmount * swap1Rate * pairAComissionMultipler
             
             // TODO: - only once scenario at a time can be used - so need to use "else if"
             /* FORWARD */
@@ -294,7 +296,7 @@ private extension ArbitrageCalculator {
             if direction == .forward {
                 if aQuote == bQuote {
                     swap2Rate = 1.0 / bAsk
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairBComissionMultipler
                     directionTrade2 = "quote_to_base"
                     contract2 = pairB
                     
@@ -314,14 +316,14 @@ private extension ArbitrageCalculator {
                         contract3 = pairC
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairAComissionMultipler
                 }
                 
                 // MARK: SCENARIO 2
                 // Check if aQoute (acquired_coun) matches bBase
                 else if aQuote == bBase {
                     swap2Rate = bBid
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairBComissionMultipler
                     directionTrade2 = "base_to_qoute"
                     contract2 = pairB
                     
@@ -341,13 +343,13 @@ private extension ArbitrageCalculator {
                         contract3 = pairC
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairCComissionMultipler
                 }
                 // MARK: SCENARIO 3
                 // Check if aQoute (acquired_coin) matches cQuote
                 else if aQuote == cQuote {
                     swap2Rate = 1.0 / cAsk
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairCComissionMultipler
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
                     
@@ -367,13 +369,13 @@ private extension ArbitrageCalculator {
                         contract3 = pairB
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairCComissionMultipler
                 }
                 // MARK: SCENARIO 4
                 // Check if aQoute (acquired_coun) matches cBase
                 else if aQuote == cBase {
                     swap2Rate = cBid
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairCComissionMultipler
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
                     
@@ -393,7 +395,7 @@ private extension ArbitrageCalculator {
                         contract3 = pairB
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairBComissionMultipler
                 }
             }
             /* REVERSE */
@@ -402,7 +404,7 @@ private extension ArbitrageCalculator {
             if direction == .reverse {
                 if aBase == bQuote {
                     swap2Rate = 1.0 / bAsk
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairBComissionMultipler
                     directionTrade2 = "quote_to_base"
                     contract2 = pairB
                     
@@ -422,13 +424,13 @@ private extension ArbitrageCalculator {
                         contract3 = pairC
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairCComissionMultipler
                 }
                 // MARK: SCENARIO 6
                 // Check if aBase (acquired_coun) matches bBase
                 else if aBase == bBase {
                     swap2Rate = bBid
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairBComissionMultipler
                     directionTrade2 = "base_to_qoute"
                     contract2 = pairB
                     
@@ -448,13 +450,13 @@ private extension ArbitrageCalculator {
                         contract3 = pairC
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairCComissionMultipler
                 }
                 // MARK: SCENARIO 7
                 // Check if aBase (acquired_coun) matches cQuote
                 else if aBase == cQuote {
                     swap2Rate = 1.0 / cAsk
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairCComissionMultipler
                     directionTrade2 = "quote_to_base"
                     contract2 = pairC
                     
@@ -474,13 +476,13 @@ private extension ArbitrageCalculator {
                         contract3 = pairB
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairBComissionMultipler
                 }
                 // MARK: SCENARIO 8
                 // Check if aBase (acquired_coun) atches cBase
                 else if aBase == cBase {
                     swap2Rate = cBid
-                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * comissionMultipler
+                    acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairCComissionMultipler
                     directionTrade2 = "base_to_quote"
                     contract2 = pairC
                     
@@ -500,12 +502,11 @@ private extension ArbitrageCalculator {
                         contract3 = pairB
                     }
                     
-                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * comissionMultipler
+                    acquiredCoinT3 = acquiredCoinT2 * swap3Rate * pairBComissionMultipler
                 }
             }
             
             // MARK: Profit Loss ouput
-            // Profit and Loss calculations
             let profit = acquiredCoinT3 - startingAmount
             let profitPercent = (profit / startingAmount) * 100.0
             
@@ -534,6 +535,11 @@ private extension ArbitrageCalculator {
         }
         
         return nil
+    }
+    
+    func getCommissionMultipler(symbol: String) -> Double {
+        let comissionPercent = symbolsWithoutComissions.contains(where: { $0 == symbol }) ? 0 : 0.075
+        return 1.0 - comissionPercent / 100.0
     }
     
 }
