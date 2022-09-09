@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "p2pHelper",
+    name: "SwiftTriangularArbitrage",
     platforms: [
         .macOS(.v10_15)
     ],
