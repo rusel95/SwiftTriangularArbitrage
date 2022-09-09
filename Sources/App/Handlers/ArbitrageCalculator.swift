@@ -44,7 +44,7 @@ final class ArbitrageCalculator {
                       \(direction) \(contract1) \(contract2) \(contract3)
                       Step 1: Start with \(swap1) of \(1.0) Swap at \(swap1Rate.string()) for \(swap2) acquiring \(acquiredCoinT1.string())
                       Step 2: Swap \(acquiredCoinT1.string()) of \(swap2) at \(swap2Rate.string()) for \(swap3) acquiring \(acquiredCoinT2.string())
-                      Step 3: Swap \(acquiredCoinT2.string()) of \(swap3) at \(swap3Rate.string())) for \(swap1) acquiring \(acquiredCoinT3.string())
+                      Step 3: Swap \(acquiredCoinT2.string()) of \(swap3) at \(swap3Rate.string()) for \(swap1) acquiring \(acquiredCoinT3.string())
                       Profit: \(profitPercent.string()) %\n
                       """)
         }
@@ -61,7 +61,6 @@ final class ArbitrageCalculator {
         let pairA: String
         let pairB: String
         let pairC: String
-        let combined: String
     }
     
     // MARK: - Properties
@@ -82,7 +81,7 @@ final class ArbitrageCalculator {
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
     }
     
-    private let symbolsWithoutComissions: [String] =  ["BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT", "ETHBUSD"]
+    private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT", "ETHBUSD")
     
     // MARK: - Init
     
@@ -140,7 +139,7 @@ final class ArbitrageCalculator {
         }
     }
 }
-    
+
 // MARK: - Helpers
 private extension ArbitrageCalculator {
     
@@ -148,8 +147,8 @@ private extension ArbitrageCalculator {
     func getTriangularsInfo(from tradeableSymbols: [BinanceAPIService.Symbol]) -> (triangulars: [Triangular], calculationDescription: String) {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        var removeDuplicates: [[String]] = []
-        var triangulars: [Triangular] = []
+        var removeDuplicates: Set<[String]> = Set()
+        var triangulars: Set<Triangular> = Set()
         
         // Get Pair A - Start from A
         DispatchQueue.concurrentPerform(iterations: tradeableSymbols.count) { i in
@@ -185,21 +184,16 @@ private extension ArbitrageCalculator {
                                     
                                     if removeDuplicates.contains(uniqueItem) == false {
                                         dispatchQueue.async(flags: .barrier) {
-                                            removeDuplicates.append(uniqueItem)
-                                            triangulars.append(
-                                                Triangular(
-                                                    aBase: aBase,
-                                                    bBase: bBase,
-                                                    cBase: cBase,
-                                                    aQuote: aQuote,
-                                                    bQuote: bQuote,
-                                                    cQuote: cQuote,
-                                                    pairA: pairA.symbol,
-                                                    pairB: pairB.symbol,
-                                                    pairC: pairC.symbol,
-                                                    combined: uniqueItem.joined(separator: "_")
-                                                )
-                                            )
+                                            removeDuplicates.insert(uniqueItem)
+                                            triangulars.insert(Triangular(aBase: aBase,
+                                                                          bBase: bBase,
+                                                                          cBase: cBase,
+                                                                          aQuote: aQuote,
+                                                                          bQuote: bQuote,
+                                                                          cQuote: cQuote,
+                                                                          pairA: pairA.symbol,
+                                                                          pairB: pairB.symbol,
+                                                                          pairC: pairC.symbol))
                                         }
                                     }
                                 }
@@ -211,9 +205,9 @@ private extension ArbitrageCalculator {
         }
         let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
         let statusText = "Calculated \(triangulars.count) Triangulars from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
-        return (triangulars, statusText)
+        return (Array(triangulars), statusText)
     }
-
+    
     // MARK: - Calculate Surface Rates
     private func calculateSurfaceRate(triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
         let startingAmount: Double = 1.0
@@ -538,7 +532,7 @@ private extension ArbitrageCalculator {
     }
     
     func getCommissionMultipler(symbol: String) -> Double {
-        let comissionPercent = symbolsWithoutComissions.contains(where: { $0 == symbol }) ? 0 : 0.075
+        let comissionPercent = symbolsWithoutComissions.contains(symbol) ? 0 : 0.075
         return 1.0 - comissionPercent / 100.0
     }
     
