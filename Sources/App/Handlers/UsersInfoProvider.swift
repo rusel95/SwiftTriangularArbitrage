@@ -54,12 +54,6 @@ public final class UsersInfoProvider: NSObject {
     ) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
-            if onlineUpdatesMessageId != nil {
-                userInfo.onlineUpdatesMessageId = onlineUpdatesMessageId
-            }
-            if arbitragingMessageId != nil {
-                userInfo.arbitragingMessageId = arbitragingMessageId
-            }
             if triangularArbitragingMessageId != nil {
                 userInfo.triangularArbitragingMessageId = triangularArbitragingMessageId
             }
@@ -68,8 +62,6 @@ public final class UsersInfoProvider: NSObject {
                 chatId: chatId,
                 user: user,
                 selectedModes: [mode],
-                onlineUpdatesMessageId: onlineUpdatesMessageId,
-                arbitragingMessageId: arbitragingMessageId,
                 triangularArbitragingMessageId: triangularArbitragingMessageId
             )
             usersInfo.insert(newUserInfo)

@@ -18,16 +18,12 @@ final class UserInfo: Codable, Hashable, Equatable {
     
     var selectedModes: Set<BotMode> = []
     
-    var onlineUpdatesMessageId: Int?
-    var arbitragingMessageId: Int?
     var triangularArbitragingMessageId: Int?
     
     init(
         chatId: Int64,
         user: TGUser,
         selectedModes: Set<BotMode>,
-        onlineUpdatesMessageId: Int? = nil,
-        arbitragingMessageId: Int? = nil,
         triangularArbitragingMessageId: Int? = nil
     ) {
         self.chatId = chatId
@@ -37,8 +33,6 @@ final class UserInfo: Codable, Hashable, Equatable {
         self.username = user.username
         self.languageCode = user.languageCode
         self.selectedModes = selectedModes
-        self.onlineUpdatesMessageId = onlineUpdatesMessageId
-        self.arbitragingMessageId = arbitragingMessageId
     }
     
     func hash(into hasher: inout Hasher) {

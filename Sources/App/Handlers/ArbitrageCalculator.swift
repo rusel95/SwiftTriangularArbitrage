@@ -74,7 +74,7 @@ final class ArbitrageCalculator {
     private var logger = Logger(label: "logget.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private let dispatchQueue = DispatchQueue(label: "com.p2pHelper", attributes: .concurrent)
+    private let dispatchQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
     
     private var triangularsStorageURL: URL {
         let fileName = "triangulars"

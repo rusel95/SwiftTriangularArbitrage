@@ -19,7 +19,7 @@ x-shared_environment: &shared_environment
   
 services:
   app:
-    image: p2p-helper:latest
+    image: SwiftTriangularArbitrage:latest
     build:
       context: .
     environment:
