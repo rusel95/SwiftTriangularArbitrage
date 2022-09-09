@@ -112,7 +112,7 @@ private extension DefaultBotHandlers {
             I'm a telegram bot, made for finding and alerting about triangular arbitraging opportunities on Binance.
             I have a next modes:
                 
-            /start_binance_triangular_arbitrage - mode for watching on current triangular arbitrage opportinitites on Binance;
+            /start_triangular_arbitrage - mode for watching on current triangular arbitrage opportinitites on Binance;
             /start_alerting - mode for alerting about extra opportunities (>= \(self.interestingProfitPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
