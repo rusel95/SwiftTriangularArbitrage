@@ -86,7 +86,7 @@ final class ArbitrageCalculator {
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .hours(1)) { [weak self] in
+        Jobs.add(interval: .seconds(1800)) { [weak self] in
             guard let self = self else { return }
             
             if self.isFirstUpdateCycle {
