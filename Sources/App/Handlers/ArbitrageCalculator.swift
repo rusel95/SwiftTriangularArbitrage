@@ -14,6 +14,11 @@ final class ArbitrageCalculator {
     
     // MARK: - Structs
     
+    enum Mode {
+        case standart
+        case stable
+    }
+    
     struct SurfaceResult: CustomStringConvertible {
         
         enum Direction: String {
@@ -68,11 +73,13 @@ final class ArbitrageCalculator {
     static let shared = ArbitrageCalculator()
     
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
-    private var currentTriangulars: [Triangular] = []
+    private var currentStandartTriangulars: [Triangular] = []
+    private var currentStableTriangulars: [Triangular] = []
     
-    private var lastTriangularsStatusText: String = ""
+    private var lastStandartTriangularsStatusText: String = ""
+    private var lastStableTriangularsStatusText: String = ""
     private var logger = Logger(label: "logget.artitrage.triangular")
-    private var isFirstUpdateCycle: Bool = true
+    private var isFirstUpdateCycle: Bool = false
     
     private let dispatchQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
     
@@ -80,8 +87,13 @@ final class ArbitrageCalculator {
         let fileName = "triangulars"
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
     }
+    private var stableTriangularsStorageURL: URL {
+        let fileName = "stable_triangulars"
+        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+    }
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT", "ETHBUSD")
+    private let stables: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
     // MARK: - Init
     
@@ -91,8 +103,11 @@ final class ArbitrageCalculator {
             
             if self.isFirstUpdateCycle {
                 do {
-                    let jsonData = try Data(contentsOf: self.triangularsStorageURL)
-                    self.currentTriangulars = try JSONDecoder().decode([Triangular].self, from: jsonData)
+                    let standartTriangularsJsonData = try Data(contentsOf: self.triangularsStorageURL)
+                    self.currentStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+                    
+                    let stableTriangularsJsonData = try Data(contentsOf: self.stableTriangularsStorageURL)
+                    self.currentStableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                 }
@@ -102,15 +117,31 @@ final class ArbitrageCalculator {
                     guard let self = self, let symbols = symbols else { return }
                     
                     self.tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                    let triangularsInfo = self.getTriangularsInfo(from: self.tradeableSymbols)
-                    self.currentTriangulars = triangularsInfo.triangulars
+                    
+                    let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.tradeableSymbols)
+                    self.currentStandartTriangulars = standartTriangularsInfo.triangulars
+                    self.lastStandartTriangularsStatusText = standartTriangularsInfo.calculationDescription
+                    
                     do {
-                        let endcodedData = try JSONEncoder().encode(self.currentTriangulars)
-                        try endcodedData.write(to: self.triangularsStorageURL)
+                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.currentStandartTriangulars)
+                        try standartTriangularsEndcodedData.write(to: self.triangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                     }
-                    self.lastTriangularsStatusText = triangularsInfo.calculationDescription
+                    
+                    let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.tradeableSymbols)
+                    self.currentStableTriangulars = stableTriangularsInfo.triangulars
+                    self.lastStableTriangularsStatusText = standartTriangularsInfo.calculationDescription
+                    
+                    do {
+                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.currentStandartTriangulars)
+                        try standartTriangularsEndcodedData.write(to: self.triangularsStorageURL)
+                        
+                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.currentStableTriangulars)
+                        try stableTriangularsEndcodedData.write(to: self.triangularsStorageURL)
+                    } catch {
+                        self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                    }
                 }
             }
         }
@@ -118,70 +149,94 @@ final class ArbitrageCalculator {
     
     // MARK: - Methods
     
-    func getSurfaceResults(completion: @escaping ([SurfaceResult]?, String) -> Void) {
+    func getSurfaceResults(for mode: Mode, completion: @escaping ([SurfaceResult]?, String) -> Void) {
         BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
             guard let self = self, let tickers = tickers else { return }
             
             var surfaceResults: [SurfaceResult] = []
             
             let startTime = CFAbsoluteTimeGetCurrent()
-            DispatchQueue.concurrentPerform(iterations: self.currentTriangulars.count) { [weak self] i in
-                guard let self = self,
-                      let surfaceResult = self.calculateSurfaceRate(triangular: self.currentTriangulars[i], tickers: tickers) else { return }
-                
-                self.dispatchQueue.async(flags: .barrier) {
-                    surfaceResults.append(surfaceResult)
+            
+            let duration: String
+            let statusText: String
+            switch mode {
+            case .standart:
+                DispatchQueue.concurrentPerform(iterations: self.currentStandartTriangulars.count) { [weak self] i in
+                    guard let self = self,
+                          let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: self.currentStandartTriangulars[i], tickers: tickers) else { return }
+                    
+                    self.dispatchQueue.async(flags: .barrier) {
+                        surfaceResults.append(surfaceResult)
+                    }
                 }
+                duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+                statusText = "\n \(self.lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
+            case .stable:
+                DispatchQueue.concurrentPerform(iterations: self.currentStableTriangulars.count) { [weak self] i in
+                    guard let self = self,
+                          let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: self.currentStableTriangulars[i], tickers: tickers) else { return }
+                    
+                    self.dispatchQueue.async(flags: .barrier) {
+                        surfaceResults.append(surfaceResult)
+                    }
+                }
+                duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+                statusText = "\n \(self.lastStandartTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             }
-            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            let statusText = "\n \(self.lastTriangularsStatusText)\nCalculated Profits for \(self.currentTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
+            
             completion(surfaceResults, statusText)
         }
     }
 }
 
-// MARK: - Helpers
+// MARK: - Collect Triangles
 private extension ArbitrageCalculator {
     
-    // MARK: - Collect Triangles
-    func getTriangularsInfo(from tradeableSymbols: [BinanceAPIService.Symbol]) -> (triangulars: [Triangular], calculationDescription: String) {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        
+    func getTriangularsInfo(
+        for mode: Mode,
+        from tradeableSymbols: [BinanceAPIService.Symbol]
+    ) -> (triangulars: [Triangular], calculationDescription: String) {
         var removeDuplicates: Set<[String]> = Set()
         var triangulars: Set<Triangular> = Set()
         
-        // Get Pair A - Start from A
-        for pairA in tradeableSymbols {
-            let aBase: String = pairA.baseAsset
-            let aQuote: String = pairA.quoteAsset
-            
-            // Get Pair B - Find B pair where one coint matched
-            for pairB in tradeableSymbols {
-                let bBase: String = pairB.baseAsset
-                let bQuote: String = pairB.quoteAsset
+        let startTime = CFAbsoluteTimeGetCurrent()
+        let duration: String
+        let statusText: String
+        
+        switch mode {
+        case .standart:
+            // Get Pair A - Start from A
+            for pairA in tradeableSymbols {
+                let aBase: String = pairA.baseAsset
+                let aQuote: String = pairA.quoteAsset
                 
-                if pairB.symbol != pairA.symbol {
-                    if (aBase == bBase || aQuote == bBase) ||
-                        (aBase == bQuote || aQuote == bQuote) {
-                        
-                        // Get Pair C - Find C pair where base and quote exist in A and B configurations
-                        for pairC in tradeableSymbols {
-                            let cBase: String = pairC.baseAsset
-                            let cQuote: String = pairC.quoteAsset
+                // Get Pair B - Find B pair where one coint matched
+                for pairB in tradeableSymbols {
+                    let bBase: String = pairB.baseAsset
+                    let bQuote: String = pairB.quoteAsset
+                    
+                    if pairB.symbol != pairA.symbol {
+                        if (aBase == bBase || aQuote == bBase) ||
+                            (aBase == bQuote || aQuote == bQuote) {
                             
-                            // Count the number of matching C items
-                            if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
-                                let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
-                                let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
+                            // Get Pair C - Find C pair where base and quote exist in A and B configurations
+                            for pairC in tradeableSymbols {
+                                let cBase: String = pairC.baseAsset
+                                let cQuote: String = pairC.quoteAsset
                                 
-                                let cBaseCount = pairBox.filter { $0 == cBase }.count
-                                let cQuoteCount = pairBox.filter { $0 == cQuote }.count
-                                
-                                // Determining Triangular Match
-                                if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
-                                    let uniqueItem = combineAll.sorted()
+                                // Count the number of matching C items
+                                if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
+                                    let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
                                     
-                                    if removeDuplicates.contains(uniqueItem) == false {
+                                    let cBaseCount = pairBox.filter { $0 == cBase }.count
+                                    let cQuoteCount = pairBox.filter { $0 == cQuote }.count
+                                    
+                                    // Determining Triangular Match
+                                    if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
+                                        let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
+                                        let uniqueItem = combineAll.sorted()
+                                        
+                                        if removeDuplicates.contains(uniqueItem) == false {
                                             removeDuplicates.insert(uniqueItem)
                                             triangulars.insert(Triangular(aBase: aBase,
                                                                           bBase: bBase,
@@ -192,6 +247,7 @@ private extension ArbitrageCalculator {
                                                                           pairA: pairA.symbol,
                                                                           pairB: pairB.symbol,
                                                                           pairC: pairC.symbol))
+                                        }
                                     }
                                 }
                             }
@@ -199,14 +255,76 @@ private extension ArbitrageCalculator {
                     }
                 }
             }
+            
+            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            statusText = "Calculated \(triangulars.count) [Standart Triangulars] from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+            
+        case .stable:
+            for pairA in tradeableSymbols {
+                let aBase: String = pairA.baseAsset
+                let aQuote: String = pairA.quoteAsset
+                
+                if stables.contains(aBase) || stables.contains(aQuote) {
+                    // Get Pair B - Find B pair where one coin matched
+                    for pairB in tradeableSymbols {
+                        let bBase: String = pairB.baseAsset
+                        let bQuote: String = pairB.quoteAsset
+                        
+                        if pairB.symbol != pairA.symbol && ((aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote)) {
+                            
+                            // Get Pair C - Find C pair where base and quote exist in A and B configurations
+                            for pairC in tradeableSymbols {
+                                let cBase: String = pairC.baseAsset
+                                let cQuote: String = pairC.quoteAsset
+                                
+                                // Count the number of matching C items
+                                if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
+                                    let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
+                                    
+                                    let cBaseCount = pairBox.filter { $0 == cBase }.count
+                                    let cQuoteCount = pairBox.filter { $0 == cQuote }.count
+                                    
+                                    // Determining Triangular Match
+                                    // The End should be stable
+                                    if (cBaseCount == 2 && stables.contains(cQuote)) || (stables.contains(cBase) && cQuoteCount == 2) {
+                                        let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
+                                        let uniqueItem = combineAll.sorted()
+                                        
+                                        dispatchQueue.async(flags: .barrier) {
+                                            if removeDuplicates.contains(uniqueItem) == false {
+                                                removeDuplicates.insert(uniqueItem)
+                                                triangulars.insert(Triangular(aBase: aBase,
+                                                                              bBase: bBase,
+                                                                              cBase: cBase,
+                                                                              aQuote: aQuote,
+                                                                              bQuote: bQuote,
+                                                                              cQuote: cQuote,
+                                                                              pairA: pairA.symbol,
+                                                                              pairB: pairB.symbol,
+                                                                              pairC: pairC.symbol))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            statusText = "Calculated \(triangulars.count) [Stable Triangulars] from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
         }
-        let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-        let statusText = "Calculated \(triangulars.count) Triangulars from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+
         return (Array(triangulars), statusText)
     }
     
-    // MARK: - Calculate Surface Rates
-    private func calculateSurfaceRate(triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
+}
+
+// MARK: - Calculate Surface Rate for specific Triangular
+
+private extension ArbitrageCalculator {
+    
+    func calculateSurfaceRate(mode: Mode, triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
         let startingAmount: Double = 1.0
         
         var contract1 = ""
@@ -276,6 +394,17 @@ private extension ArbitrageCalculator {
                 swap1Rate = 1.0 / aAsk
                 directionTrade1 = "quote_to_base"
             }
+            
+            switch mode {
+            case .standart: break
+            case .stable:
+                if stables.contains(swap1) {
+                    break
+                } else {
+                    return nil
+                }
+            }
+            
             // Place first trade
             contract1 = pairA
             acquiredCoinT1 = startingAmount * swap1Rate * pairAComissionMultipler

@@ -50,19 +50,24 @@ public final class UsersInfoProvider: NSObject {
         mode: BotMode,
         onlineUpdatesMessageId: Int? = nil,
         arbitragingMessageId: Int? = nil,
-        triangularArbitragingMessageId: Int? = nil
+        triangularArbitragingMessageId: Int? = nil,
+        stableTriangularArbitragingMessageId: Int? = nil
     ) {
         if let userInfo = usersInfo.first(where: { $0.chatId == chatId }) {
             userInfo.selectedModes.insert(mode)
             if triangularArbitragingMessageId != nil {
                 userInfo.triangularArbitragingMessageId = triangularArbitragingMessageId
             }
+            if stableTriangularArbitragingMessageId != nil {
+                userInfo.stableTriangularArbitragingMessageId = stableTriangularArbitragingMessageId
+            }
         } else {
             let newUserInfo = UserInfo(
                 chatId: chatId,
                 user: user,
                 selectedModes: [mode],
-                triangularArbitragingMessageId: triangularArbitragingMessageId
+                triangularArbitragingMessageId: triangularArbitragingMessageId,
+                stableTriangularArbitragingMessageId: stableTriangularArbitragingMessageId
             )
             usersInfo.insert(newUserInfo)
         }

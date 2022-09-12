@@ -7,21 +7,34 @@
 
 enum BotMode: String, Codable {
     
-    case triangularArtibraging
+    case standartTriangularArtibraging
+    case stableTriangularArbritraging
     case alerting
     case suspended
     
     var jobInterval: Double { // in seconds
         switch self {
-        case .alerting: return 60
-        case .triangularArtibraging: return 3
+        case .standartTriangularArtibraging:
+#if DEBUG
+            return 5
+#else
+            return 2
+#endif
+        case .stableTriangularArbritraging:
+#if DEBUG
+            return 60
+#else
+            return 10
+#endif
+        case .alerting: return .infinity
         case .suspended: return .infinity
         }
     }
     
     var command: String {
         switch self {
-        case .triangularArtibraging: return "/start_triangular_arbitraging"
+        case .standartTriangularArtibraging: return "/start_triangular_arbitraging"
+        case .stableTriangularArbritraging: return "/start_stable_triangular_arbitraging"
         case .alerting: return "/start_alerting"
         case .suspended: return "/stop"
         }
