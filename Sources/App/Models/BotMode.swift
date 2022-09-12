@@ -14,7 +14,7 @@ enum BotMode: String, Codable {
     var jobInterval: Double { // in seconds
         switch self {
         case .alerting: return 60
-        case .triangularArtibraging: return 5
+        case .triangularArtibraging: return 3
         case .suspended: return .infinity
         }
     }
