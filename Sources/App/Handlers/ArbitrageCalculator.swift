@@ -181,7 +181,7 @@ final class ArbitrageCalculator {
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                statusText = "\n \(self.lastStandartTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
+                statusText = "\n \(self.lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             }
             
             completion(surfaceResults, statusText)

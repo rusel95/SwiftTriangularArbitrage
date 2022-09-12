@@ -29,6 +29,17 @@ final class BTCTradeAPIService {
     
     // MARK: - STRUCTS
     
+    struct PricesInfo {
+        let possibleSellPrice: Double
+        let possibleBuyPrice: Double
+    }
+
+    struct SpreadInfo {
+        let dirtySpread: Double
+        let cleanSpread: Double
+    }
+
+    
     enum TradeType: String {
         case sell = "bid"
         case buy = "ask"

@@ -10,16 +10,6 @@ import telegram_vapor_bot
 import Jobs
 import Logging
 
-struct PricesInfo {
-    let possibleSellPrice: Double
-    let possibleBuyPrice: Double
-}
-
-struct SpreadInfo {
-    let dirtySpread: Double
-    let cleanSpread: Double
-}
-
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
