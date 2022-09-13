@@ -16,7 +16,7 @@ enum BotMode: String, Codable {
         switch self {
         case .standartTriangularArtibraging:
 #if DEBUG
-            return 5
+            return 10
 #else
             return 2
 #endif

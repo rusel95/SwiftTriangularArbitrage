@@ -44,7 +44,6 @@ final class DefaultBotHandlers {
 
                 let text = surfaceResults
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
-                    .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
@@ -70,9 +69,11 @@ final class DefaultBotHandlers {
                 let extraResultsText = surfaceResults
                     .filter { $0.profitPercent >= self.interestingProfitPercent }
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
-                    .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
+                    .appending(statusText)
+                    .appending("\nUp to date as of: \(Date().readableDescription)")
+                
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
@@ -118,10 +119,11 @@ final class DefaultBotHandlers {
                 
                 let extraResultsText = surfaceResults
                     .filter { $0.profitPercent >= self.interestingProfitPercent }
-                    .sorted(by: { $0.profitPercent > $1.profitPercent })
-                    .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
+                    .appending(statusText)
+                    .appending("\nUp to date as of: \(Date().readableDescription)")
+                
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
@@ -176,7 +178,7 @@ private extension DefaultBotHandlers {
                 if UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).contains(where: { $0.chatId == chatId }) {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working - you can stop be clicking command /stop"))
                 } else {
-                    let infoMessage = "Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.standartTriangularArtibraging.jobInterval)) seconds update):\n"
+                    let infoMessage = "[Standart] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.standartTriangularArtibraging.jobInterval)) seconds update):\n"
                     let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                     explanationMessageFutute?.whenComplete({ _ in
                         let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))
@@ -206,7 +208,7 @@ private extension DefaultBotHandlers {
                 if UsersInfoProvider.shared.getUsersInfo(selectedMode: .stableTriangularArbritraging).contains(where: { $0.chatId == chatId }) {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working - you can stop be clicking command /stop"))
                 } else {
-                    let infoMessage = "Binance Online Triangular Possibilities (limited with start Stables) with profit >= 0 % (every \(Int(BotMode.stableTriangularArbritraging.jobInterval)) seconds update):\n"
+                    let infoMessage = "[Stable] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.stableTriangularArbritraging.jobInterval)) seconds update):\n"
                     let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
                     explanationMessageFutute?.whenComplete({ _ in
                         let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))

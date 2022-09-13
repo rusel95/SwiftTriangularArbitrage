@@ -147,13 +147,13 @@ final class ArbitrageCalculator {
         }
     }
     
-    // MARK: - Methods
+    // MARK: Getting Surface Results
     
     func getSurfaceResults(for mode: Mode, completion: @escaping ([SurfaceResult]?, String) -> Void) {
         BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
             guard let self = self, let tickers = tickers else { return }
             
-            var surfaceResults: [SurfaceResult] = []
+            var allSurfaceResults: [SurfaceResult] = []
             
             let startTime = CFAbsoluteTimeGetCurrent()
             
@@ -166,7 +166,7 @@ final class ArbitrageCalculator {
                           let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: self.currentStandartTriangulars[i], tickers: tickers) else { return }
                     
                     self.dispatchQueue.async(flags: .barrier) {
-                        surfaceResults.append(surfaceResult)
+                        allSurfaceResults.append(surfaceResult)
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
@@ -177,14 +177,17 @@ final class ArbitrageCalculator {
                           let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: self.currentStableTriangulars[i], tickers: tickers) else { return }
                     
                     self.dispatchQueue.async(flags: .barrier) {
-                        surfaceResults.append(surfaceResult)
+                        allSurfaceResults.append(surfaceResult)
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
                 statusText = "\n\(self.lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             }
             
-            completion(surfaceResults, statusText)
+            let valuableSurfaceResults = allSurfaceResults
+                .sorted(by: { $0.profitPercent > $1.profitPercent })
+                .prefix(10)
+            completion(Array(valuableSurfaceResults), statusText)
         }
     }
 }
