@@ -19,55 +19,6 @@ final class ArbitrageCalculator {
         case stable
     }
     
-    struct SurfaceResult: CustomStringConvertible {
-        
-        enum Direction: String {
-            case forward
-            case reverse
-        }
-        
-        let swap1: String
-        let swap2: String
-        let swap3: String
-        let contract1: String
-        let contract2: String
-        let contract3: String
-        let directionTrade1: String
-        let directionTrade2: String
-        let directionTrade3: String
-        let acquiredCoinT1: Double
-        let acquiredCoinT2: Double
-        let acquiredCoinT3: Double
-        let swap1Rate: Double
-        let swap2Rate: Double
-        let swap3Rate: Double
-        let profitPercent: Double
-        let direction: Direction
-        
-        var description: String {
-            String("""
-                      \(direction) \(contract1) \(contract2) \(contract3)
-                      Step 1: Start with \(swap1) of \(1.0) Swap at \(swap1Rate.string()) for \(swap2) acquiring \(acquiredCoinT1.string())
-                      Step 2: Swap \(acquiredCoinT1.string()) of \(swap2) at \(swap2Rate.string()) for \(swap3) acquiring \(acquiredCoinT2.string())
-                      Step 3: Swap \(acquiredCoinT2.string()) of \(swap3) at \(swap3Rate.string()) for \(swap1) acquiring \(acquiredCoinT3.string())
-                      Profit: \(profitPercent.string()) %\n
-                      """)
-        }
-        
-    }
-    
-    struct Triangular: Hashable, Codable {
-        let aBase: String
-        let bBase: String
-        let cBase: String
-        let aQuote: String
-        let bQuote: String
-        let cQuote: String
-        let pairA: String
-        let pairB: String
-        let pairC: String
-    }
-    
     // MARK: - Properties
     
     static let shared = ArbitrageCalculator()
@@ -255,7 +206,7 @@ private extension ArbitrageCalculator {
             }
             
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "[Standart Triangulars] Calculated \(triangulars.count)from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+            statusText = "[Standart Triangulars] Calculated \(triangulars.count) from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
             
         case .stable:
             for pairA in tradeableSymbols {
@@ -316,7 +267,7 @@ private extension ArbitrageCalculator {
     
 }
 
-// MARK: - Calculate Surface Rate for specific Triangular
+// MARK: - Calculate Triangular's Surface Rate
 
 private extension ArbitrageCalculator {
     
@@ -366,6 +317,7 @@ private extension ArbitrageCalculator {
         let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
         for direction in directionsList {
             // Set additional variables for swap information
+            var swap0 = ""
             var swap1 = ""
             var swap2 = ""
             var swap3 = ""
@@ -380,13 +332,13 @@ private extension ArbitrageCalculator {
             
             switch direction {
             case .forward:
-                swap1 = aBase
-                swap2 = aQuote
+                swap0 = aBase
+                swap1 = aQuote
                 swap1Rate = aBid
                 directionTrade1 = "base_to_quote"
             case .reverse:
-                swap1 = aQuote
-                swap2 = aBase
+                swap0 = aQuote
+                swap1 = aBase
                 swap1Rate = 1.0 / aAsk
                 directionTrade1 = "quote_to_base"
             }
@@ -394,7 +346,7 @@ private extension ArbitrageCalculator {
             switch mode {
             case .standart: break
             case .stable:
-                if stables.contains(swap1) {
+                if stables.contains(swap0) {
                     break
                 } else {
                     return nil
@@ -418,7 +370,8 @@ private extension ArbitrageCalculator {
                     
                     // if bBase (aquiredCoin) mathces cBase
                     if bBase == cBase {
-                        swap3 = cBase
+                        swap2 = cBase
+                        swap3 = cQuote
                         swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
@@ -426,7 +379,8 @@ private extension ArbitrageCalculator {
                     
                     // if bBase (aquired coin) mathces cQuote
                     if bBase == cQuote {
-                        swap3 = cQuote
+                        swap2 = cQuote
+                        swap3 = cBase
                         swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
@@ -445,7 +399,8 @@ private extension ArbitrageCalculator {
                     
                     // if bQuote (aquired coin) mathces cBase
                     if bBase == cBase {
-                        swap3 = cBase
+                        swap2 = cBase
+                        swap3 = cQuote
                         swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
@@ -453,7 +408,8 @@ private extension ArbitrageCalculator {
                     
                     // if bQoute (aquired coin) mathces cQuote
                     if bQuote == cQuote {
-                        swap3 = cQuote
+                        swap2 = cQuote
+                        swap3 = cBase
                         swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
@@ -471,7 +427,8 @@ private extension ArbitrageCalculator {
                     
                     // if cBase (aquired coin) mathces bBase
                     if cBase == bBase {
-                        swap3 = bBase
+                        swap2 = bBase
+                        swap3 = bQuote
                         swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
@@ -479,7 +436,8 @@ private extension ArbitrageCalculator {
                     
                     // if cBase (aquired coin) mathces bQuote
                     if cBase == bQuote {
-                        swap3 = bQuote
+                        swap2 = bQuote
+                        swap3 = bBase
                         swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
@@ -497,7 +455,8 @@ private extension ArbitrageCalculator {
                     
                     // if cQuote (aquired coin) mathces bBase
                     if cQuote == bBase {
-                        swap3 = bBase
+                        swap2 = bBase
+                        swap3 = bQuote
                         swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
@@ -505,7 +464,8 @@ private extension ArbitrageCalculator {
                     
                     // if cQuote (aquired coin) mathces bQuote
                     if cQuote == bQuote {
-                        swap3 = bQuote
+                        swap2 = bQuote
+                        swap3 = bBase
                         swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
@@ -526,7 +486,8 @@ private extension ArbitrageCalculator {
                     
                     // if bBase (aquired coin) mathces cBase
                     if bBase == cBase {
-                        swap3 = cBase
+                        swap2 = cBase
+                        swap3 = cQuote
                         swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
@@ -534,7 +495,8 @@ private extension ArbitrageCalculator {
                     
                     // if bBase (aquired coin) mathces cQuote
                     if bBase == cQuote {
-                        swap3 = cQuote
+                        swap2 = cQuote
+                        swap3 = cBase
                         swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
@@ -552,7 +514,8 @@ private extension ArbitrageCalculator {
                     
                     // if bQuote (aquired coin) mathces cBase
                     if bBase == cBase {
-                        swap3 = cBase
+                        swap2 = cBase
+                        swap3 = cQuote
                         swap3Rate = cBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairC
@@ -560,7 +523,8 @@ private extension ArbitrageCalculator {
                     
                     // if bQoute (aquired coin) mathces cQuote
                     if bQuote == cQuote {
-                        swap3 = cQuote
+                        swap2 = cQuote
+                        swap3 = cBase
                         swap3Rate = 1.0 / cAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairC
@@ -578,7 +542,8 @@ private extension ArbitrageCalculator {
                     
                     // if cBase (aquired coin) mathces bBase
                     if cBase == bBase {
-                        swap3 = bBase
+                        swap2 = bBase
+                        swap3 = bQuote
                         swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
@@ -586,7 +551,8 @@ private extension ArbitrageCalculator {
                     
                     // if bBase (aquired coin) mathces bQuote
                     if cBase == bQuote {
-                        swap3 = bQuote
+                        swap2 = bQuote
+                        swap3 = bBase
                         swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
@@ -604,7 +570,8 @@ private extension ArbitrageCalculator {
                     
                     // if cQuote (aquired coin) mathces bBase
                     if cQuote == bBase {
-                        swap3 = bBase
+                        swap2 = bBase
+                        swap3 = bQuote
                         swap3Rate = bBid
                         directionTrade3 = "base_to_quote"
                         contract3 = pairB
@@ -612,7 +579,8 @@ private extension ArbitrageCalculator {
                     
                     // if cQuote (aquired coin) mathces bQuote
                     if cQuote == bQuote {
-                        swap3 = bQuote
+                        swap2 = bQuote
+                        swap3 = bBase
                         swap3Rate = 1.0 / bAsk
                         directionTrade3 = "quote_to_base"
                         contract3 = pairB
@@ -627,8 +595,9 @@ private extension ArbitrageCalculator {
             let profitPercent = (profit / startingAmount) * 100.0
             
             // Output results
-            if profitPercent > -0.2 {
+            if profitPercent > -0.3 {
                 return SurfaceResult(
+                    swap0: swap0,
                     swap1: swap1,
                     swap2: swap2,
                     swap3: swap3,

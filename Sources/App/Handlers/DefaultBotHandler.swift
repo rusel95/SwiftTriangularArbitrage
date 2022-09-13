@@ -93,7 +93,6 @@ final class DefaultBotHandlers {
 
                 let text = surfaceResults
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
-                    .prefix(10)
                     .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
