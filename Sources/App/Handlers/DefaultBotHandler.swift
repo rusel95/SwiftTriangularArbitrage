@@ -20,7 +20,7 @@ final class DefaultBotHandlers {
     
     private var lastAlertingEvents: [String: Date] = [:]
     
-    private let interestingProfitPercent: Double = 0.3
+    private let interestingProfitPercent: Double = 0.4
 
     // MARK: - METHODS
     
@@ -75,7 +75,7 @@ final class DefaultBotHandlers {
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending(statusText).appending("\nUp to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
@@ -123,7 +123,7 @@ final class DefaultBotHandlers {
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending(statusText).appending("\nUp to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
