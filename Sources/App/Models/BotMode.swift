@@ -33,8 +33,8 @@ enum BotMode: String, Codable {
     
     var command: String {
         switch self {
-        case .standartTriangularArtibraging: return "/start_triangular_arbitraging"
-        case .stableTriangularArbritraging: return "/start_stable_triangular_arbitraging"
+        case .standartTriangularArtibraging: return "/standart_triangular_arbitraging"
+        case .stableTriangularArbritraging: return "/stable_triangular_arbitraging"
         case .alerting: return "/start_alerting"
         case .suspended: return "/stop"
         }
