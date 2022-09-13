@@ -73,6 +73,7 @@ final class ArbitrageCalculator {
     static let shared = ArbitrageCalculator()
     
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
+    private var bookTickersDictionary: [String: BinanceAPIService.BookTicker] = [:]
     private var currentStandartTriangulars: [Triangular] = []
     private var currentStableTriangulars: [Triangular] = []
     
@@ -81,7 +82,7 @@ final class ArbitrageCalculator {
     private var logger = Logger(label: "logget.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private let dispatchQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
+    private let arrayMutationQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
     
     private var triangularsStorageURL: URL {
         let fileName = "triangulars"
@@ -153,6 +154,8 @@ final class ArbitrageCalculator {
         BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
             guard let self = self, let tickers = tickers else { return }
             
+            self.bookTickersDictionary = tickers.toDictionary { $0.symbol }
+            
             var allSurfaceResults: [SurfaceResult] = []
             
             let startTime = CFAbsoluteTimeGetCurrent()
@@ -162,10 +165,8 @@ final class ArbitrageCalculator {
             switch mode {
             case .standart:
                 self.currentStandartTriangulars.forEach { triangular in
-                    if let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: triangular, tickers: tickers) {
-                        self.dispatchQueue.async(flags: .barrier) {
-                            allSurfaceResults.append(surfaceResult)
-                        }
+                    if let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: triangular) {
+                        allSurfaceResults.append(surfaceResult)
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
@@ -173,9 +174,9 @@ final class ArbitrageCalculator {
             case .stable:
                 DispatchQueue.concurrentPerform(iterations: self.currentStableTriangulars.count) { [weak self] i in
                     guard let self = self,
-                          let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: self.currentStableTriangulars[i], tickers: tickers) else { return }
+                          let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: self.currentStableTriangulars[i]) else { return }
                     
-                    self.dispatchQueue.async(flags: .barrier) {
+                    self.arrayMutationQueue.async(flags: .barrier) {
                         allSurfaceResults.append(surfaceResult)
                     }
                 }
@@ -292,7 +293,7 @@ private extension ArbitrageCalculator {
                                         let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
                                         let uniqueItem = combineAll.sorted()
                                         
-                                        dispatchQueue.async(flags: .barrier) {
+                                        arrayMutationQueue.async(flags: .barrier) {
                                             if removeDuplicates.contains(uniqueItem) == false {
                                                 removeDuplicates.insert(uniqueItem)
                                                 triangulars.insert(Triangular(aBase: aBase,
@@ -326,7 +327,7 @@ private extension ArbitrageCalculator {
 
 private extension ArbitrageCalculator {
     
-    func calculateSurfaceRate(mode: Mode, triangular: Triangular, tickers: [BinanceAPIService.BookTicker]) -> SurfaceResult? {
+    func calculateSurfaceRate(mode: Mode, triangular: Triangular) -> SurfaceResult? {
         let startingAmount: Double = 1.0
         
         var contract1 = ""
@@ -354,14 +355,14 @@ private extension ArbitrageCalculator {
         let pairAComissionMultipler = getCommissionMultipler(symbol: pairA)
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
-        
-        guard let pairAPrice = tickers.first(where: { $0.symbol == triangular.pairA }),
+
+        guard let pairAPrice = bookTickersDictionary[triangular.pairA],
               let aAsk = Double(pairAPrice.askPrice),
               let aBid = Double(pairAPrice.bidPrice),
-              let pairBPrice = tickers.first(where: { $0.symbol == triangular.pairB }),
+              let pairBPrice = bookTickersDictionary[triangular.pairB],
               let bAsk = Double(pairBPrice.askPrice),
               let bBid = Double(pairBPrice.bidPrice),
-              let pairCPrice = tickers.first(where: { $0.symbol == triangular.pairC }),
+              let pairCPrice = bookTickersDictionary[triangular.pairC],
               let cAsk = Double(pairCPrice.askPrice),
               let cBid = Double(pairCPrice.bidPrice) else {
             logger.critical("No prices for \(triangular)")
