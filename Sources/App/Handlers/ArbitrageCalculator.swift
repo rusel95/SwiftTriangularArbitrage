@@ -79,7 +79,7 @@ final class ArbitrageCalculator {
     private var lastStandartTriangularsStatusText: String = ""
     private var lastStableTriangularsStatusText: String = ""
     private var logger = Logger(label: "logget.artitrage.triangular")
-    private var isFirstUpdateCycle: Bool = false
+    private var isFirstUpdateCycle: Bool = true
     
     private let dispatchQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
     
@@ -131,7 +131,7 @@ final class ArbitrageCalculator {
                     
                     let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.tradeableSymbols)
                     self.currentStableTriangulars = stableTriangularsInfo.triangulars
-                    self.lastStableTriangularsStatusText = standartTriangularsInfo.calculationDescription
+                    self.lastStableTriangularsStatusText = stableTriangularsInfo.calculationDescription
                     
                     do {
                         let standartTriangularsEndcodedData = try JSONEncoder().encode(self.currentStandartTriangulars)
@@ -170,7 +170,7 @@ final class ArbitrageCalculator {
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                statusText = "\n \(self.lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
+                statusText = "\n\(self.lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             case .stable:
                 DispatchQueue.concurrentPerform(iterations: self.currentStableTriangulars.count) { [weak self] i in
                     guard let self = self,
@@ -181,7 +181,7 @@ final class ArbitrageCalculator {
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                statusText = "\n \(self.lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
+                statusText = "\n\(self.lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             }
             
             completion(surfaceResults, statusText)
@@ -257,7 +257,7 @@ private extension ArbitrageCalculator {
             }
             
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "Calculated \(triangulars.count) [Standart Triangulars] from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+            statusText = "[Standart Triangulars] Calculated \(triangulars.count)from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
             
         case .stable:
             for pairA in tradeableSymbols {
@@ -312,7 +312,7 @@ private extension ArbitrageCalculator {
                 }
             }
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "Calculated \(triangulars.count) [Stable Triangulars] from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated  \(Date().readableDescription))"
+            statusText = "[Stable Triangulars] Calculated \(triangulars.count) from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated \(Date().readableDescription))"
         }
 
         return (Array(triangulars), statusText)
@@ -631,7 +631,7 @@ private extension ArbitrageCalculator {
             let profitPercent = (profit / startingAmount) * 100.0
             
             // Output results
-            if profitPercent > -0.5 {
+            if profitPercent > -0.2 {
                 return SurfaceResult(
                     swap1: swap1,
                     swap2: swap2,
