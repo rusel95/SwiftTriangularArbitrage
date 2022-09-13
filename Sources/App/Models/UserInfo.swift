@@ -18,7 +18,7 @@ final class UserInfo: Codable, Hashable, Equatable {
     
     var selectedModes: Set<BotMode> = []
     
-    var triangularArbitragingMessageId: Int?
+    var standartTriangularArbitragingMessageId: Int?
     var stableTriangularArbitragingMessageId: Int?
     
     init(

@@ -16,15 +16,15 @@ enum BotMode: String, Codable {
         switch self {
         case .standartTriangularArtibraging:
 #if DEBUG
-            return 10
+            return 5
 #else
             return 2
 #endif
         case .stableTriangularArbritraging:
 #if DEBUG
-            return 60
-#else
             return 10
+#else
+            return 3
 #endif
         case .alerting: return .infinity
         case .suspended: return .infinity

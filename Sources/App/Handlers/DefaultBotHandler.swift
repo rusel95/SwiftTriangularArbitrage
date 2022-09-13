@@ -32,12 +32,12 @@ final class DefaultBotHandlers {
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
         
-        startTriangularArbitragingMonitoring(bot: bot)
+        startStandartTriangularArbitragingMonitoring(bot: bot)
         startStableTriangularArbitragingMonitoring(bot: bot)
     }
 
     
-    func startTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
+    func startStandartTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
             ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
@@ -51,7 +51,7 @@ final class DefaultBotHandlers {
                 
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).forEach { userInfo in
                     do {
-                        if let triangularArbitragingMessageId = userInfo.triangularArbitragingMessageId {
+                        if let triangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
                             let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                             messageId: triangularArbitragingMessageId,
                                                                             inlineMessageId: nil,
@@ -185,7 +185,7 @@ private extension DefaultBotHandlers {
                             UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
                                                                         user: user,
                                                                         mode: .standartTriangularArtibraging,
-                                                                        triangularArbitragingMessageId: triangularArbitragingMessageId)
+                                                                        standartTriangularArbitragingMessageId: triangularArbitragingMessageId)
                         })
                     })
                 }
