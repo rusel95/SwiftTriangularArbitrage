@@ -88,7 +88,7 @@ final class ArbitrageCalculator {
                         try standartTriangularsEndcodedData.write(to: self.triangularsStorageURL)
                         
                         let stableTriangularsEndcodedData = try JSONEncoder().encode(self.currentStableTriangulars)
-                        try stableTriangularsEndcodedData.write(to: self.triangularsStorageURL)
+                        try stableTriangularsEndcodedData.write(to: self.stableTriangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                     }
