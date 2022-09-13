@@ -161,12 +161,11 @@ final class ArbitrageCalculator {
             let statusText: String
             switch mode {
             case .standart:
-                DispatchQueue.concurrentPerform(iterations: self.currentStandartTriangulars.count) { [weak self] i in
-                    guard let self = self,
-                          let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: self.currentStandartTriangulars[i], tickers: tickers) else { return }
-                    
-                    self.dispatchQueue.async(flags: .barrier) {
-                        allSurfaceResults.append(surfaceResult)
+                self.currentStandartTriangulars.forEach { triangular in
+                    if let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: triangular, tickers: tickers) {
+                        self.dispatchQueue.async(flags: .barrier) {
+                            allSurfaceResults.append(surfaceResult)
+                        }
                     }
                 }
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
