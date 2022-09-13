@@ -67,7 +67,7 @@ final class DefaultBotHandlers {
                 }
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.interestingProfitPercent }
+                    .filter { $0.profitPercent >= self.interestingProfitPercent && $0.profitPercent < 100 }
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .map { $0.description }
                     .joined(separator: "\n")
@@ -118,7 +118,7 @@ final class DefaultBotHandlers {
                 }
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.interestingProfitPercent }
+                    .filter { $0.profitPercent >= self.interestingProfitPercent && $0.profitPercent < 100 }
                     .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
