@@ -82,8 +82,6 @@ final class ArbitrageCalculator {
     private var logger = Logger(label: "logget.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private let arrayMutationQueue = DispatchQueue(label: "com.SwiftTriangularArbitrage", attributes: .concurrent)
-    
     private var triangularsStorageURL: URL {
         let fileName = "triangulars"
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
@@ -172,11 +170,8 @@ final class ArbitrageCalculator {
                 duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
                 statusText = "\n\(self.lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             case .stable:
-                DispatchQueue.concurrentPerform(iterations: self.currentStableTriangulars.count) { [weak self] i in
-                    guard let self = self,
-                          let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: self.currentStableTriangulars[i]) else { return }
-                    
-                    self.arrayMutationQueue.async(flags: .barrier) {
+                self.currentStableTriangulars.forEach { triangular in
+                    if let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: triangular) {
                         allSurfaceResults.append(surfaceResult)
                     }
                 }
@@ -293,19 +288,17 @@ private extension ArbitrageCalculator {
                                         let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
                                         let uniqueItem = combineAll.sorted()
                                         
-                                        arrayMutationQueue.async(flags: .barrier) {
-                                            if removeDuplicates.contains(uniqueItem) == false {
-                                                removeDuplicates.insert(uniqueItem)
-                                                triangulars.insert(Triangular(aBase: aBase,
-                                                                              bBase: bBase,
-                                                                              cBase: cBase,
-                                                                              aQuote: aQuote,
-                                                                              bQuote: bQuote,
-                                                                              cQuote: cQuote,
-                                                                              pairA: pairA.symbol,
-                                                                              pairB: pairB.symbol,
-                                                                              pairC: pairC.symbol))
-                                            }
+                                        if removeDuplicates.contains(uniqueItem) == false {
+                                            removeDuplicates.insert(uniqueItem)
+                                            triangulars.insert(Triangular(aBase: aBase,
+                                                                          bBase: bBase,
+                                                                          cBase: cBase,
+                                                                          aQuote: aQuote,
+                                                                          bQuote: bQuote,
+                                                                          cQuote: cQuote,
+                                                                          pairA: pairA.symbol,
+                                                                          pairB: pairB.symbol,
+                                                                          pairC: pairC.symbol))
                                         }
                                     }
                                 }

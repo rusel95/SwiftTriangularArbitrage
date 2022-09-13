@@ -71,13 +71,12 @@ final class DefaultBotHandlers {
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .map { $0.description }
                     .joined(separator: "\n")
-                    .appending(statusText)
-                    .appending("\nUp to date as of: \(Date().readableDescription)")
                 
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: extraResultsText))
+                            let text = extraResultsText.appending(statusText).appending("\nUp to date as of: \(Date().readableDescription)")
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
                         self.logger.report(error: botError)
@@ -121,13 +120,12 @@ final class DefaultBotHandlers {
                     .filter { $0.profitPercent >= self.interestingProfitPercent && $0.profitPercent < 100 }
                     .map { $0.description }
                     .joined(separator: "\n")
-                    .appending(statusText)
-                    .appending("\nUp to date as of: \(Date().readableDescription)")
                 
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: extraResultsText))
+                            let text = extraResultsText.appending(statusText).appending("\nUp to date as of: \(Date().readableDescription)")
+                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
                         self.logger.report(error: botError)
