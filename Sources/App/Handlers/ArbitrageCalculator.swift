@@ -39,7 +39,7 @@ final class ArbitrageCalculator {
         let documentsDirectory = paths[0]
         return documentsDirectory
 #else
-        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
 #endif
     }
     
