@@ -169,59 +169,43 @@ private extension DefaultBotHandlers {
     // MARK: /start_triangular_arbitraging
     
     func commandStartTriangularArbitragingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [BotMode.standartTriangularArtibraging.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+        let handler = TGCommandHandler(commands: [BotMode.standartTriangularArtibraging.command]) { update, bot in
+            guard let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            do {
-                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).contains(where: { $0.chatId == chatId }) {
-                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working - you can stop be clicking command /stop"))
-                } else {
-                    let infoMessage = "[Standart] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.standartTriangularArtibraging.jobInterval)) seconds update):\n"
-                    let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-                    explanationMessageFutute?.whenComplete({ _ in
-                        let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))
-                        editMessageFuture?.whenComplete({ result in
-                            let triangularArbitragingMessageId = try? result.get().messageId
-                            UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
-                                                                        user: user,
-                                                                        mode: .standartTriangularArtibraging,
-                                                                        standartTriangularArbitragingMessageId: triangularArbitragingMessageId)
-                        })
-                    })
-                }
-            } catch (let botError) {
-                self.logger.report(error: botError)
-            }
+            let infoMessage = "[Standart] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.standartTriangularArtibraging.jobInterval)) seconds update):\n"
+            let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+            explanationMessageFutute?.whenComplete({ _ in
+                let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))
+                editMessageFuture?.whenComplete({ result in
+                    let triangularArbitragingMessageId = try? result.get().messageId
+                    UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
+                                                                user: user,
+                                                                mode: .standartTriangularArtibraging,
+                                                                standartTriangularArbitragingMessageId: triangularArbitragingMessageId)
+                })
+            })
         }
         bot.connection.dispatcher.add(handler)
     }
     
-    // MARK: /start_stable_triangular_arbitraging
+    // MARK: /stable_triangular_arbitraging
     
     func commandStartStableTriangularArbitragingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [BotMode.stableTriangularArbritraging.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+        let handler = TGCommandHandler(commands: [BotMode.stableTriangularArbritraging.command]) { update, bot in
+            guard let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
-            do {
-                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .stableTriangularArbritraging).contains(where: { $0.chatId == chatId }) {
-                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working - you can stop be clicking command /stop"))
-                } else {
-                    let infoMessage = "[Stable] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.stableTriangularArbritraging.jobInterval)) seconds update):\n"
-                    let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
-                    explanationMessageFutute?.whenComplete({ _ in
-                        let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))
-                        editMessageFuture?.whenComplete({ result in
-                            let stableTriangularArbitragingMessageId = try? result.get().messageId
-                            UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
-                                                                        user: user,
-                                                                        mode: .stableTriangularArbritraging,
-                                                                        stableTriangularArbitragingMessageId: stableTriangularArbitragingMessageId)
-                        })
-                    })
-                }
-            } catch (let botError) {
-                self.logger.report(error: botError)
-            }
+            let infoMessage = "[Stable] Binance Online Triangular Possibilities with profit >= 0 % (every \(Int(BotMode.stableTriangularArbritraging.jobInterval)) seconds update):\n"
+            let explanationMessageFutute = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: infoMessage))
+            explanationMessageFutute?.whenComplete({ _ in
+                let editMessageFuture = try? bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Updating.."))
+                editMessageFuture?.whenComplete({ result in
+                    let stableTriangularArbitragingMessageId = try? result.get().messageId
+                    UsersInfoProvider.shared.handleModeSelected(chatId: chatId,
+                                                                user: user,
+                                                                mode: .stableTriangularArbritraging,
+                                                                stableTriangularArbitragingMessageId: stableTriangularArbitragingMessageId)
+                })
+            })
         }
         bot.connection.dispatcher.add(handler)
     }
