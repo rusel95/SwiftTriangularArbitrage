@@ -17,6 +17,15 @@ final class ArbitrageCalculator {
     enum Mode {
         case standart
         case stable
+        
+        var description: String {
+            switch self {
+            case .standart:
+                return "[Standart]"
+            case .stable:
+                return "[Stable]"
+            }
+        }
     }
     
     // MARK: - Properties
@@ -320,7 +329,7 @@ private extension ArbitrageCalculator {
             logger.critical("No prices for \(triangular)")
             return nil
         }
-        
+
         // Set direction and loop through
         let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
         for direction in directionsList {
@@ -605,6 +614,7 @@ private extension ArbitrageCalculator {
             // Output results
             if profitPercent > -0.3 {
                 return SurfaceResult(
+                    modeDescrion: mode.description,
                     swap0: swap0,
                     swap1: swap1,
                     swap2: swap2,

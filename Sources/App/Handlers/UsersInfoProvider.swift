@@ -66,6 +66,7 @@ public final class UsersInfoProvider: NSObject {
             if stableTriangularArbitragingMessageId != nil {
                 userInfo.stableTriangularArbitragingMessageId = stableTriangularArbitragingMessageId
             }
+            userInfo.lastUsedDate = Date()
         } else {
             let newUserInfo = UserInfo(
                 chatId: chatId,

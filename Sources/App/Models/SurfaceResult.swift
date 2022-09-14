@@ -14,6 +14,7 @@ struct SurfaceResult: CustomStringConvertible {
         case reverse
     }
     
+    let modeDescrion: String
     let swap0: String // starting coin
     let swap1: String
     let swap2: String
@@ -35,7 +36,7 @@ struct SurfaceResult: CustomStringConvertible {
     
     var description: String {
         String("""
-                  \(direction) \(contract1) \(contract2) \(contract3)
+                  \(modeDescrion) \(direction) \(contract1) \(contract2) \(contract3)
                   Step 1: Start with \(swap0) of \(1.0) Swap at \(swap1Rate.string()) for \(swap1) acquiring \(acquiredCoinT1.string())
                   Step 2: Swap \(acquiredCoinT1.string()) of \(swap1) at \(swap2Rate.string()) for \(swap2) acquiring \(acquiredCoinT2.string())
                   Step 3: Swap \(acquiredCoinT2.string()) of \(swap2) at \(swap3Rate.string()) for \(swap3) acquiring \(acquiredCoinT3.string())

@@ -5,6 +5,7 @@
 //  Created by Ruslan Popesku on 18.07.2022.
 //
 
+import Foundation
 import telegram_vapor_bot
 
 final class UserInfo: Codable, Hashable, Equatable {
@@ -20,6 +21,7 @@ final class UserInfo: Codable, Hashable, Equatable {
     
     var standartTriangularArbitragingMessageId: Int?
     var stableTriangularArbitragingMessageId: Int?
+    var lastUsedDate: Date?
     
     init(
         chatId: Int64,
@@ -35,6 +37,7 @@ final class UserInfo: Codable, Hashable, Equatable {
         self.username = user.username
         self.languageCode = user.languageCode
         self.selectedModes = selectedModes
+        self.lastUsedDate = Date()
     }
     
     func hash(into hasher: inout Hasher) {
@@ -50,7 +53,7 @@ final class UserInfo: Codable, Hashable, Equatable {
 extension UserInfo: CustomStringConvertible {
     
     var description: String {
-        "\(firstName) - modes: [\(selectedModes.map { $0.command }.joined(separator: ", "))] chat: \(chatId) id: \(userId)"
+        "\(firstName) - modes: [\(selectedModes.map { $0.command }.joined(separator: ", "))] chat: \(chatId) id: \(userId) last used: \(lastUsedDate?.fullDateReadableDescription ?? "")"
     }
     
 }

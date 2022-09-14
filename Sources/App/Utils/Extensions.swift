@@ -35,6 +35,13 @@ extension Date {
         dateFormatter.locale = Locale(identifier: "UA_ua")
         return dateFormatter.string(from: self)
     }
+    
+    var fullDateReadableDescription: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM-dd-yyyy HH:mm"
+        dateFormatter.locale = Locale(identifier: "UA_ua")
+        return dateFormatter.string(from: self)
+    }
                     
 }
 
