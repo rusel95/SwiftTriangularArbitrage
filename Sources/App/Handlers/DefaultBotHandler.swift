@@ -75,7 +75,7 @@ final class DefaultBotHandlers {
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\n[Standart] Up to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
@@ -123,7 +123,7 @@ final class DefaultBotHandlers {
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\n[Stable] Up to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
