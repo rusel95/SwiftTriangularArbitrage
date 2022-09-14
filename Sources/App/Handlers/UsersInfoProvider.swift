@@ -19,7 +19,13 @@ public final class UsersInfoProvider: NSObject {
     
     private var storageURL: URL {
         let fileName = "usersInfo"
+#if os(OSX)
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let documentsDirectory = paths[0]
+        return documentsDirectory.appendingPathComponent(fileName)
+#else
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+#endif
     }
 
     // MARK: - INIT

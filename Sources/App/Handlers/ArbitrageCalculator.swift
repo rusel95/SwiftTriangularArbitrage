@@ -33,13 +33,21 @@ final class ArbitrageCalculator {
     private var logger = Logger(label: "logget.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private var triangularsStorageURL: URL {
-        let fileName = "triangulars"
+    private var documentsDirectory: URL {
+#if os(OSX)
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let documentsDirectory = paths[0]
+        return documentsDirectory
+#else
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+#endif
+    }
+    
+    private var triangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("triangulars")
     }
     private var stableTriangularsStorageURL: URL {
-        let fileName = "stable_triangulars"
-        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/\(fileName)")
+        documentsDirectory.appendingPathComponent("stable_triangulars")
     }
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT", "ETHBUSD")

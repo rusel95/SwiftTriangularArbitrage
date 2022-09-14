@@ -49,11 +49,12 @@ final class DefaultBotHandlers {
                     .appending(statusText)
                     .appending("\nUp to date as of: \(Date().readableDescription)")
                 
+                // NOTE: - sending all info to specific people separatly
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).forEach { userInfo in
                     do {
-                        if let triangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
+                        if let standartTriangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
                             let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                            messageId: triangularArbitragingMessageId,
+                                                                            messageId: standartTriangularArbitragingMessageId,
                                                                             inlineMessageId: nil,
                                                                             text: text)
                             _ = try bot.editMessageText(params: editParams)
