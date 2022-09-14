@@ -156,6 +156,7 @@ final class ArbitrageCalculator {
 }
 
 // MARK: - Collect Triangles
+
 private extension ArbitrageCalculator {
     
     func getTriangularsInfo(
@@ -230,7 +231,8 @@ private extension ArbitrageCalculator {
                 let aBase: String = pairA.baseAsset
                 let aQuote: String = pairA.quoteAsset
                 
-                if stables.contains(aBase) || stables.contains(aQuote) {
+                if (stables.contains(aBase) && stables.contains(aQuote) == false) ||
+                    (stables.contains(aBase) == false && stables.contains(aQuote)) {
                     // Get Pair B - Find B pair where one coin matched
                     for pairB in tradeableSymbols {
                         let bBase: String = pairB.baseAsset
@@ -252,6 +254,7 @@ private extension ArbitrageCalculator {
                                     
                                     // Determining Triangular Match
                                     // The End should be stable
+                                    // TODO: - the end should be any Stable
                                     if (cBaseCount == 2 && stables.contains(cQuote)) || (stables.contains(cBase) && cQuoteCount == 2) {
                                         let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
                                         let uniqueItem = combineAll.sorted()

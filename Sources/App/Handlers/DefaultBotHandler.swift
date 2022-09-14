@@ -20,7 +20,8 @@ final class DefaultBotHandlers {
     
     private var lastAlertingEvents: [String: Date] = [:]
     
-    private let interestingProfitPercent: Double = 0.4
+    private let standartProfitPercent: Double = 0.5
+    private let stableProfitPercent: Double = 0.3
 
     // MARK: - METHODS
     
@@ -43,7 +44,6 @@ final class DefaultBotHandlers {
                 guard let self = self, let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
-                    .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
@@ -68,7 +68,7 @@ final class DefaultBotHandlers {
                 }
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.interestingProfitPercent && $0.profitPercent < 100 }
+                    .filter { $0.profitPercent >= self.standartProfitPercent && $0.profitPercent < 100 }
                     .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .map { $0.description }
                     .joined(separator: "\n")
@@ -76,7 +76,7 @@ final class DefaultBotHandlers {
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\n[Standart] Up to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
@@ -93,7 +93,6 @@ final class DefaultBotHandlers {
                 guard let self = self, let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
-                    .sorted(by: { $0.profitPercent > $1.profitPercent })
                     .map { $0.description }
                     .joined(separator: "\n")
                     .appending(statusText)
@@ -117,14 +116,14 @@ final class DefaultBotHandlers {
                 }
                 
                 let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.interestingProfitPercent && $0.profitPercent < 100 }
+                    .filter { $0.profitPercent >= self.stableProfitPercent && $0.profitPercent < 100 }
                     .map { $0.description }
                     .joined(separator: "\n")
                 
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
                     do {
                         if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\n[Stable] Up to date as of: \(Date().readableDescription)")
+                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                     } catch (let botError) {
@@ -155,7 +154,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(self.interestingProfitPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(self.stableProfitPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -221,7 +220,7 @@ private extension DefaultBotHandlers {
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working, you can stop by tapping on command /stop"))
                 } else {
                     let text = """
-                    Started hunting on triangular arbitrage opportunities with >= \(self.interestingProfitPercent)% profitability
+                    Starting alerting about:\n [Standart] opportunities with >= \(self.standartProfitPercent)% profitability\n [Stable] opportunities with >= \(self.stableProfitPercent)% profitability
                     """
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                     UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
