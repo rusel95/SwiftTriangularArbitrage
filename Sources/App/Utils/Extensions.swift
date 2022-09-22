@@ -67,3 +67,11 @@ extension Array {
     }
     
 }
+
+extension Array where Element: FloatingPoint {
+    
+    func averageIncr() -> Element {
+        return enumerated().reduce(Element(0)) { $0 + ( $1.1 - $0 ) / Element($1.0 + 1) }
+    }
+    
+}

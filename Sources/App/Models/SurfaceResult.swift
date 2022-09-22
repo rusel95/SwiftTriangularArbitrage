@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SurfaceResult: CustomStringConvertible {
+struct SurfaceResult: CustomStringConvertible, Hashable {
     
     enum Direction: String {
         case forward
@@ -44,4 +44,7 @@ struct SurfaceResult: CustomStringConvertible {
                   """)
     }
     
+    var contractsDescription: String {
+        "\(contract1)_\(contract2)_\(contract3)"
+    }
 }

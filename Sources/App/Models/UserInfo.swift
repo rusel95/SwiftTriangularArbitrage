@@ -53,7 +53,7 @@ final class UserInfo: Codable, Hashable, Equatable {
 extension UserInfo: CustomStringConvertible {
     
     var description: String {
-        "\(firstName) - modes: [\(selectedModes.map { $0.command }.joined(separator: ", "))] chat: \(chatId) id: \(userId) last used: \(lastUsedDate?.fullDateReadableDescription ?? "")"
+        "\(firstName) - modes: [\(selectedModes.map { $0.command }.joined(separator: ", "))] id: \(userId) last used: \(lastUsedDate?.fullDateReadableDescription ?? "")"
     }
     
 }
