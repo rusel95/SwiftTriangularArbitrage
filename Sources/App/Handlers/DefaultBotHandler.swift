@@ -20,8 +20,10 @@ final class DefaultBotHandlers {
     
     private var lastAlertingEvents: [String: Date] = [:]
     
-    private let standartProfitPercent: Double = 0.5
+    private let standartProfitPercent: Double = -0.2
     private let stableProfitPercent: Double = 0.3
+    
+    private var triangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
     // MARK: - METHODS
     
@@ -42,7 +44,9 @@ final class DefaultBotHandlers {
         Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
             ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
-
+                
+                self.updateCurrentTriangularOpportunities(with: surfaceResults)
+                
                 let text = surfaceResults
                     .map { $0.description }
                     .joined(separator: "\n")
@@ -61,30 +65,34 @@ final class DefaultBotHandlers {
                         } else {
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
-                        
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                    }
-                }
-                
-                let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.standartProfitPercent && $0.profitPercent < 100 }
-                    .sorted(by: { $0.profitPercent > $1.profitPercent })
-                    .map { $0.description }
-                    .joined(separator: "\n")
-                
-                UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-                    do {
-                        if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                        }
                     } catch (let botError) {
                         self.logger.report(error: botError)
                     }
                 }
             }
         }
+    }
+    
+    func updateCurrentTriangularOpportunities(with surfaceResults: [SurfaceResult]) {
+        let extraResults = surfaceResults
+            .filter { $0.profitPercent >= standartProfitPercent && $0.profitPercent < 100 }
+            .sorted(by: { $0.profitPercent > $1.profitPercent })
+        
+        // Add/Update
+        extraResults.forEach { surfaceResult in
+            if let currentOpportunity = triangularOpportunitiesDict[surfaceResult.contractsDescription] {
+                currentOpportunity.surfaceResults.append(surfaceResult)
+            } else {
+                self.triangularOpportunitiesDict[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, updateMessageId: nil)
+            }
+        }
+        
+        // Remove opportunities, which became old
+        triangularOpportunitiesDict = triangularOpportunitiesDict.filter {
+            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < BotMode.standartTriangularArtibraging.jobInterval
+        }
+        
+        print(triangularOpportunitiesDict.count, triangularOpportunitiesDict)
     }
     
     func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
