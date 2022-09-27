@@ -25,7 +25,7 @@ final class DefaultBotHandlers {
 #if DEBUG
         return 0.0
 #else
-        return 0.2
+        return 0.5
 #endif
     }()
     
