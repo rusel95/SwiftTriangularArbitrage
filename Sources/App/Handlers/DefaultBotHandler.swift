@@ -45,8 +45,6 @@ final class DefaultBotHandlers {
             ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
                 
-                self.updateCurrentTriangularOpportunities(with: surfaceResults)
-                
                 let text = surfaceResults
                     .map { $0.description }
                     .joined(separator: "\n")
@@ -69,6 +67,9 @@ final class DefaultBotHandlers {
                         self.logger.report(error: botError)
                     }
                 }
+                
+                self.updateCurrentTriangularOpportunities(with: surfaceResults)
+                self.alertUsers(with: self.triangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -83,16 +84,54 @@ final class DefaultBotHandlers {
             if let currentOpportunity = triangularOpportunitiesDict[surfaceResult.contractsDescription] {
                 currentOpportunity.surfaceResults.append(surfaceResult)
             } else {
-                self.triangularOpportunitiesDict[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, updateMessageId: nil)
+                triangularOpportunitiesDict[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, firstSurfaceResult: surfaceResult, updateMessageId: nil)
             }
         }
         
         // Remove opportunities, which became old
         triangularOpportunitiesDict = triangularOpportunitiesDict.filter {
-            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < BotMode.standartTriangularArtibraging.jobInterval
+            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 20
         }
-        
-        print(triangularOpportunitiesDict.count, triangularOpportunitiesDict)
+    }
+    
+    func alertUsers(with triangularOpportunitiesDict: [String: TriangularOpportunity], bot: TGBotPrtcl) {
+        // NOTE: - sending all Alerts to specific people separatly
+        let group = DispatchGroup()
+        UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
+            // Update each user's opportunities to message
+            var newUserOpportunities: [String: Int?] = [:]
+            
+            // Remove user's opportunities which are not presented at the moment
+            triangularOpportunitiesDict.forEach { triangularOpportunity in
+                if let currentUserOpportunityMessageId = userInfo.triangularOpportunitiesMessagesInfo[triangularOpportunity.key] {
+                    let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                    messageId: currentUserOpportunityMessageId,
+                                                                    inlineMessageId: nil,
+                                                                    text: triangularOpportunity.value.description.appending(" Updated at: \(Date().readableDescription)"))
+                    do {
+                        _ = try bot.editMessageText(params: editParams)
+                        newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
+                    } catch (let botError) {
+                        self.logger.report(error: botError)
+                    }
+                } else {
+                    do {
+                        let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
+                        group.enter()
+                        sendMessageFuture.whenComplete { result in
+                            let triangularOpportunityMessageId = try? result.get().messageId
+                            newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
+                            group.leave()
+                        }
+                    } catch (let botError) {
+                        self.logger.report(error: botError)
+                    }
+                }
+            }
+            group.notify(queue: .global()) {
+                userInfo.triangularOpportunitiesMessagesInfo = newUserOpportunities
+            }
+        }
     }
     
     func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
@@ -118,22 +157,6 @@ final class DefaultBotHandlers {
                             _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
                         }
                         
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                    }
-                }
-                
-                let extraResultsText = surfaceResults
-                    .filter { $0.profitPercent >= self.stableProfitPercent && $0.profitPercent < 100 }
-                    .map { $0.description }
-                    .joined(separator: "\n")
-                
-                UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-                    do {
-                        if extraResultsText.isEmpty == false {
-                            let text = extraResultsText.appending("\nUp to date as of: \(Date().readableDescription)")
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                        }
                     } catch (let botError) {
                         self.logger.report(error: botError)
                     }
@@ -224,15 +247,11 @@ private extension DefaultBotHandlers {
             guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
             do {
-                if UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).contains(where: { $0.chatId == chatId }) {
-                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: "Already working, you can stop by tapping on command /stop"))
-                } else {
-                    let text = """
+                let text = """
                     Starting alerting about:\n [Standart] opportunities with >= \(self.standartProfitPercent)% profitability\n [Stable] opportunities with >= \(self.stableProfitPercent)% profitability
                     """
-                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
-                    UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
-                }
+                _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             } catch (let botError) {
                 self.logger.report(error: botError)
             }

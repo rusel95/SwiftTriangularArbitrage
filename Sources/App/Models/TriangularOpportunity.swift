@@ -11,13 +11,12 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     let contractsDescription: String
     let startDate: Date
-    
     var latestUpdateDate: Date
     
     var updateMessageId: Int?
     var endDate: Date? = nil
     
-    var surfaceResults: [SurfaceResult] = [] {
+    var surfaceResults: [SurfaceResult] {
         didSet {
             latestUpdateDate = Date()
         }
@@ -25,10 +24,12 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     init(
         contractsDescription: String,
+        firstSurfaceResult: SurfaceResult,
         updateMessageId: Int? = nil,
         startDate: Date = Date()
     ) {
         self.contractsDescription = contractsDescription
+        self.surfaceResults = [firstSurfaceResult]
         self.updateMessageId = updateMessageId
         self.startDate = startDate
         self.latestUpdateDate = startDate
@@ -52,10 +53,13 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     var description: String {
         """
-        \n\(contractsDescription)
+        \(surfaceResults.last?.description ?? "")\n
+        start time: \(startDate.readableDescription)
+        last update time: \(latestUpdateDate.readableDescription)
         duration: \(Int(latestUpdateDate.timeIntervalSince(startDate))) seconds
-        current profit percent: \(surfaceResults.last?.profitPercent.string() ?? "")
-        average profit percent: \(averageProfitPercent.string())
+        starting profit: \(surfaceResults.first?.profitPercent.string() ?? "")%
+        average profit: \(averageProfitPercent.string())%
+        current profit: \(surfaceResults.last?.profitPercent.string() ?? "")%
         """
     }
     
