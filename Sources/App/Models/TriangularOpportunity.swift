@@ -11,6 +11,7 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     let contractsDescription: String
     let startDate: Date
+    
     var latestUpdateDate: Date
     
     var updateMessageId: Int?
@@ -53,7 +54,7 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     var description: String {
         """
-        \(surfaceResults.last?.description ?? "")\n
+        \(surfaceResults.last?.shortDescription ?? "")\n
         start time: \(startDate.readableDescription)
         last update time: \(latestUpdateDate.readableDescription)
         duration: \(Int(latestUpdateDate.timeIntervalSince(startDate))) seconds

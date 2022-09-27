@@ -20,10 +20,17 @@ final class DefaultBotHandlers {
     
     private var lastAlertingEvents: [String: Date] = [:]
     
-    private let standartProfitPercent: Double = -0.2
-    private let stableProfitPercent: Double = 0.3
     
-    private var triangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
+    private var profitPercent: Double = {
+#if DEBUG
+        return 0.0
+#else
+        return 0.2
+#endif
+    }()
+    
+    private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
+    private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
     // MARK: - METHODS
     
@@ -68,68 +75,9 @@ final class DefaultBotHandlers {
                     }
                 }
                 
-                self.updateCurrentTriangularOpportunities(with: surfaceResults)
-                self.alertUsers(with: self.triangularOpportunitiesDict, bot: bot)
-            }
-        }
-    }
-    
-    func updateCurrentTriangularOpportunities(with surfaceResults: [SurfaceResult]) {
-        let extraResults = surfaceResults
-            .filter { $0.profitPercent >= standartProfitPercent && $0.profitPercent < 100 }
-            .sorted(by: { $0.profitPercent > $1.profitPercent })
-        
-        // Add/Update
-        extraResults.forEach { surfaceResult in
-            if let currentOpportunity = triangularOpportunitiesDict[surfaceResult.contractsDescription] {
-                currentOpportunity.surfaceResults.append(surfaceResult)
-            } else {
-                triangularOpportunitiesDict[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, firstSurfaceResult: surfaceResult, updateMessageId: nil)
-            }
-        }
-        
-        // Remove opportunities, which became old
-        triangularOpportunitiesDict = triangularOpportunitiesDict.filter {
-            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 20
-        }
-    }
-    
-    func alertUsers(with triangularOpportunitiesDict: [String: TriangularOpportunity], bot: TGBotPrtcl) {
-        // NOTE: - sending all Alerts to specific people separatly
-        let group = DispatchGroup()
-        UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-            // Update each user's opportunities to message
-            var newUserOpportunities: [String: Int?] = [:]
-            
-            // Remove user's opportunities which are not presented at the moment
-            triangularOpportunitiesDict.forEach { triangularOpportunity in
-                if let currentUserOpportunityMessageId = userInfo.triangularOpportunitiesMessagesInfo[triangularOpportunity.key] {
-                    let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                    messageId: currentUserOpportunityMessageId,
-                                                                    inlineMessageId: nil,
-                                                                    text: triangularOpportunity.value.description.appending(" Updated at: \(Date().readableDescription)"))
-                    do {
-                        _ = try bot.editMessageText(params: editParams)
-                        newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                    }
-                } else {
-                    do {
-                        let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
-                        group.enter()
-                        sendMessageFuture.whenComplete { result in
-                            let triangularOpportunityMessageId = try? result.get().messageId
-                            newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
-                            group.leave()
-                        }
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                    }
-                }
-            }
-            group.notify(queue: .global()) {
-                userInfo.triangularOpportunitiesMessagesInfo = newUserOpportunities
+                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.standartTriangularOpportunitiesDict)
+                
+                self.alertUsers(with: self.standartTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -161,6 +109,10 @@ final class DefaultBotHandlers {
                         self.logger.report(error: botError)
                     }
                 }
+                
+                self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.stableTriangularOpportunitiesDict)
+                
+                self.alertUsers(with: self.stableTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -185,7 +137,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(self.stableProfitPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(self.profitPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -248,7 +200,7 @@ private extension DefaultBotHandlers {
             
             do {
                 let text = """
-                    Starting alerting about:\n [Standart] opportunities with >= \(self.standartProfitPercent)% profitability\n [Stable] opportunities with >= \(self.stableProfitPercent)% profitability
+                    Starting alerting about:\n [Standart] opportunities with >= \(self.profitPercent)% profitability\n [Stable] opportunities with >= \(self.profitPercent)% profitability
                     """
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
@@ -289,6 +241,81 @@ private extension DefaultBotHandlers {
             }
         }
         bot.connection.dispatcher.add(handler)
+    }
+    
+}
+
+// MARK: - Helpers
+
+private extension DefaultBotHandlers {
+    
+    func getActualTriangularOpportunities(
+        from surfaceResults: [SurfaceResult],
+        currentOpportunities: [String: TriangularOpportunity]
+    ) -> [String: TriangularOpportunity] {
+        var updatedOpportunities: [String: TriangularOpportunity] = currentOpportunities
+        
+        let extraResults = surfaceResults
+            .filter { $0.profitPercent >= profitPercent && $0.profitPercent < 100 }
+            .sorted(by: { $0.profitPercent > $1.profitPercent })
+        
+        // Add/Update
+        extraResults.forEach { surfaceResult in
+            if let currentOpportunity = updatedOpportunities[surfaceResult.contractsDescription] {
+                currentOpportunity.surfaceResults.append(surfaceResult)
+            } else {
+                updatedOpportunities[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, firstSurfaceResult: surfaceResult, updateMessageId: nil)
+            }
+        }
+        
+        // Remove opportunities, which became old
+        return updatedOpportunities.filter {
+            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 30
+        }
+    }
+    
+    func alertUsers(with triangularOpportunitiesDict: [String: TriangularOpportunity], bot: TGBotPrtcl) {
+        // NOTE: - sending all Alerts to specific people separatly
+        let group = DispatchGroup()
+        UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
+            // Update each user's opportunities to message
+            var newUserOpportunities: [String: Int?] = [:]
+            
+            // Remove user's opportunities which are not presented at the moment
+            triangularOpportunitiesDict.forEach { triangularOpportunity in
+                if let currentUserOpportunityMessageId = userInfo.triangularOpportunitiesMessagesInfo[triangularOpportunity.key] {
+                    let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                    messageId: currentUserOpportunityMessageId,
+                                                                    inlineMessageId: nil,
+                                                                    text: triangularOpportunity.value.description.appending(" Updated at: \(Date().readableDescription)"))
+                    do {
+                        _ = try bot.editMessageText(params: editParams)
+                        newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
+                    } catch (let botError) {
+                        self.logger.report(error: botError)
+                    }
+                } else {
+                    do {
+                        let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
+                        group.enter()
+                        sendMessageFuture.whenComplete { result in
+                            do {
+                                let triangularOpportunityMessageId = try result.get().messageId
+                                newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
+                            } catch (let botError) {
+                                self.logger.report(error: botError)
+                            }
+                            group.leave()
+                        }
+                    } catch (let botError) {
+                        self.logger.report(error: botError)
+                    }
+                }
+            }
+            group.notify(queue: .global()) {
+                userInfo.triangularOpportunitiesMessagesInfo = newUserOpportunities
+            }
+        }
     }
     
 }
