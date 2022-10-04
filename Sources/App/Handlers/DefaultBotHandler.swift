@@ -111,8 +111,6 @@ final class DefaultBotHandlers {
                 }
                 
                 self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.stableTriangularOpportunitiesDict)
-                
-                self.alertUsers(with: self.stableTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -283,6 +281,8 @@ private extension DefaultBotHandlers {
             
             // Remove user's opportunities which are not presented at the moment
             triangularOpportunitiesDict.forEach { triangularOpportunity in
+                group.enter()
+                
                 if let currentUserOpportunityMessageId = userInfo.triangularOpportunitiesMessagesInfo[triangularOpportunity.key] {
                     let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                     messageId: currentUserOpportunityMessageId,
@@ -291,28 +291,32 @@ private extension DefaultBotHandlers {
                     do {
                         _ = try bot.editMessageText(params: editParams)
                         newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
+                        group.leave()
                     } catch (let botError) {
                         self.logger.report(error: botError)
+                        group.leave()
                     }
                 } else {
                     do {
                         let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
-                        group.enter()
                         sendMessageFuture.whenComplete { result in
                             do {
                                 let triangularOpportunityMessageId = try result.get().messageId
                                 newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
+                                group.leave()
                             } catch (let botError) {
                                 self.logger.report(error: botError)
+                                group.leave()
                             }
-                            group.leave()
                         }
                     } catch (let botError) {
                         self.logger.report(error: botError)
+                        group.leave()
                     }
                 }
             }
             group.notify(queue: .global()) {
+                print(triangularOpportunitiesDict.count, newUserOpportunities, Date().readableDescription)
                 userInfo.triangularOpportunitiesMessagesInfo = newUserOpportunities
             }
         }
