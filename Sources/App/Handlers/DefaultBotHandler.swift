@@ -21,11 +21,19 @@ final class DefaultBotHandlers {
     private var lastAlertingEvents: [String: Date] = [:]
     
     
-    private var profitPercent: Double = {
+    private var standartProfitPercent: Double = {
 #if DEBUG
         return 0.0
 #else
         return 0.3
+#endif
+    }()
+    
+    private var stableProfitPercent: Double = {
+#if DEBUG
+        return -0.1
+#else
+        return 0.2
 #endif
     }()
     
@@ -75,7 +83,11 @@ final class DefaultBotHandlers {
                     }
                 }
                 
-                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.standartTriangularOpportunitiesDict)
+                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                    from: surfaceResults,
+                    currentOpportunities: self.standartTriangularOpportunitiesDict,
+                    profitPercent: self.standartProfitPercent
+                )
                 self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
             }
         }
@@ -109,7 +121,11 @@ final class DefaultBotHandlers {
                     }
                 }
                 
-                self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.stableTriangularOpportunitiesDict)
+                self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                    from: surfaceResults,
+                    currentOpportunities: self.stableTriangularOpportunitiesDict,
+                    profitPercent: self.stableProfitPercent
+                )
                 self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
             }
         }
@@ -135,7 +151,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(self.profitPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(self.stableProfitPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -198,7 +214,7 @@ private extension DefaultBotHandlers {
             
             do {
                 let text = """
-                    Starting alerting about:\n [Standart] opportunities with >= \(self.profitPercent)% profitability\n [Stable] opportunities with >= \(self.profitPercent)% profitability
+                    Starting alerting about:\n [Standart] opportunities with >= \(self.standartProfitPercent)% profitability\n [Stable] opportunities with >= \(self.stableProfitPercent)% profitability
                     """
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
@@ -249,7 +265,8 @@ private extension DefaultBotHandlers {
     
     func getActualTriangularOpportunities(
         from surfaceResults: [SurfaceResult],
-        currentOpportunities: [String: TriangularOpportunity]
+        currentOpportunities: [String: TriangularOpportunity],
+        profitPercent: Double
     ) -> [String: TriangularOpportunity] {
         var updatedOpportunities: [String: TriangularOpportunity] = currentOpportunities
         
@@ -299,7 +316,7 @@ private extension DefaultBotHandlers {
                     let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                     messageId: currentUserOpportunityMessageId,
                                                                     inlineMessageId: nil,
-                                                                    text: triangularOpportunity.value.description.appending(" Updated at: \(Date().readableDescription)"))
+                                                                    text: triangularOpportunity.value.description.appending("\n\nUpdated at: \(Date().readableDescription)"))
                     do {
                         _ = try bot.editMessageText(params: editParams)
                         newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
