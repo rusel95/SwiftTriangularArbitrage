@@ -25,7 +25,7 @@ final class DefaultBotHandlers {
 #if DEBUG
         return 0.0
 #else
-        return 0.5
+        return 0.3
 #endif
     }()
     
@@ -76,8 +76,7 @@ final class DefaultBotHandlers {
                 }
                 
                 self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.standartTriangularOpportunitiesDict)
-                
-                self.alertUsers(with: self.standartTriangularOpportunitiesDict, bot: bot)
+                self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -111,6 +110,7 @@ final class DefaultBotHandlers {
                 }
                 
                 self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(from: surfaceResults, currentOpportunities: self.stableTriangularOpportunitiesDict)
+                self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -272,10 +272,14 @@ private extension DefaultBotHandlers {
         }
     }
     
-    func alertUsers(with triangularOpportunitiesDict: [String: TriangularOpportunity], bot: TGBotPrtcl) {
-        // NOTE: - sending all Alerts to specific people separatly
-        let group = DispatchGroup()
+    func alertUsers(
+        for mode: ArbitrageCalculator.Mode,
+        with triangularOpportunitiesDict: [String: TriangularOpportunity],
+        bot: TGBotPrtcl
+    ) {
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
+            // NOTE: - sending all Alerts to specific people separatly
+            let group = DispatchGroup()
             // Update each user's opportunities to message
             var newUserOpportunities: [String: Int?] = [:]
             
@@ -283,7 +287,15 @@ private extension DefaultBotHandlers {
             triangularOpportunitiesDict.forEach { triangularOpportunity in
                 group.enter()
                 
-                if let currentUserOpportunityMessageId = userInfo.triangularOpportunitiesMessagesInfo[triangularOpportunity.key] {
+                let currentUserOpportunityMessageId: Int?
+                switch mode {
+                case .standart:
+                    currentUserOpportunityMessageId = userInfo.standartTriangularOpportunitiesMessagesInfo[triangularOpportunity.key] ?? nil
+                case .stable:
+                    currentUserOpportunityMessageId = userInfo.stableTriangularOpportunitiesMessagesInfo[triangularOpportunity.key] ?? nil
+                }
+                
+                if let currentUserOpportunityMessageId = currentUserOpportunityMessageId {
                     let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                     messageId: currentUserOpportunityMessageId,
                                                                     inlineMessageId: nil,
@@ -316,8 +328,12 @@ private extension DefaultBotHandlers {
                 }
             }
             group.notify(queue: .global()) {
-                print(triangularOpportunitiesDict.count, newUserOpportunities, Date().readableDescription)
-                userInfo.triangularOpportunitiesMessagesInfo = newUserOpportunities
+                switch mode {
+                case .standart:
+                    userInfo.standartTriangularOpportunitiesMessagesInfo = newUserOpportunities
+                case .stable:
+                    userInfo.stableTriangularOpportunitiesMessagesInfo = newUserOpportunities
+                }
             }
         }
     }

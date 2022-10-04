@@ -23,7 +23,8 @@ final class UserInfo: Codable, Hashable, Equatable {
     var stableTriangularArbitragingMessageId: Int?
     
     // Name of the contract + Update message ID
-    var triangularOpportunitiesMessagesInfo: [String: Int?] = [:]
+    var standartTriangularOpportunitiesMessagesInfo: [String: Int?] = [:]
+    var stableTriangularOpportunitiesMessagesInfo: [String: Int?] = [:]
     
     var lastUsedDate: Date?
     

@@ -60,6 +60,7 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
         duration: \(Int(latestUpdateDate.timeIntervalSince(startDate))) seconds
         starting profit: \(surfaceResults.first?.profitPercent.string() ?? "")%
         average profit: \(averageProfitPercent.string())%
+        highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string() ?? "")%
         current profit: \(surfaceResults.last?.profitPercent.string() ?? "")%
         """
     }
