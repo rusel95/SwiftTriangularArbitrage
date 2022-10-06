@@ -18,25 +18,6 @@ final class DefaultBotHandlers {
     
     private var logger = Logger(label: "handlers.logger")
     
-    private var lastAlertingEvents: [String: Date] = [:]
-    
-    
-    private var standartProfitPercent: Double = {
-#if DEBUG
-        return 0.0
-#else
-        return 0.3
-#endif
-    }()
-    
-    private var stableProfitPercent: Double = {
-#if DEBUG
-        return -0.1
-#else
-        return 0.2
-#endif
-    }()
-    
     private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
@@ -86,7 +67,7 @@ final class DefaultBotHandlers {
                 self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                     from: surfaceResults,
                     currentOpportunities: self.standartTriangularOpportunitiesDict,
-                    profitPercent: self.standartProfitPercent
+                    profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
                 )
                 self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
             }
@@ -124,7 +105,7 @@ final class DefaultBotHandlers {
                 self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                     from: surfaceResults,
                     currentOpportunities: self.stableTriangularOpportunitiesDict,
-                    profitPercent: self.stableProfitPercent
+                    profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
                 )
                 self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
             }
@@ -140,8 +121,8 @@ private extension DefaultBotHandlers {
     // MARK: /start
     
     func commandStartHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: ["/start"]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id else { return }
+        let handler = TGCommandHandler(commands: ["/start"]) { update, bot in
+            guard let chatId = update.message?.chat.id else { return }
            
             let infoMessage = """
             Hi, my name is Hari!
@@ -151,7 +132,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(self.stableProfitPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -214,7 +195,9 @@ private extension DefaultBotHandlers {
             
             do {
                 let text = """
-                    Starting alerting about:\n [Standart] opportunities with >= \(self.standartProfitPercent)% profitability\n [Stable] opportunities with >= \(self.stableProfitPercent)% profitability
+                    Starting alerting about:
+                    [Standart] opportunities with >= \(ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent)% profitability
+                    [Stable] opportunities with >= \(ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent)% profitability
                     """
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
