@@ -33,6 +33,18 @@ final class DefaultBotHandlers {
         
         startStandartTriangularArbitragingMonitoring(bot: bot)
         startStableTriangularArbitragingMonitoring(bot: bot)
+        
+//        BinanceAPIService.shared.newOrder(
+//            symbol: "USDTUAH",
+//            side: .sell,
+//            type: .market,
+//            quantity: 3,
+//            newOrderRespType: .full,
+//            success: { newOrderResponse in
+//            print(newOrderResponse)
+//        }, failure: { error in
+//            print(error)
+//        })
     }
 
     

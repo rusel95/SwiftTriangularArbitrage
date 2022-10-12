@@ -10,6 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 import Logging
+import CryptoKit
 
 final class BinanceAPIService {
     
@@ -143,6 +144,14 @@ final class BinanceAPIService {
     static let shared = BinanceAPIService()
     
     private var logger = Logger(label: "api.binance")
+    
+    private lazy var apiKeyString: String = {
+        String.readToken(from: "binanceAPIKey")
+    }()
+    
+    private lazy var secretString: String = {
+        String.readToken(from: "binanceSecretKey")
+    }()
     
     // MARK: - METHODS
     
@@ -330,6 +339,144 @@ final class BinanceAPIService {
                 completion(nil, error)
             }
         }.resume()
+    }
+    
+    
+    // MARK: - NewOrder
+    
+    enum OrderSide: String {
+        case buy = "BUY"
+        case sell = "SELL"
+    }
+    
+    enum OrderType: String {
+        case limit = "LIMIT"
+        case market = "MARKET"
+        case stopLoss = "STOP_LOSS"
+        case stopLossLimit = "STOP_LOSS_LIMIT"
+        case takeProfit = "TAKE_PROFIT"
+        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
+        case limitMaker = "LIMIT_MAKER"
+    }
+    
+    enum OrderStatus: String {
+        case new = "NEW"                            // The order has been accepted by the engine.
+        case partiallyFilled = "PARTIALLY_FILLED"   // A part of the order has been filled.
+        case filled = "FILLED"                      // The order has been completed.
+        case canceled = "CANCELED"                  // The order has been canceled by the user.
+        case pendingCancel = "PENDING_CANCEL"       // Currently unused
+        case rejected = "REJECTED"                  // The order was not accepted by the engine and not processed.
+        case expired = "EXPIRED"                    // The order was canceled according to the order type's rules (e.g. LIMIT FOK orders with no fill, LIMIT IOC or MARKET orders that partially fill) or by the exchange, (e.g. orders canceled during liquidation, orders canceled during maintenance)
+    }
+    
+    enum OrderResponseType: String {
+        case ack = "ACK"
+        case result = "RESULT"
+        case full = "FULL"
+    }
+
+    struct NewOrderResponse: Codable {
+        let symbol: String
+        let orderID, orderListID: Int
+        let clientOrderID: String
+        let transactTime: Int
+        let price, origQty, executedQty, cummulativeQuoteQty: String
+        let status, timeInForce, type, side: String
+        let fills: [Fill]
+
+        enum CodingKeys: String, CodingKey {
+            case symbol
+            case orderID = "orderId"
+            case orderListID = "orderListId"
+            case clientOrderID = "clientOrderId"
+            case transactTime, price, origQty, executedQty, cummulativeQuoteQty, status, timeInForce, type, side, fills
+        }
+    }
+
+    // MARK: - Fill
+    struct Fill: Codable {
+        let price, qty, commission, commissionAsset: String
+        let tradeID: Int
+
+        enum CodingKeys: String, CodingKey {
+            case price, qty, commission, commissionAsset
+            case tradeID = "tradeId"
+        }
+    }
+    
+    struct ResponseError: Codable, CustomStringConvertible {
+        
+        var description: String {
+            "code: \(code), message: \(msg)"
+        }
+        
+        let code: Decimal
+        let msg: String
+    }
+    
+    enum BinanceError: Error {
+        case unexpected(message: String)
+        case noData
+    }
+
+    func newOrder(
+        symbol: String,
+        side: OrderSide,
+        type: OrderType,
+        quantity: Double,
+        newOrderRespType: OrderResponseType,
+        success: @escaping(_ newOrderResponse: NewOrderResponse?) -> Void,
+        failure: @escaping(_ error: Error) -> Void
+    ) {
+        let url = URL(string: "https://api.binance.com/api/v3/order?symbol=\(symbol)&side=\(side.rawValue)&type=\(type.rawValue)&quantity=\(quantity)&newOrderRespType=\( newOrderRespType.rawValue)")!
+    
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        signRequest(&request)
+        
+        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
+            if let error = error {
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+                failure(error)
+                return
+            }
+            
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Symbols \(url.debugDescription)"))
+                failure(BinanceError.noData)
+                return
+            }
+            
+            if let unexpectedResponseError = try? JSONDecoder().decode(ResponseError.self, from: data) {
+                failure(BinanceError.unexpected(message: unexpectedResponseError.description))
+                return
+            }
+            
+            do {
+                let newOrderResponse = try JSONDecoder().decode(NewOrderResponse.self, from: data)
+                success(newOrderResponse)
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                failure(decodingError)
+            }
+        }.resume()
+    }
+    
+    private func addApiKeyHeader(_ request: inout URLRequest) -> Void {
+        request.addValue(apiKeyString, forHTTPHeaderField: "X-MBX-APIKEY")
+    }
+    
+    private func signRequest(_ request: inout URLRequest) -> Void {
+        addApiKeyHeader(&request)
+        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        request.url = request.url?.appending("timestamp", value: "\(timestamp)")
+        guard let query = request.url?.query else {
+            fatalError("query should be here!")
+        }
+        let symmetricKey = SymmetricKey(data: secretString.data(using: .utf8)!)
+        let signature = HMAC<SHA256>.authenticationCode(for: query.data(using: .utf8)!, using: symmetricKey)
+        let signatureString = Data(signature).map { String(format: "%02hhx", $0) }.joined()
+        request.url = request.url?.appending("signature", value: signatureString)
     }
     
 }
