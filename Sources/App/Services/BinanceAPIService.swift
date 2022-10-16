@@ -12,6 +12,12 @@ import FoundationNetworking
 import Logging
 import CryptoKit
 
+enum OrderSide: String {
+    case quoteToBase = "BUY"
+    case baseToQuote = "SELL"
+    case unknown = "UNKNOWN"
+}
+
 final class BinanceAPIService {
     
     // MARK: - STRUCTS
@@ -344,11 +350,6 @@ final class BinanceAPIService {
     
     // MARK: - NewOrder
     
-    enum OrderSide: String {
-        case buy = "BUY"
-        case sell = "SELL"
-    }
-    
     enum OrderType: String {
         case limit = "LIMIT"
         case market = "MARKET"
@@ -423,7 +424,7 @@ final class BinanceAPIService {
         symbol: String,
         side: OrderSide,
         type: OrderType,
-        quantity: Double,
+        quantity: String,
         newOrderRespType: OrderResponseType,
         success: @escaping(_ newOrderResponse: NewOrderResponse?) -> Void,
         failure: @escaping(_ error: Error) -> Void

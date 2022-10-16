@@ -7,15 +7,30 @@
 
 import Foundation
 
-class TriangularOpportunity: CustomStringConvertible, Hashable {
+final class TriangularOpportunity: CustomStringConvertible, Hashable {
+    
+    enum AutoTradeCicle {
+        case pending
+        case firstTradeStarted
+        case firstTradeFinished
+        case firstTradeError(description: String)
+        case secondTradeStarted
+        case secondTradeFinished
+        case secondTradeError(description: String)
+        case thirdTradeStarted
+        case thirdTradeFinished(result: String)
+        case thirdTradeError(description: String)
+    }
     
     let contractsDescription: String
     let startDate: Date
+    let firstSurfaceResult: SurfaceResult
     
     var latestUpdateDate: Date
     
     var updateMessageId: Int?
-    var endDate: Date? = nil
+    
+    var autotradeCicle: AutoTradeCicle = .pending
     
     var surfaceResults: [SurfaceResult] {
         didSet {
@@ -30,6 +45,7 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
         startDate: Date = Date()
     ) {
         self.contractsDescription = contractsDescription
+        self.firstSurfaceResult = firstSurfaceResult
         self.surfaceResults = [firstSurfaceResult]
         self.updateMessageId = updateMessageId
         self.startDate = startDate

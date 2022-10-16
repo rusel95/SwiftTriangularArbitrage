@@ -22,9 +22,9 @@ struct SurfaceResult: CustomStringConvertible, Hashable {
     let contract1: String
     let contract2: String
     let contract3: String
-    let directionTrade1: String
-    let directionTrade2: String
-    let directionTrade3: String
+    let directionTrade1: OrderSide
+    let directionTrade2: OrderSide
+    let directionTrade3: OrderSide
     let acquiredCoinT1: Double
     let acquiredCoinT2: Double
     let acquiredCoinT3: Double
