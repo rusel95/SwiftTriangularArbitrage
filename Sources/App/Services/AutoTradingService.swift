@@ -5,39 +5,76 @@
 //  Created by Ruslan on 12.10.2022.
 //
 
-import Foundation
+import Jobs
 
 final class AutoTradingService {
     
     static let shared: AutoTradingService = AutoTradingService()
     
     private let stables: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
+    private let forbiddenAssets: Set<String> = Set(arrayLiteral: "RUB", "BRL")
     
-    private init() {}
+    private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     
+    private init() {
+        Jobs.add(interval: .seconds(1800)) { [weak self] in
+            BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
+                guard let symbols = symbols else { return }
+                
+                let tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                
+                self?.tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
+            }
+        }
+    }
     
-    private let stableCoinsQuantity = 11.0
-    
-    func handle(triangularOpportunitiesDict: [String: TriangularOpportunity], for userInfo: UserInfo) {
-        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { stables.contains($0.value.firstSurfaceResult.swap0) })?.value else { return }
+    func handle(
+        triangularOpportunitiesDict: [String: TriangularOpportunity],
+        for userInfo: UserInfo,
+        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
+    ) {
+        // NOTE: - Trade only some first opportunity - only 1 opportunity at a time
+        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { stables.contains($0.value.firstSurfaceResult.swap0) })?.value,
+              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
+              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
+              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else { return }
+        
         
         switch opportunityToTrade.autotradeCicle {
         case .pending:
+            guard let firstSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract1] else { return }
+            
+            guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
+                  let firstOrderMinNotional = Double(firstOrderMinNotionalString)
+            else {
+                print("No min notional")
+                return
+            }
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
-            let firstOrderQuantity = String(format: "%.8f", Double(stableCoinsQuantity * opportunityToTrade.firstSurfaceResult.swap1Rate))
             BinanceAPIService.shared.newOrder(
                 symbol: opportunityToTrade.firstSurfaceResult.contract1,
                 side: opportunityToTrade.firstSurfaceResult.directionTrade1,
                 type: .market,
-                quantity: firstOrderQuantity, // we will try to aquire only smallest number of elements
+                quantity: String(firstOrderMinNotional * 1.5),
+                quoteOrderQty: String(firstOrderMinNotional * 1.5), // temporary
                 newOrderRespType: .full,
                 success: { [weak self] newOrderResponse in
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    self?.handleThirdTrade(for: opportunityToTrade)
+                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(String(describing: newOrderResponse))")
+                    
+                    guard let quantityForSecondTrade = newOrderResponse?.executedQty else {
+                        print("no executed quantity")
+                        return
+                    }
+                    
+                    self?.handleSecondTrade(for: opportunityToTrade,
+                                            quantityToExecute: quantityForSecondTrade,
+                                            completion: completion)
                 }, failure: { error in
-                    print(error.localizedDescription)
                     opportunityToTrade.autotradeCicle = .firstTradeError(description: error.localizedDescription)
+                    opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                    completion(opportunityToTrade)
                 }
             )
         default:
@@ -45,37 +82,61 @@ final class AutoTradingService {
         }
     }
     
-    private func handleSecondTrade(for opportunityToTrade: TriangularOpportunity) {
+    private func handleSecondTrade(
+        for opportunityToTrade: TriangularOpportunity,
+        quantityToExecute: String,
+        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
+    ) {
         opportunityToTrade.autotradeCicle = .secondTradeStarted
         
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
             side: opportunityToTrade.firstSurfaceResult.directionTrade2,
             type: .market,
-            quantity: String(stableCoinsQuantity * opportunityToTrade.firstSurfaceResult.acquiredCoinT1),
+            quantity: quantityToExecute,
+            quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
             success: { [weak self] newOrderResponse in
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
-                self?.handleThirdTrade(for: opportunityToTrade)
+                opportunityToTrade.autotradeProcessDescription.append("\n\(String(describing: newOrderResponse))")
+                
+                guard let quantityForThirdTrade = newOrderResponse?.executedQty else {
+                    print("no executed quantity")
+                    return
+                }
+                self?.handleThirdTrade(for: opportunityToTrade,
+                                       quantityToExecute: quantityForThirdTrade,
+                                       completion: completion)
             }, failure: { error in
                 opportunityToTrade.autotradeCicle = .secondTradeError(description: error.localizedDescription)
+                opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                completion(opportunityToTrade)
             }
         )
     }
     
-    private func handleThirdTrade(for opportunityToTrade: TriangularOpportunity) {
+    private func handleThirdTrade(
+        for opportunityToTrade: TriangularOpportunity,
+        quantityToExecute: String,
+        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
+    ) {
         opportunityToTrade.autotradeCicle = .thirdTradeStarted
         
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract3,
             side: opportunityToTrade.firstSurfaceResult.directionTrade3,
             type: .market,
-            quantity: String(stableCoinsQuantity * opportunityToTrade.firstSurfaceResult.acquiredCoinT2),
+            quantity: quantityToExecute,
+            quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
             success: { newOrderResponse in
                 opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: newOrderResponse.debugDescription)
+                opportunityToTrade.autotradeProcessDescription.append("\n\(String(describing: newOrderResponse))")
+                completion(opportunityToTrade)
             }, failure: { error in
                 opportunityToTrade.autotradeCicle = .thirdTradeError(description: error.localizedDescription)
+                opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                completion(opportunityToTrade)
             }
         )
     }

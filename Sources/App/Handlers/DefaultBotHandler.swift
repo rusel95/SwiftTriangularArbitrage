@@ -331,7 +331,12 @@ private extension DefaultBotHandlers {
                 switch mode {
                 case .standart:
                     userInfo.standartTriangularOpportunitiesMessagesInfo = newUserOpportunities
-                    AutoTradingService.shared.handle(triangularOpportunitiesDict: triangularOpportunitiesDict, for: userInfo)
+                    AutoTradingService.shared.handle(
+                        triangularOpportunitiesDict: triangularOpportunitiesDict,
+                        for: userInfo,
+                        completion: { tradedTriangularOpportunity in
+                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: tradedTriangularOpportunity.tradingDescription))
+                        })
                 case .stable:
                     userInfo.stableTriangularOpportunitiesMessagesInfo = newUserOpportunities
                 }

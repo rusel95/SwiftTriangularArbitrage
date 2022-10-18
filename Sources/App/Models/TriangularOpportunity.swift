@@ -31,6 +31,7 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
     var updateMessageId: Int?
     
     var autotradeCicle: AutoTradeCicle = .pending
+    var autotradeProcessDescription: String = ""
     
     var surfaceResults: [SurfaceResult] {
         didSet {
@@ -78,6 +79,13 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         average profit: \(averageProfitPercent.string())%
         highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string() ?? "")%
         current profit: \(surfaceResults.last?.profitPercent.string() ?? "")%
+        """
+    }
+    
+    var tradingDescription: String {
+        """
+        \(description)\n
+        \(autotradeProcessDescription)
         """
     }
     
