@@ -38,7 +38,9 @@ final class AutoTradingService {
         guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { allowedAssetsToTrade.contains($0.value.firstSurfaceResult.swap0) })?.value,
               forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
               forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else { return }
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false,
+              opportunityToTrade.duration >= 3
+        else { return }
         
         switch opportunityToTrade.autotradeCicle {
         case .pending:
@@ -62,23 +64,40 @@ final class AutoTradingService {
                 quantity: String(firstOrderMinNotional * 1.5),
                 quoteOrderQty: String(firstOrderMinNotional * 1.5),
                 newOrderRespType: .full,
-                success: { [weak self] newOrderResponse in
-                    guard let newOrderResponse = newOrderResponse else {
+                success: { [weak self] firstOrderResponse in
+                    guard let firstOrderResponse = firstOrderResponse else {
                         opportunityToTrade.autotradeProcessDescription.append("\n\nStep 1: No Response")
                         completion(opportunityToTrade)
                         return
                     }
                     
+                    let usedCapital: Double
+                    switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
+                    case .quoteToBase:
+                        usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
+                    case .baseToQuote:
+                        usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+                    case .unknown:
+                        usedCapital = 0
+                    }
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(newOrderResponse.description)")
+                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(firstOrderResponse.description)")
                     
+                    // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                     self?.handleSecondTrade(for: opportunityToTrade,
-                                            quantityToExecute: newOrderResponse.executedQty,
+                                            usedCapital: usedCapital,
+                                            quantityToExecute: firstOrderResponse.executedQty,
                                             startTime: startTime,
                                             completion: completion)
                 }, failure: { error in
-                    opportunityToTrade.autotradeCicle = .firstTradeError(description: error.localizedDescription)
-                    opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                    let errorDescription: String
+                    if let binanceError = error as? BinanceAPIService.BinanceError {
+                        errorDescription = binanceError.description
+                    } else {
+                        errorDescription = error.localizedDescription
+                    }
+                    opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
+                    opportunityToTrade.autotradeProcessDescription.append("\n\n Step 1:\(errorDescription)")
                     completion(opportunityToTrade)
                 }
             )
@@ -89,11 +108,13 @@ final class AutoTradingService {
     
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
+        usedCapital: Double,
         quantityToExecute: String,
         startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .secondTradeStarted
+        
         
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
@@ -102,23 +123,31 @@ final class AutoTradingService {
             quantity: quantityToExecute,
             quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
-            success: { [weak self] newOrderResponse in
-                guard let newOrderResponse = newOrderResponse else {
+            success: { [weak self] secondOrderResponse in
+                guard let secondOrderResponse = secondOrderResponse else {
                     opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: No Response")
                     completion(opportunityToTrade)
                     return
                 }
                 
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(newOrderResponse.description)")
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(secondOrderResponse.description)")
                 
+                // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                 self?.handleThirdTrade(for: opportunityToTrade,
-                                       quantityToExecute: newOrderResponse.executedQty,
+                                       usedCapital: usedCapital,
+                                       quantityToExecute: secondOrderResponse.executedQty,
                                        startTime: startTime,
                                        completion: completion)
             }, failure: { error in
-                opportunityToTrade.autotradeCicle = .secondTradeError(description: error.localizedDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                let errorDescription: String
+                if let binanceError = error as? BinanceAPIService.BinanceError {
+                    errorDescription = binanceError.description
+                } else {
+                    errorDescription = error.localizedDescription
+                }
+                opportunityToTrade.autotradeCicle = .secondTradeError(description: errorDescription)
+                opportunityToTrade.autotradeProcessDescription.append("\n\n Step 2:\(errorDescription)")
                 completion(opportunityToTrade)
             }
         )
@@ -126,6 +155,7 @@ final class AutoTradingService {
     
     private func handleThirdTrade(
         for opportunityToTrade: TriangularOpportunity,
+        usedCapital: Double,
         quantityToExecute: String,
         startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
@@ -139,33 +169,41 @@ final class AutoTradingService {
             quantity: quantityToExecute,
             quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
-            success: { newOrderResponse in
-                guard let newOrderResponse = newOrderResponse else {
+            success: { thirdOrderResponse in
+                guard let thirdOrderResponse = thirdOrderResponse else {
                     opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: No Response")
                     completion(opportunityToTrade)
                     return
                 }
                 
-                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: newOrderResponse.description)
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(newOrderResponse.description)")
-                
-                let actualResultingAmount: String
-                switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
-                case .quoteToBase:
-                    actualResultingAmount = newOrderResponse.executedQty
-                case .baseToQuote:
-                    actualResultingAmount = newOrderResponse.cummulativeQuoteQty
-                case .unknown:
-                    actualResultingAmount = "ERROR: no side"
-                }
-                opportunityToTrade.autotradeProcessDescription.append("\n Actual Resulting Amount: \(actualResultingAmount)")
+                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: thirdOrderResponse.description)
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(thirdOrderResponse.description)")
                 
                 let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                opportunityToTrade.autotradeProcessDescription.append("\nCicle trading time: \(duration)")
+                opportunityToTrade.autotradeProcessDescription.append("\n\nCicle trading time: \(duration)s")
+                
+                let actualResultingAmount: Double
+                switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
+                case .quoteToBase:
+                    actualResultingAmount = Double(thirdOrderResponse.executedQty) ?? 0.0
+                case .baseToQuote:
+                    actualResultingAmount = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
+                case .unknown:
+                    actualResultingAmount = 0
+                }
+                opportunityToTrade.autotradeProcessDescription.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
+                opportunityToTrade.autotradeProcessDescription.append("\nProfit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
+                
                 completion(opportunityToTrade)
             }, failure: { error in
-                opportunityToTrade.autotradeCicle = .thirdTradeError(description: error.localizedDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\(error.localizedDescription)")
+                let errorDescription: String
+                if let binanceError = error as? BinanceAPIService.BinanceError {
+                    errorDescription = binanceError.description
+                } else {
+                    errorDescription = error.localizedDescription
+                }
+                opportunityToTrade.autotradeCicle = .thirdTradeError(description: errorDescription)
+                opportunityToTrade.autotradeProcessDescription.append("\n\n Step 3:\(errorDescription)")
                 completion(opportunityToTrade)
             }
         )

@@ -392,7 +392,7 @@ final class BinanceAPIService {
             price: \(price), origQty: \(origQty), executeQty: \(executedQty), cummulativeQuoteQty: \(cummulativeQuoteQty)
             fills:
             """
-            fills.forEach { text.append($0.description) }
+            fills.forEach { text.append(" (\($0.description)) ") }
             return text
         }
     }
@@ -423,9 +423,18 @@ final class BinanceAPIService {
         let msg: String
     }
     
-    enum BinanceError: Error {
+    enum BinanceError: Error, CustomStringConvertible {
         case unexpected(message: String)
         case noData
+        
+        var description: String {
+            switch self {
+            case .unexpected(let message):
+                return message
+            case .noData:
+                return "No Data"
+            }
+        }
     }
 
     func newOrder(

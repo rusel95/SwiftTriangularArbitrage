@@ -69,12 +69,16 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         surfaceResults.map { $0.profitPercent }.averageIncr()
     }
     
+    var duration: Int {
+        Int(latestUpdateDate.timeIntervalSince(startDate))
+    }
+    
     var description: String {
         """
         \(surfaceResults.last?.shortDescription ?? "")\n
         start time: \(startDate.readableDescription)
         last update time: \(latestUpdateDate.readableDescription)
-        duration: \(Int(latestUpdateDate.timeIntervalSince(startDate))) seconds
+        duration: \(duration) seconds
         starting profit: \(surfaceResults.first?.profitPercent.string() ?? "")%
         average profit: \(averageProfitPercent.string())%
         highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string() ?? "")%
