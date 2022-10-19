@@ -6,6 +6,7 @@
 //
 
 import Jobs
+import CoreFoundation
 
 final class AutoTradingService {
     
@@ -50,6 +51,7 @@ final class AutoTradingService {
                 print("No min notional")
                 return
             }
+            let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
             BinanceAPIService.shared.newOrder(
@@ -61,7 +63,7 @@ final class AutoTradingService {
                 newOrderRespType: .full,
                 success: { [weak self] newOrderResponse in
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(String(describing: newOrderResponse))")
+                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(newOrderResponse!)")
                     
                     guard let quantityForSecondTrade = newOrderResponse?.executedQty else {
                         print("no executed quantity")
@@ -70,6 +72,7 @@ final class AutoTradingService {
                     
                     self?.handleSecondTrade(for: opportunityToTrade,
                                             quantityToExecute: quantityForSecondTrade,
+                                            startTime: startTime,
                                             completion: completion)
                 }, failure: { error in
                     opportunityToTrade.autotradeCicle = .firstTradeError(description: error.localizedDescription)
@@ -85,6 +88,7 @@ final class AutoTradingService {
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
         quantityToExecute: String,
+        startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .secondTradeStarted
@@ -98,7 +102,7 @@ final class AutoTradingService {
             newOrderRespType: .full,
             success: { [weak self] newOrderResponse in
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
-                opportunityToTrade.autotradeProcessDescription.append("\n\(String(describing: newOrderResponse))")
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(newOrderResponse!)")
                 
                 guard let quantityForThirdTrade = newOrderResponse?.executedQty else {
                     print("no executed quantity")
@@ -106,6 +110,7 @@ final class AutoTradingService {
                 }
                 self?.handleThirdTrade(for: opportunityToTrade,
                                        quantityToExecute: quantityForThirdTrade,
+                                       startTime: startTime,
                                        completion: completion)
             }, failure: { error in
                 opportunityToTrade.autotradeCicle = .secondTradeError(description: error.localizedDescription)
@@ -118,6 +123,7 @@ final class AutoTradingService {
     private func handleThirdTrade(
         for opportunityToTrade: TriangularOpportunity,
         quantityToExecute: String,
+        startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .thirdTradeStarted
@@ -131,7 +137,10 @@ final class AutoTradingService {
             newOrderRespType: .full,
             success: { newOrderResponse in
                 opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: newOrderResponse.debugDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\(String(describing: newOrderResponse))")
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(newOrderResponse!)")
+                opportunityToTrade.autotradeProcessDescription.append("\nExecutedQuantity: \(newOrderResponse!.executedQty)")
+                let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+                opportunityToTrade.autotradeProcessDescription.append("\nCicle trading time: \(duration)")
                 completion(opportunityToTrade)
             }, failure: { error in
                 opportunityToTrade.autotradeCicle = .thirdTradeError(description: error.localizedDescription)
