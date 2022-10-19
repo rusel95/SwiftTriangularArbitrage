@@ -368,7 +368,7 @@ final class BinanceAPIService {
         case full = "FULL"
     }
 
-    struct NewOrderResponse: Codable {
+    struct NewOrderResponse: Codable, CustomStringConvertible {
         let symbol: String
         let orderID, orderListID: Int
         let clientOrderID: String
@@ -384,16 +384,32 @@ final class BinanceAPIService {
             case clientOrderID = "clientOrderId"
             case transactTime, price, origQty, executedQty, cummulativeQuoteQty, status, timeInForce, type, side, fills
         }
+        
+        var description: String {
+            var text =
+            """
+            \(symbol) \(side) \(status)
+            price: \(price), origQty: \(origQty), executeQty: \(executedQty), cummulativeQuoteQty: \(cummulativeQuoteQty)
+            fills:
+            """
+            fills.forEach { text.append($0.description) }
+            return text
+        }
     }
-
-    // MARK: - Fill
-    struct Fill: Codable {
+    
+    struct Fill: Codable, CustomStringConvertible {
         let price, qty, commission, commissionAsset: String
         let tradeID: Int
 
         enum CodingKeys: String, CodingKey {
             case price, qty, commission, commissionAsset
             case tradeID = "tradeId"
+        }
+        
+        var description: String {
+            """
+            price: \(price), qty: \(qty), commission: \(commission), commissionAsset: \(commissionAsset)
+            """
         }
     }
     

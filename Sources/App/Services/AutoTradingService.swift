@@ -12,8 +12,8 @@ final class AutoTradingService {
     
     static let shared: AutoTradingService = AutoTradingService()
     
-    private let stables: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
-    private let forbiddenAssets: Set<String> = Set(arrayLiteral: "RUB", "BRL")
+    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
+    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     
@@ -35,11 +35,10 @@ final class AutoTradingService {
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         // NOTE: - Trade only some first opportunity - only 1 opportunity at a time
-        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { stables.contains($0.value.firstSurfaceResult.swap0) })?.value,
-              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
-              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
-              forbiddenAssets.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else { return }
-        
+        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { allowedAssetsToTrade.contains($0.value.firstSurfaceResult.swap0) })?.value,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else { return }
         
         switch opportunityToTrade.autotradeCicle {
         case .pending:
@@ -48,9 +47,11 @@ final class AutoTradingService {
             guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
                   let firstOrderMinNotional = Double(firstOrderMinNotionalString)
             else {
-                print("No min notional")
+                opportunityToTrade.autotradeProcessDescription.append("\nError: No min notional")
+                completion(opportunityToTrade)
                 return
             }
+            
             let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
@@ -59,19 +60,20 @@ final class AutoTradingService {
                 side: opportunityToTrade.firstSurfaceResult.directionTrade1,
                 type: .market,
                 quantity: String(firstOrderMinNotional * 1.5),
-                quoteOrderQty: String(firstOrderMinNotional * 1.5), // temporary
+                quoteOrderQty: String(firstOrderMinNotional * 1.5),
                 newOrderRespType: .full,
                 success: { [weak self] newOrderResponse in
-                    opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(newOrderResponse!)")
-                    
-                    guard let quantityForSecondTrade = newOrderResponse?.executedQty else {
-                        print("no executed quantity")
+                    guard let newOrderResponse = newOrderResponse else {
+                        opportunityToTrade.autotradeProcessDescription.append("\n\nStep 1: No Response")
+                        completion(opportunityToTrade)
                         return
                     }
                     
+                    opportunityToTrade.autotradeCicle = .firstTradeFinished
+                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(newOrderResponse.description)")
+                    
                     self?.handleSecondTrade(for: opportunityToTrade,
-                                            quantityToExecute: quantityForSecondTrade,
+                                            quantityToExecute: newOrderResponse.executedQty,
                                             startTime: startTime,
                                             completion: completion)
                 }, failure: { error in
@@ -101,15 +103,17 @@ final class AutoTradingService {
             quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
             success: { [weak self] newOrderResponse in
-                opportunityToTrade.autotradeCicle = .secondTradeFinished
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(newOrderResponse!)")
-                
-                guard let quantityForThirdTrade = newOrderResponse?.executedQty else {
-                    print("no executed quantity")
+                guard let newOrderResponse = newOrderResponse else {
+                    opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: No Response")
+                    completion(opportunityToTrade)
                     return
                 }
+                
+                opportunityToTrade.autotradeCicle = .secondTradeFinished
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(newOrderResponse.description)")
+                
                 self?.handleThirdTrade(for: opportunityToTrade,
-                                       quantityToExecute: quantityForThirdTrade,
+                                       quantityToExecute: newOrderResponse.executedQty,
                                        startTime: startTime,
                                        completion: completion)
             }, failure: { error in
@@ -136,9 +140,26 @@ final class AutoTradingService {
             quoteOrderQty: quantityToExecute,
             newOrderRespType: .full,
             success: { newOrderResponse in
-                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: newOrderResponse.debugDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(newOrderResponse!)")
-                opportunityToTrade.autotradeProcessDescription.append("\nExecutedQuantity: \(newOrderResponse!.executedQty)")
+                guard let newOrderResponse = newOrderResponse else {
+                    opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: No Response")
+                    completion(opportunityToTrade)
+                    return
+                }
+                
+                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: newOrderResponse.description)
+                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(newOrderResponse.description)")
+                
+                let actualResultingAmount: String
+                switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
+                case .quoteToBase:
+                    actualResultingAmount = newOrderResponse.executedQty
+                case .baseToQuote:
+                    actualResultingAmount = newOrderResponse.cummulativeQuoteQty
+                case .unknown:
+                    actualResultingAmount = "ERROR: no side"
+                }
+                opportunityToTrade.autotradeProcessDescription.append("\n Actual Resulting Amount: \(actualResultingAmount)")
+                
                 let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
                 opportunityToTrade.autotradeProcessDescription.append("\nCicle trading time: \(duration)")
                 completion(opportunityToTrade)
