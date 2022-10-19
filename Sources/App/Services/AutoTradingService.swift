@@ -49,7 +49,7 @@ final class AutoTradingService {
             guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
                   let firstOrderMinNotional = Double(firstOrderMinNotionalString)
             else {
-                opportunityToTrade.autotradeProcessDescription.append("\nError: No min notional")
+                opportunityToTrade.autotradeLog.append("\nError: No min notional")
                 completion(opportunityToTrade)
                 return
             }
@@ -66,7 +66,7 @@ final class AutoTradingService {
                 newOrderRespType: .full,
                 success: { [weak self] firstOrderResponse in
                     guard let firstOrderResponse = firstOrderResponse else {
-                        opportunityToTrade.autotradeProcessDescription.append("\n\nStep 1: No Response")
+                        opportunityToTrade.autotradeLog.append("\n\nStep 1: No Response")
                         completion(opportunityToTrade)
                         return
                     }
@@ -81,7 +81,7 @@ final class AutoTradingService {
                         usedCapital = 0
                     }
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    opportunityToTrade.autotradeProcessDescription.append("\nStep 1: \(firstOrderResponse.description)")
+                    opportunityToTrade.autotradeLog.append("\nStep 1: \(firstOrderResponse.description)")
                     
                     // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                     self?.handleSecondTrade(for: opportunityToTrade,
@@ -97,7 +97,7 @@ final class AutoTradingService {
                         errorDescription = error.localizedDescription
                     }
                     opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
-                    opportunityToTrade.autotradeProcessDescription.append("\n\n Step 1:\(errorDescription)")
+                    opportunityToTrade.autotradeLog.append("\n\n Step 1:\(errorDescription)")
                     completion(opportunityToTrade)
                 }
             )
@@ -125,13 +125,13 @@ final class AutoTradingService {
             newOrderRespType: .full,
             success: { [weak self] secondOrderResponse in
                 guard let secondOrderResponse = secondOrderResponse else {
-                    opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: No Response")
+                    opportunityToTrade.autotradeLog.append("\n\nStep 2: No Response")
                     completion(opportunityToTrade)
                     return
                 }
                 
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 2: \(secondOrderResponse.description)")
+                opportunityToTrade.autotradeLog.append("\n\nStep 2: \(secondOrderResponse.description)")
                 
                 // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                 self?.handleThirdTrade(for: opportunityToTrade,
@@ -147,7 +147,7 @@ final class AutoTradingService {
                     errorDescription = error.localizedDescription
                 }
                 opportunityToTrade.autotradeCicle = .secondTradeError(description: errorDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\n Step 2:\(errorDescription)")
+                opportunityToTrade.autotradeLog.append("\n\n Step 2:\(errorDescription)")
                 completion(opportunityToTrade)
             }
         )
@@ -171,16 +171,16 @@ final class AutoTradingService {
             newOrderRespType: .full,
             success: { thirdOrderResponse in
                 guard let thirdOrderResponse = thirdOrderResponse else {
-                    opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: No Response")
+                    opportunityToTrade.autotradeLog.append("\n\nStep 3: No Response")
                     completion(opportunityToTrade)
                     return
                 }
                 
                 opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: thirdOrderResponse.description)
-                opportunityToTrade.autotradeProcessDescription.append("\n\nStep 3: \(thirdOrderResponse.description)")
+                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(thirdOrderResponse.description)")
                 
                 let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                opportunityToTrade.autotradeProcessDescription.append("\n\nCicle trading time: \(duration)s")
+                opportunityToTrade.autotradeLog.append("\n\nCicle trading time: \(duration)s")
                 
                 let actualResultingAmount: Double
                 switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
@@ -191,8 +191,8 @@ final class AutoTradingService {
                 case .unknown:
                     actualResultingAmount = 0
                 }
-                opportunityToTrade.autotradeProcessDescription.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                opportunityToTrade.autotradeProcessDescription.append("\nProfit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
+                opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
+                opportunityToTrade.autotradeLog.append("\nProfit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
                 
                 completion(opportunityToTrade)
             }, failure: { error in
@@ -203,7 +203,7 @@ final class AutoTradingService {
                     errorDescription = error.localizedDescription
                 }
                 opportunityToTrade.autotradeCicle = .thirdTradeError(description: errorDescription)
-                opportunityToTrade.autotradeProcessDescription.append("\n\n Step 3:\(errorDescription)")
+                opportunityToTrade.autotradeLog.append("\n\n Step 3:\(errorDescription)")
                 completion(opportunityToTrade)
             }
         )

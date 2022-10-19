@@ -31,7 +31,7 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
     var updateMessageId: Int?
     
     var autotradeCicle: AutoTradeCicle = .pending
-    var autotradeProcessDescription: String = ""
+    var autotradeLog: String = ""
     
     var surfaceResults: [SurfaceResult] {
         didSet {
@@ -89,7 +89,7 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
     var tradingDescription: String {
         """
         \(description)\n
-        \(autotradeProcessDescription)
+        \(autotradeLog)
         """
     }
     

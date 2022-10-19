@@ -389,27 +389,20 @@ final class BinanceAPIService {
             var text =
             """
             \(symbol) \(side) \(status)
-            price: \(price), origQty: \(origQty), executeQty: \(executedQty), cummulativeQuoteQty: \(cummulativeQuoteQty)
+            price: \((Double(price) ?? 0.0).string()), origQty: \((Double(origQty) ?? 0.0).string()), executeQty: \((Double(executedQty) ?? 0.0).string()), cummulativeQuoteQty: \((Double(cummulativeQuoteQty) ?? 0.0).string())
             fills:
             """
-            fills.forEach { text.append(" (\($0.description)) ") }
+            fills.forEach { text.append(" (\($0.description))\n") }
             return text
         }
     }
     
     struct Fill: Codable, CustomStringConvertible {
         let price, qty, commission, commissionAsset: String
-        let tradeID: Int
-
-        enum CodingKeys: String, CodingKey {
-            case price, qty, commission, commissionAsset
-            case tradeID = "tradeId"
-        }
+        let tradeId: Int
         
         var description: String {
-            """
-            price: \(price), qty: \(qty), commission: \(commission), commissionAsset: \(commissionAsset)
-            """
+            "price: \((Double(price) ?? 0.0).string()), qty: \((Double(qty) ?? 0.0).string()), commission: \((Double(commission) ?? 0.0).string()), commissionAsset: \(commissionAsset)"
         }
     }
     
