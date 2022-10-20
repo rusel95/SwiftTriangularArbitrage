@@ -88,7 +88,7 @@ extension Date {
     
 }
 
-public extension URL {
+extension URL {
     func appending(_ queryItem: String, value: String?) -> URL {
         guard var urlComponents = URLComponents(string: absoluteString) else {
             return absoluteURL
@@ -105,4 +105,14 @@ public extension URL {
         }
         return url
     }
+}
+
+
+extension Double {
+    
+    func roundToDecimal(_ fractionDigits: Int) -> Double {
+        let multiplier = pow(10, Double(fractionDigits))
+        return Darwin.round(self * multiplier) / multiplier
+    }
+    
 }

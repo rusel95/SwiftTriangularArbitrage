@@ -12,10 +12,11 @@ final class AutoTradingService {
     
     static let shared: AutoTradingService = AutoTradingService()
     
-    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
+    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
+    private var bookTickers: [String: BinanceAPIService.BookTicker] = [:]
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
@@ -25,6 +26,14 @@ final class AutoTradingService {
                 let tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
                 
                 self?.tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
+            }
+        }
+        
+        Jobs.add(interval: .seconds(600)) {
+            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+                guard let tickers = tickers else { return }
+                
+                self?.bookTickers = tickers.toDictionary(with: { $0.symbol })
             }
         }
     }
@@ -57,12 +66,41 @@ final class AutoTradingService {
             let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
+            guard let approximateTickerPrice = bookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
+            
+            let preferableQuantityToExecute: Double
+            switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+            case .baseToQuote:
+                preferableQuantityToExecute = firstOrderMinNotional * 2 / approximateTickerPrice
+            case .quoteToBase:
+                preferableQuantityToExecute = firstOrderMinNotional * 2
+            case .unknown:
+                opportunityToTrade.autotradeLog.append("Unknown side")
+                completion(opportunityToTrade)
+                return
+            }
+            
+            guard let lotSizeMinQtyString = firstSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
+                  let lotSizeMinQty = Double(lotSizeMinQtyString) else {
+                opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
+                completion(opportunityToTrade)
+                return
+            }
+
+            let leftover = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
+            let quantityToExequte = (preferableQuantityToExecute - leftover).roundToDecimal(8)
+            
+            guard quantityToExequte > 0 else {
+                opportunityToTrade.autotradeLog.append("Quantity to Qxecute is 0 - have to have bigger amount")
+                return
+            }
+            
             BinanceAPIService.shared.newOrder(
                 symbol: opportunityToTrade.firstSurfaceResult.contract1,
                 side: opportunityToTrade.firstSurfaceResult.directionTrade1,
                 type: .market,
-                quantity: String(firstOrderMinNotional * 1.5),
-                quoteOrderQty: String(firstOrderMinNotional * 1.5),
+                quantity: quantityToExequte,
+                quoteOrderQty: quantityToExequte,
                 newOrderRespType: .full,
                 success: { [weak self] firstOrderResponse in
                     guard let firstOrderResponse = firstOrderResponse else {
@@ -83,10 +121,9 @@ final class AutoTradingService {
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
                     opportunityToTrade.autotradeLog.append("\nStep 1: \(firstOrderResponse.description)")
                     
-                    // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                     self?.handleSecondTrade(for: opportunityToTrade,
                                             usedCapital: usedCapital,
-                                            quantityToExecute: firstOrderResponse.executedQty,
+                                            preferableQuantityToExecute: Double(firstOrderResponse.executedQty) ?? 0.0,
                                             startTime: startTime,
                                             completion: completion)
                 }, failure: { error in
@@ -109,19 +146,29 @@ final class AutoTradingService {
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
         usedCapital: Double,
-        quantityToExecute: String,
+        preferableQuantityToExecute: Double,
         startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .secondTradeStarted
         
+//        guard let secondSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract2],
+//              let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
+//              let lotSizeMinQty = Double(lotSizeMinQtyString) else {
+//            opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
+//            completion(opportunityToTrade)
+//            return
+//        }
+//
+//        let leftOver = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
+//        let quantityToExequte = preferableQuantityToExecute - leftOver
         
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
             side: opportunityToTrade.firstSurfaceResult.directionTrade2,
             type: .market,
-            quantity: quantityToExecute,
-            quoteOrderQty: quantityToExecute,
+            quantity: preferableQuantityToExecute,
+            quoteOrderQty: preferableQuantityToExecute,
             newOrderRespType: .full,
             success: { [weak self] secondOrderResponse in
                 guard let secondOrderResponse = secondOrderResponse else {
@@ -130,13 +177,18 @@ final class AutoTradingService {
                     return
                 }
                 
+                guard let preferableQuantityToExecute = Double(secondOrderResponse.executedQty) else {
+                    opportunityToTrade.autotradeLog.append("\n\nStep 2: Executed Qty")
+                    completion(opportunityToTrade)
+                    return
+                }
+                
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
                 opportunityToTrade.autotradeLog.append("\n\nStep 2: \(secondOrderResponse.description)")
                 
-                // TODO: - make quantity to execute be consistent with LOT_SIZE - it should be rounded
                 self?.handleThirdTrade(for: opportunityToTrade,
                                        usedCapital: usedCapital,
-                                       quantityToExecute: secondOrderResponse.executedQty,
+                                       preferableQuantityToExecute: preferableQuantityToExecute,
                                        startTime: startTime,
                                        completion: completion)
             }, failure: { error in
@@ -156,18 +208,29 @@ final class AutoTradingService {
     private func handleThirdTrade(
         for opportunityToTrade: TriangularOpportunity,
         usedCapital: Double,
-        quantityToExecute: String,
+        preferableQuantityToExecute: Double,
         startTime: CFAbsoluteTime,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .thirdTradeStarted
         
+//        guard let thirdSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract3],
+//              let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
+//              let lotSizeMinQty = Double(lotSizeMinQtyString) else {
+//            opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
+//            completion(opportunityToTrade)
+//            return
+//        }
+//
+//        let leftOver = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
+//        let quantityToExequte = preferableQuantityToExecute - leftOver
+        
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract3,
             side: opportunityToTrade.firstSurfaceResult.directionTrade3,
             type: .market,
-            quantity: quantityToExecute,
-            quoteOrderQty: quantityToExecute,
+            quantity: preferableQuantityToExecute,
+            quoteOrderQty: preferableQuantityToExecute,
             newOrderRespType: .full,
             success: { thirdOrderResponse in
                 guard let thirdOrderResponse = thirdOrderResponse else {
@@ -192,7 +255,7 @@ final class AutoTradingService {
                     actualResultingAmount = 0
                 }
                 opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                opportunityToTrade.autotradeLog.append("\nProfit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
+                opportunityToTrade.autotradeLog.append("\nActual Profit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
                 
                 completion(opportunityToTrade)
             }, failure: { error in

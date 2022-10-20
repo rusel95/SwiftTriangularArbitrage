@@ -50,9 +50,9 @@ final class BinanceAPIService {
         
         let symbol: String
         let bidPrice: String
-//        let bidQty: String
+        let bidQty: String
         let askPrice: String
-//        let askQty: String
+        let askQty: String
         
         var sellPrice: Double? {
             Double(bidPrice)
@@ -434,8 +434,8 @@ final class BinanceAPIService {
         symbol: String,
         side: OrderSide,
         type: OrderType,
-        quantity: String,
-        quoteOrderQty: String,
+        quantity: Double,
+        quoteOrderQty: Double,
         newOrderRespType: OrderResponseType,
         success: @escaping(_ newOrderResponse: NewOrderResponse?) -> Void,
         failure: @escaping(_ error: Error) -> Void
