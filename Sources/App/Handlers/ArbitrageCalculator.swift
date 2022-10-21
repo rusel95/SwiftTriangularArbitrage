@@ -60,13 +60,7 @@ final class ArbitrageCalculator {
     private var isFirstUpdateCycle: Bool = true
     
     private var documentsDirectory: URL {
-#if os(OSX)
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let documentsDirectory = paths[0]
-        return documentsDirectory
-#else
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
-#endif
     }
     
     private var triangularsStorageURL: URL {
