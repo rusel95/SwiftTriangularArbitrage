@@ -12,11 +12,28 @@ final class AutoTradingService {
     
     static let shared: AutoTradingService = AutoTradingService()
     
+    private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB")
-    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "BRL", "FIS")
+    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "LAZIO", "ALPACA", "CVX")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     private var bookTickers: [String: BinanceAPIService.BookTicker] = [:]
+    
+    private let minimumQuantityMultipler: Double = 1.5
+    
+    func getApproximateMinimalPortion(for asset: String) -> Double? {
+        let minimumQuantityStableEquvalent: Double = 15.0
+        
+        guard stablesSet.contains(asset) == false else { return minimumQuantityStableEquvalent }
+        
+        if let assetToStableSymbol = bookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.buyPrice {
+            return minimumQuantityStableEquvalent / assetToStableApproximatePrice
+        } else if let stableToAssetSymbol = bookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+            return stableToAssetApproximatePrice * minimumQuantityStableEquvalent
+        } else {
+            return nil
+        }
+    }
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
@@ -37,6 +54,8 @@ final class AutoTradingService {
             }
         }
     }
+    
+    // MARK: - First Trade
     
     func handle(
         triangularOpportunitiesDict: [String: TriangularOpportunity],
@@ -71,9 +90,19 @@ final class AutoTradingService {
             let preferableQuantityForFirstTrade: Double
             switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
             case .baseToQuote:
-                preferableQuantityForFirstTrade = firstOrderMinNotional * 2 / approximateTickerPrice
+                let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler / approximateTickerPrice
+                if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunityToTrade.firstSurfaceResult.swap0) {
+                    preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
+                } else {
+                    preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
+                }
             case .quoteToBase:
-                preferableQuantityForFirstTrade = firstOrderMinNotional * 2
+                let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler
+                if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunityToTrade.firstSurfaceResult.swap0) {
+                    preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
+                } else {
+                    preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
+                }
             case .unknown:
                 opportunityToTrade.autotradeLog.append("Unknown side")
                 completion(opportunityToTrade)
@@ -144,7 +173,7 @@ final class AutoTradingService {
                     } else {
                         errorDescription = error.localizedDescription
                     }
-                    errorDescription.append("lotSizeMinQty: \(lotSizeMinQty), minNotional: \(firstOrderMinNotional)")
+                    errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(firstOrderMinNotional)")
                     opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
                     opportunityToTrade.autotradeLog.append("\n\n Step 1:\(errorDescription)")
                     completion(opportunityToTrade)
@@ -154,6 +183,8 @@ final class AutoTradingService {
             return
         }
     }
+    
+    // MARK: - Second Trade
     
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
@@ -205,14 +236,22 @@ final class AutoTradingService {
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
                 opportunityToTrade.autotradeLog.append("\n\nStep 2: \(secondOrderResponse.description)")
                 
+                let usedAssetQuantity: Double
                 let preferableQuantityFotThirdTrade: Double
                 switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
                 case .quoteToBase:
+                    usedAssetQuantity = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
                     preferableQuantityFotThirdTrade = Double(secondOrderResponse.executedQty) ?? 0.0
                 case .baseToQuote:
+                    usedAssetQuantity = Double(secondOrderResponse.executedQty) ?? 0.0
                     preferableQuantityFotThirdTrade = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
                 case .unknown:
+                    usedAssetQuantity = 0
                     preferableQuantityFotThirdTrade = 0
+                }
+                
+                if usedAssetQuantity < quantityToExequte {
+                    opportunityToTrade.autotradeLog.append("Leftovers after second trade: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1)")
                 }
                 
                 self?.handleThirdTrade(for: opportunityToTrade,
@@ -227,13 +266,15 @@ final class AutoTradingService {
                 } else {
                     errorDescription = error.localizedDescription
                 }
-                errorDescription.append("\npreferableQuantityToExecute: \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
+                errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), preferableQuantityToExecute: \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
                 opportunityToTrade.autotradeCicle = .secondTradeError(description: errorDescription)
                 opportunityToTrade.autotradeLog.append("\n\n Step 2:\(errorDescription)")
                 completion(opportunityToTrade)
             }
         )
     }
+    
+    // MARK: - Third Trade
     
     private func handleThirdTrade(
         for opportunityToTrade: TriangularOpportunity,
@@ -288,17 +329,26 @@ final class AutoTradingService {
                 let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
                 opportunityToTrade.autotradeLog.append("\n\nCicle trading time: \(duration)s")
                 
+                let usedAssetQuantity: Double
                 let actualResultingAmount: Double
                 switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
                 case .quoteToBase:
+                    usedAssetQuantity = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
                     actualResultingAmount = Double(thirdOrderResponse.executedQty) ?? 0.0
                 case .baseToQuote:
+                    usedAssetQuantity = Double(thirdOrderResponse.executedQty) ?? 0.0
                     actualResultingAmount = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
                 case .unknown:
+                    usedAssetQuantity = 0
                     actualResultingAmount = 0
                 }
+                
+                if usedAssetQuantity < quantityToExequte {
+                    opportunityToTrade.autotradeLog.append("Leftovers after third trade: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2)")
+                }
+                
                 opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                opportunityToTrade.autotradeLog.append("\nActual Profit: \(actualResultingAmount - usedCapital) \(opportunityToTrade.firstSurfaceResult.swap0) | \(((actualResultingAmount - usedCapital) / usedCapital * 100.0).string())%")
+                opportunityToTrade.autotradeLog.append("\nActual Profit: \((actualResultingAmount - usedCapital).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap0) | \(((actualResultingAmount - usedCapital) / usedCapital * 100.0).string())%")
                 
                 completion(opportunityToTrade)
             }, failure: { error in
@@ -308,9 +358,9 @@ final class AutoTradingService {
                 } else {
                     errorDescription = error.localizedDescription
                 }
-                errorDescription.append("\npreferableQuantityToExecute \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
+                errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), preferableQuantityToExecute \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
                 opportunityToTrade.autotradeCicle = .thirdTradeError(description: errorDescription)
-                opportunityToTrade.autotradeLog.append("\n\n Step 3:\(errorDescription)")
+                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(errorDescription)")
                 completion(opportunityToTrade)
             }
         )
