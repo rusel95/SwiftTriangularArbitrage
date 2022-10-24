@@ -68,12 +68,12 @@ final class AutoTradingService {
             
             guard let approximateTickerPrice = bookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
             
-            let preferableQuantityToExecute: Double
+            let preferableQuantityForFirstTrade: Double
             switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
             case .baseToQuote:
-                preferableQuantityToExecute = firstOrderMinNotional * 2 / approximateTickerPrice
+                preferableQuantityForFirstTrade = firstOrderMinNotional * 2 / approximateTickerPrice
             case .quoteToBase:
-                preferableQuantityToExecute = firstOrderMinNotional * 2
+                preferableQuantityForFirstTrade = firstOrderMinNotional * 2
             case .unknown:
                 opportunityToTrade.autotradeLog.append("Unknown side")
                 completion(opportunityToTrade)
@@ -87,8 +87,8 @@ final class AutoTradingService {
                 return
             }
 
-            let leftover = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
-            let quantityToExequte = (preferableQuantityToExecute - leftover).roundToDecimal(8)
+            let leftoversAfterRounding = preferableQuantityForFirstTrade.truncatingRemainder(dividingBy: lotSizeMinQty)
+            let quantityToExequte = (preferableQuantityForFirstTrade - leftoversAfterRounding).roundToDecimal(8)
             
             guard quantityToExequte > 0 else {
                 opportunityToTrade.autotradeLog.append("Quantity to Qxecute is 0 - have to have bigger amount")
@@ -109,25 +109,32 @@ final class AutoTradingService {
                         return
                     }
                     
-                    let usedCapital: Double
-                    let preferableQuantityToExecute: Double
-                    switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
-                    case .quoteToBase:
-                        usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
-                        preferableQuantityToExecute = Double(firstOrderResponse.executedQty) ?? 0.0
-                    case .baseToQuote:
-                        usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                        preferableQuantityToExecute = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                    case .unknown:
-                        usedCapital = 0
-                        preferableQuantityToExecute = 0
-                    }
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
                     opportunityToTrade.autotradeLog.append("\nStep 1: \(firstOrderResponse.description)")
                     
+                    let usedCapital: Double
+                    switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+                    case .quoteToBase:
+                        usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+                    case .baseToQuote:
+                        usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
+                    case .unknown:
+                        usedCapital = 0
+                    }
+                    
+                    let preferableQuantityForSecondTrade: Double
+                    switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+                    case .quoteToBase:
+                        preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
+                    case .baseToQuote:
+                        preferableQuantityForSecondTrade = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+                    case .unknown:
+                        preferableQuantityForSecondTrade = 0
+                    }
+                    
                     self?.handleSecondTrade(for: opportunityToTrade,
                                             usedCapital: usedCapital,
-                                            preferableQuantityToExecute: preferableQuantityToExecute,
+                                            preferableQuantityToExecute: preferableQuantityForSecondTrade,
                                             startTime: startTime,
                                             completion: completion)
                 }, failure: { error in
@@ -160,15 +167,26 @@ final class AutoTradingService {
         guard let secondSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract2],
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
-              let minNotionalString = secondSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional
+              let minNotionalString = secondSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
+              let minNotional = Double(lotSizeMinQtyString)
         else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
             completion(opportunityToTrade)
             return
         }
         
-        let leftover = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
-        let quantityToExequte = (preferableQuantityToExecute - leftover).roundToDecimal(8)
+        let precisionDivider: Double
+        switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
+        case .quoteToBase:
+            precisionDivider = minNotional
+        case .baseToQuote:
+            precisionDivider = lotSizeMinQty
+        case .unknown:
+            precisionDivider = 1.0
+        }
+        
+        let divisionRemainder = preferableQuantityToExecute.truncatingRemainder(dividingBy: precisionDivider)
+        let quantityToExequte = (preferableQuantityToExecute - divisionRemainder).roundToDecimal(8)
         
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
@@ -184,22 +202,22 @@ final class AutoTradingService {
                     return
                 }
                 
-                let preferableQuantityToExecute: Double
-                switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
-                case .quoteToBase:
-                    preferableQuantityToExecute = Double(secondOrderResponse.executedQty) ?? 0.0
-                case .baseToQuote:
-                    preferableQuantityToExecute = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
-                case .unknown:
-                    preferableQuantityToExecute = 0
-                }
-                
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
                 opportunityToTrade.autotradeLog.append("\n\nStep 2: \(secondOrderResponse.description)")
                 
+                let preferableQuantityFotThirdTrade: Double
+                switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
+                case .quoteToBase:
+                    preferableQuantityFotThirdTrade = Double(secondOrderResponse.executedQty) ?? 0.0
+                case .baseToQuote:
+                    preferableQuantityFotThirdTrade = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
+                case .unknown:
+                    preferableQuantityFotThirdTrade = 0
+                }
+                
                 self?.handleThirdTrade(for: opportunityToTrade,
                                        usedCapital: usedCapital,
-                                       preferableQuantityToExecute: preferableQuantityToExecute,
+                                       preferableQuantityToExecute: preferableQuantityFotThirdTrade,
                                        startTime: startTime,
                                        completion: completion)
             }, failure: { error in
@@ -229,13 +247,25 @@ final class AutoTradingService {
         guard let thirdSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract3],
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
-              let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional else {
+              let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
+              let minNotional = Double(lotSizeMinQtyString)
+        else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
             completion(opportunityToTrade)
             return
         }
         
-        let leftover = preferableQuantityToExecute.truncatingRemainder(dividingBy: lotSizeMinQty)
+        let precisionDivider: Double
+        switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
+        case .quoteToBase:
+            precisionDivider = minNotional
+        case .baseToQuote:
+            precisionDivider = lotSizeMinQty
+        case .unknown:
+            precisionDivider = 1.0
+        }
+        
+        let leftover = preferableQuantityToExecute.truncatingRemainder(dividingBy: precisionDivider)
         let quantityToExequte = (preferableQuantityToExecute - leftover).roundToDecimal(8)
         
         BinanceAPIService.shared.newOrder(
@@ -268,7 +298,7 @@ final class AutoTradingService {
                     actualResultingAmount = 0
                 }
                 opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                opportunityToTrade.autotradeLog.append("\nActual Profit: \(((actualResultingAmount - usedCapital) / usedCapital).string())%")
+                opportunityToTrade.autotradeLog.append("\nActual Profit: \(actualResultingAmount - usedCapital) \(opportunityToTrade.firstSurfaceResult.swap0) | \(((actualResultingAmount - usedCapital) / usedCapital * 100.0).string())%")
                 
                 completion(opportunityToTrade)
             }, failure: { error in
