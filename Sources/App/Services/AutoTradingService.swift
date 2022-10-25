@@ -21,20 +21,6 @@ final class AutoTradingService {
     
     private let minimumQuantityMultipler: Double = 1.5
     
-    func getApproximateMinimalPortion(for asset: String) -> Double? {
-        let minimumQuantityStableEquvalent: Double = 15.0
-        
-        guard stablesSet.contains(asset) == false else { return minimumQuantityStableEquvalent }
-        
-        if let assetToStableSymbol = bookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.buyPrice {
-            return minimumQuantityStableEquvalent / assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = bookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
-            return stableToAssetApproximatePrice * minimumQuantityStableEquvalent
-        } else {
-            return nil
-        }
-    }
-    
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
             BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
@@ -250,14 +236,16 @@ final class AutoTradingService {
                     preferableQuantityFotThirdTrade = 0
                 }
                 
-                if usedAssetQuantity < quantityToExequte {
-                    opportunityToTrade.autotradeLog.append("Leftovers after second trade: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1)")
+                let leftovers = quantityToExequte - usedAssetQuantity
+                if leftovers > 0 {
+                    opportunityToTrade.autotradeLog.append("Leftovers: \(leftovers.string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1) \(self?.getApproximatesStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap1, quantity: leftovers) ?? "")")
                 }
                 
                 self?.handleThirdTrade(for: opportunityToTrade,
                                        usedCapital: usedCapital,
                                        preferableQuantityToExecute: preferableQuantityFotThirdTrade,
                                        startTime: startTime,
+                                       leftovers: leftovers,
                                        completion: completion)
             }, failure: { error in
                 var errorDescription: String
@@ -281,6 +269,7 @@ final class AutoTradingService {
         usedCapital: Double,
         preferableQuantityToExecute: Double,
         startTime: CFAbsoluteTime,
+        leftovers: Double, // USDT
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
         opportunityToTrade.autotradeCicle = .thirdTradeStarted
@@ -316,7 +305,7 @@ final class AutoTradingService {
             quantity: quantityToExequte,
             quoteOrderQty: quantityToExequte,
             newOrderRespType: .full,
-            success: { thirdOrderResponse in
+            success: { [weak self] thirdOrderResponse in
                 guard let thirdOrderResponse = thirdOrderResponse else {
                     opportunityToTrade.autotradeLog.append("\n\nStep 3: No Response")
                     completion(opportunityToTrade)
@@ -343,13 +332,24 @@ final class AutoTradingService {
                     actualResultingAmount = 0
                 }
                 
-                if usedAssetQuantity < quantityToExequte {
-                    opportunityToTrade.autotradeLog.append("Leftovers after third trade: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2)")
+                if quantityToExequte - usedAssetQuantity > 0 {
+                    opportunityToTrade.autotradeLog.append("Leftovers: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2) \(self?.getApproximatesStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap2, quantity: quantityToExequte - usedAssetQuantity) ?? "")")
                 }
                 
                 opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                opportunityToTrade.autotradeLog.append("\nActual Profit: \((actualResultingAmount - usedCapital).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap0) | \(((actualResultingAmount - usedCapital) / usedCapital * 100.0).string())%")
                 
+                let thirdTradeStableEquivalentLeftover = self?.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap2, quantity: quantityToExequte - usedAssetQuantity)
+                if leftovers + (thirdTradeStableEquivalentLeftover ?? 0.0) > 0 {
+                    opportunityToTrade.autotradeLog.append("\nTotal leftovers: \((leftovers + (thirdTradeStableEquivalentLeftover ?? 0.0)).string(maxFractionDigits: 6)) USDT")
+                }
+                opportunityToTrade.autotradeLog.append("\nActual Profit: \((actualResultingAmount - usedCapital).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap0)")
+                if let approximateEquivalentDescription = self?.getApproximatesStableEquivalentDescription(
+                    asset: opportunityToTrade.firstSurfaceResult.swap0,
+                    quantity: (actualResultingAmount - usedCapital)
+                ) {
+                    opportunityToTrade.autotradeLog.append(approximateEquivalentDescription)
+                }
+                opportunityToTrade.autotradeLog.append("| \(((actualResultingAmount - usedCapital) / usedCapital * 100.0).string())%")
                 completion(opportunityToTrade)
             }, failure: { error in
                 var errorDescription: String
@@ -364,6 +364,41 @@ final class AutoTradingService {
                 completion(opportunityToTrade)
             }
         )
+    }
+    
+}
+
+// MARK: - Helpers
+
+private extension AutoTradingService {
+    
+    func getApproximateMinimalPortion(for asset: String) -> Double? {
+        let minimumQuantityStableEquvalent: Double = 10.0 * minimumQuantityMultipler
+        if let approximatesStableEquivalent = getApproximatesStableEquivalent(asset: asset, quantity: minimumQuantityStableEquvalent) {
+            return approximatesStableEquivalent
+        } else {
+            return nil
+        }
+    }
+    
+    func getApproximatesStableEquivalentDescription(asset: String, quantity: Double) -> String? {
+        if let approximatesStableEquivalent = getApproximatesStableEquivalent(asset: asset, quantity: quantity) {
+            return " ≈ \(approximatesStableEquivalent.string(maxFractionDigits: 6)) USDT "
+        } else {
+            return nil
+        }
+    }
+    
+    func getApproximatesStableEquivalent(asset: String, quantity: Double) -> Double? {
+        guard stablesSet.contains(asset) == false else { return nil }
+        
+        if let assetToStableSymbol = bookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+            return quantity / assetToStableApproximatePrice
+        } else if let stableToAssetSymbol = bookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+            return stableToAssetApproximatePrice * quantity
+        } else {
+            return nil
+        }
     }
     
 }
