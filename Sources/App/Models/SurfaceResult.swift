@@ -41,16 +41,16 @@ struct SurfaceResult: CustomStringConvertible, Hashable {
     var shortDescription: String {
         String("""
         \(modeDescrion) \(direction) \(contract1) \(contract2) \(contract3)
-        Step 1: Swap \(swap0) at \(swap1Rate.string()) for \(swap1) acquiring \(acquiredCoinT1.string())
-        Step 2: Swap \(swap1) at \(swap2Rate.string()) for \(swap2) acquiring \(acquiredCoinT2.string())
-        Step 3: Swap \(swap2) at \(swap3Rate.string()) for \(swap3) acquiring \(acquiredCoinT3.string())
+        Step 1: Swap \(swap0) at \(swap1Rate.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))
+        Step 2: Swap \(swap1) at \(swap2Rate.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))
+        Step 3: Swap \(swap2) at \(swap3Rate.string(maxFractionDigits: 8)) for \(swap3) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))
         """)
     }
     
     var description: String {
         String("""
         \(shortDescription)
-        Profit: \(profitPercent.string()) %\n
+        Profit: \(profitPercent.string(maxFractionDigits: 2)) %\n
         """)
     }
     

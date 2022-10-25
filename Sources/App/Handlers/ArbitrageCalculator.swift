@@ -31,13 +31,13 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.0
+                return 0.15
 #else
                 return 0.3
 #endif
             case .stable:
 #if DEBUG
-                return -0.1
+                return 0.1
 #else
                 return 0.2
 #endif

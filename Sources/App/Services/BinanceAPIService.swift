@@ -389,7 +389,7 @@ final class BinanceAPIService {
             var text =
             """
             \(symbol) \(side) \(status)
-            price: \((Double(price) ?? 0.0).string()), origQty: \((Double(origQty) ?? 0.0).string()), executeQty: \((Double(executedQty) ?? 0.0).string()), cummulativeQuoteQty: \((Double(cummulativeQuoteQty) ?? 0.0).string())
+            price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), origQty: \((Double(origQty) ?? 0.0).string(maxFractionDigits: 8)), executeQty: \((Double(executedQty) ?? 0.0).string(maxFractionDigits: 8)), cummulativeQuoteQty: \((Double(cummulativeQuoteQty) ?? 0.0).string(maxFractionDigits: 8))
             fills:
             """
             fills.forEach { text.append(" (\($0.description))\n") }
@@ -402,7 +402,7 @@ final class BinanceAPIService {
         let tradeId: Int
         
         var description: String {
-            "price: \((Double(price) ?? 0.0).string()), qty: \((Double(qty) ?? 0.0).string()), commission: \((Double(commission) ?? 0.0).string()), commissionAsset: \(commissionAsset)"
+            "price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), qty: \((Double(qty) ?? 0.0).string(maxFractionDigits: 8)), commission: \((Double(commission) ?? 0.0).string(maxFractionDigits: 8)), commissionAsset: \(commissionAsset)"
         }
     }
     

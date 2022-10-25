@@ -79,10 +79,10 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         start time: \(startDate.readableDescription)
         last update time: \(latestUpdateDate.readableDescription)
         duration: \(duration) seconds
-        starting profit: \(surfaceResults.first?.profitPercent.string() ?? "")%
-        average profit: \(averageProfitPercent.string())%
-        highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string() ?? "")%
-        current profit: \(surfaceResults.last?.profitPercent.string() ?? "")%
+        starting profit: \(surfaceResults.first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
+        average profit: \(averageProfitPercent.string(maxFractionDigits: 2))%
+        highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
+        current profit: \(surfaceResults.last?.profitPercent.string(maxFractionDigits: 2) ?? "")%
         """
     }
     
