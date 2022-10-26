@@ -10,7 +10,7 @@ import Foundation
 import FoundationNetworking
 #endif
 import Logging
-import CryptoKit
+import Crypto
 
 enum OrderSide: String {
     case quoteToBase = "BUY"
