@@ -75,3 +75,44 @@ extension Array where Element: FloatingPoint {
     }
     
 }
+
+extension Date {
+    
+    var millisecondsSince1970:Int64 {
+        Int64((self.timeIntervalSince1970 * 1000.0).rounded())
+    }
+    
+    init(milliseconds:Int64) {
+        self = Date(timeIntervalSince1970: TimeInterval(milliseconds) / 1000)
+    }
+    
+}
+
+extension URL {
+    func appending(_ queryItem: String, value: String?) -> URL {
+        guard var urlComponents = URLComponents(string: absoluteString) else {
+            return absoluteURL
+        }
+
+        var queryItems: [URLQueryItem] = urlComponents.queryItems ??  []
+        let queryItem = URLQueryItem(name: queryItem, value: value)
+        queryItems.append(queryItem)
+        urlComponents.queryItems = queryItems
+        // a fix for a special case of encoding + in query parameters
+        urlComponents.percentEncodedQuery = urlComponents.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        guard let url = urlComponents.url else {
+            fatalError("The url should be constructed")
+        }
+        return url
+    }
+}
+
+
+extension Double {
+    
+    func roundToDecimal(_ fractionDigits: Int) -> Double {
+        let multiplier = pow(10, Double(fractionDigits))
+        return Darwin.round(self * multiplier) / multiplier
+    }
+    
+}

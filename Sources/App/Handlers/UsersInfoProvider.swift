@@ -18,13 +18,7 @@ public final class UsersInfoProvider: NSObject {
     private var logger = Logger(label: "handlers.logger")
     
     private var storageURL: URL {
-#if os(OSX)
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let documentsDirectory = paths[0]
-        return documentsDirectory.appendingPathComponent("usersInfo")
-#else
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/usersInfo")
-#endif
     }
 
     // MARK: - INIT

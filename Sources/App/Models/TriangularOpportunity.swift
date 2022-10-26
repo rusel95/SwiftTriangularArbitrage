@@ -7,15 +7,31 @@
 
 import Foundation
 
-class TriangularOpportunity: CustomStringConvertible, Hashable {
+final class TriangularOpportunity: CustomStringConvertible, Hashable {
+    
+    enum AutoTradeCicle {
+        case pending
+        case firstTradeStarted
+        case firstTradeFinished
+        case firstTradeError(description: String)
+        case secondTradeStarted
+        case secondTradeFinished
+        case secondTradeError(description: String)
+        case thirdTradeStarted
+        case thirdTradeFinished(result: String)
+        case thirdTradeError(description: String)
+    }
     
     let contractsDescription: String
     let startDate: Date
+    let firstSurfaceResult: SurfaceResult
     
     var latestUpdateDate: Date
     
     var updateMessageId: Int?
-    var endDate: Date? = nil
+    
+    var autotradeCicle: AutoTradeCicle = .pending
+    var autotradeLog: String = ""
     
     var surfaceResults: [SurfaceResult] {
         didSet {
@@ -30,6 +46,7 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
         startDate: Date = Date()
     ) {
         self.contractsDescription = contractsDescription
+        self.firstSurfaceResult = firstSurfaceResult
         self.surfaceResults = [firstSurfaceResult]
         self.updateMessageId = updateMessageId
         self.startDate = startDate
@@ -52,16 +69,27 @@ class TriangularOpportunity: CustomStringConvertible, Hashable {
         surfaceResults.map { $0.profitPercent }.averageIncr()
     }
     
+    var duration: Int {
+        Int(latestUpdateDate.timeIntervalSince(startDate))
+    }
+    
     var description: String {
         """
         \(surfaceResults.last?.shortDescription ?? "")\n
         start time: \(startDate.readableDescription)
         last update time: \(latestUpdateDate.readableDescription)
-        duration: \(Int(latestUpdateDate.timeIntervalSince(startDate))) seconds
-        starting profit: \(surfaceResults.first?.profitPercent.string() ?? "")%
-        average profit: \(averageProfitPercent.string())%
-        highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string() ?? "")%
-        current profit: \(surfaceResults.last?.profitPercent.string() ?? "")%
+        duration: \(duration) seconds
+        starting profit: \(surfaceResults.first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
+        average profit: \(averageProfitPercent.string(maxFractionDigits: 2))%
+        highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
+        current profit: \(surfaceResults.last?.profitPercent.string(maxFractionDigits: 2) ?? "")%
+        """
+    }
+    
+    var tradingDescription: String {
+        """
+        \(description)\n
+        \(autotradeLog)
         """
     }
     
