@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.4
 import PackageDescription
 
 let package = Package(
@@ -11,10 +11,10 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         .package(url: "https://github.com/nerzh/telegram-vapor-bot", .upToNextMajor(from: "1.0.2")),
         .package(url: "https://github.com/BrettRToomey/Jobs.git", from: "1.1.1"),
-        .package(url: "https://github.com/apple/swift-crypto.git", .exact("1.1.7"))
+        .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0" ..< "3.0.0")
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "App",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
@@ -29,10 +29,6 @@ let package = Package(
                 .unsafeFlags(["-cross-module-optimization"], .when(configuration: .release))
             ]
         ),
-        .target(name: "Run", dependencies: [.target(name: "App")]),
-        .testTarget(name: "AppTests", dependencies: [
-            .target(name: "App"),
-            .product(name: "XCTVapor", package: "vapor"),
-        ])
+        .executableTarget(name: "Run", dependencies: [.target(name: "App")]),
     ]
 )
