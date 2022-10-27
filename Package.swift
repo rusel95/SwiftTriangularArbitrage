@@ -11,7 +11,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         .package(url: "https://github.com/nerzh/telegram-vapor-bot", .upToNextMajor(from: "1.0.2")),
         .package(url: "https://github.com/BrettRToomey/Jobs.git", from: "1.1.1"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "2.0.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", .exact("2.0.0"))
     ],
     targets: [
         .target(
