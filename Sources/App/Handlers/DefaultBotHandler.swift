@@ -335,7 +335,7 @@ private extension DefaultBotHandlers {
                     userInfo.stableTriangularOpportunitiesMessagesInfo = newUserOpportunities
                 }
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
-                if userInfo.userId == 204251205 {
+                if triangularOpportunitiesDict.isEmpty == false, userInfo.userId == 204251205 {
                     AutoTradingService.shared.handle(
                         triangularOpportunitiesDict: triangularOpportunitiesDict,
                         for: userInfo,

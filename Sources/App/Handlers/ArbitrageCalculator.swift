@@ -31,15 +31,15 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.2
+                return 0.0
 #else
-                return 0.4
+                return 0.2
 #endif
             case .stable:
 #if DEBUG
-                return 0.1
+                return 0.0
 #else
-                return 0.2
+                return 0.1
 #endif
             }
         }
@@ -76,7 +76,7 @@ final class ArbitrageCalculator {
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .seconds(1800)) { [weak self] in
+        Jobs.add(interval: .seconds(3600)) { [weak self] in
             guard let self = self else { return }
             
             if self.isFirstUpdateCycle {
