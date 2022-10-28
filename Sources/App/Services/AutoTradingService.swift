@@ -188,7 +188,7 @@ final class AutoTradingService {
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let minNotionalString = secondSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
-              let minNotional = Double(lotSizeMinQtyString)
+              let minNotional = Double(minNotionalString)
         else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
             completion(opportunityToTrade)
@@ -286,7 +286,7 @@ final class AutoTradingService {
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
-              let minNotional = Double(lotSizeMinQtyString)
+              let minNotional = Double(minNotionalString)
         else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
             completion(opportunityToTrade)
