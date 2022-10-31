@@ -19,7 +19,7 @@ final class AutoTradingService {
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     private var bookTickers: [String: BinanceAPIService.BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 1.2
+    private let minimumQuantityMultipler: Double = 1.5
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
@@ -200,13 +200,14 @@ final class AutoTradingService {
         }
         
         let leftoversAfterRounding = preferableQuantityToExecute.truncatingRemainder(dividingBy: precisionDivider)
-        let leftoversAfterRoundingStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap1, assetQuantity: leftoversAfterRounding) ?? 0.0
-        if leftoversAfterRoundingStableEquivalent > 0 {
-            opportunityToTrade.autotradeLog.append("\n\nLeftovers after rounding: ≈ \(leftoversAfterRoundingStableEquivalent.string(maxFractionDigits: 4)) USDT")
+        var leftoversAfterRoundingStableEquivalent = 0.0
+        if leftoversAfterRounding > 0 {
+            leftoversAfterRoundingStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap1, assetQuantity: leftoversAfterRounding) ?? 0.0
+            opportunityToTrade.autotradeLog.append("\n\nLeftovers before second trade: \(leftoversAfterRounding.string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1) ≈ \(leftoversAfterRoundingStableEquivalent.string(maxFractionDigits: 4)) USDT")
         }
         
         let quantityToExequte = (preferableQuantityToExecute - leftoversAfterRounding).roundToDecimal(8)
-        
+        opportunityToTrade.autotradeLog.append("\nQuantity to execute on second trade: \(quantityToExequte) \(opportunityToTrade.firstSurfaceResult.swap1)")
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
             side: opportunityToTrade.firstSurfaceResult.directionTrade2,
@@ -302,11 +303,15 @@ final class AutoTradingService {
             precisionDivider = 1.0
         }
         
-        let divisionRemainder = preferableQuantityToExecute.truncatingRemainder(dividingBy: precisionDivider)
-        let quantityToExequte = (preferableQuantityToExecute - divisionRemainder).roundToDecimal(8)
+        let leftoversAfterRounding = preferableQuantityToExecute.truncatingRemainder(dividingBy: precisionDivider)
+        var leftoversAfterRoundingStableEquivalent: Double = 0.0
+        if leftoversAfterRounding > 0 {
+            leftoversAfterRoundingStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap2, assetQuantity: leftoversAfterRounding) ?? 0.0
+            opportunityToTrade.autotradeLog.append("\n\nLeftovers before third trade: \(leftoversAfterRounding.string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2) ≈ \(leftoversAfterRoundingStableEquivalent.string(maxFractionDigits: 4)) USDT")
+        }
         
-        // TODO: - make leftovers count too
-        
+        let quantityToExequte = (preferableQuantityToExecute - leftoversAfterRounding).roundToDecimal(8)
+        opportunityToTrade.autotradeLog.append("\nQuantity to execute on third trade: \(quantityToExequte) \(opportunityToTrade.firstSurfaceResult.swap2)")
         BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract3,
             side: opportunityToTrade.firstSurfaceResult.directionTrade3,
@@ -350,7 +355,7 @@ final class AutoTradingService {
                 opportunityToTrade.autotradeLog.append("\n\nCicle trading time: \(duration)s")
                 
                 let thirdTradeStableEquivalentLeftover = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap2, assetQuantity: thirdTradeLeftovers) ?? 0.0
-                let totalStableEquivalentLeftover = secondTradeStableLeftovers + thirdTradeStableEquivalentLeftover
+                let totalStableEquivalentLeftover = secondTradeStableLeftovers + leftoversAfterRoundingStableEquivalent + thirdTradeStableEquivalentLeftover
                 if totalStableEquivalentLeftover > 0.0 {
                     opportunityToTrade.autotradeLog.append("\nTotal leftovers: ≈ \(totalStableEquivalentLeftover.string(maxFractionDigits: 6)) USDT")
                 }
