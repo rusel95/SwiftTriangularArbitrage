@@ -392,7 +392,7 @@ final class BinanceAPIService {
             origQty: \((Double(origQty) ?? 0.0).string(maxFractionDigits: 8)), executeQty: \((Double(executedQty) ?? 0.0).string(maxFractionDigits: 8)), cummulativeQuoteQty: \((Double(cummulativeQuoteQty) ?? 0.0).string(maxFractionDigits: 8))
             fills:
             """
-            fills.forEach { text.append(" (\($0.description))\n") }
+            fills.forEach { text.append(" (\($0.description))") }
             return text
         }
     }
