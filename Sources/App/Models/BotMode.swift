@@ -17,7 +17,7 @@ enum BotMode: String, Codable {
         case .standartTriangularArtibraging:
             return 1
         case .stableTriangularArbritraging:
-            return 2
+            return 1
         case .alerting: return .infinity
         case .suspended: return .infinity
         }
