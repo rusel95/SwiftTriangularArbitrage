@@ -33,6 +33,7 @@ final class DefaultBotHandlers {
         
         startStandartTriangularArbitragingMonitoring(bot: bot)
         startStableTriangularArbitragingMonitoring(bot: bot)
+        startAlerting(bot: bot)
     }
 
     
@@ -63,13 +64,6 @@ final class DefaultBotHandlers {
                         self.logger.report(error: botError)
                     }
                 }
-                
-                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                    from: surfaceResults,
-                    currentOpportunities: self.standartTriangularOpportunitiesDict,
-                    profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
-                )
-                self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
             }
         }
     }
@@ -101,7 +95,26 @@ final class DefaultBotHandlers {
                         self.logger.report(error: botError)
                     }
                 }
+            }
+        }
+    }
+    
+    func startAlerting(bot: TGBotPrtcl) {
+        Jobs.add(interval: .seconds(BotMode.alerting.jobInterval)) { [weak self] in
+            ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
+                guard let self = self, let surfaceResults = surfaceResults else { return }
                 
+                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                    from: surfaceResults,
+                    currentOpportunities: self.standartTriangularOpportunitiesDict,
+                    profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
+                )
+                self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
+            }
+            
+            ArbitrageCalculator.shared.getSurfaceResults(for: .stable) { surfaceResults, statusText in
+                guard let self = self, let surfaceResults = surfaceResults else { return }
+
                 self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                     from: surfaceResults,
                     currentOpportunities: self.stableTriangularOpportunitiesDict,
@@ -277,6 +290,7 @@ private extension DefaultBotHandlers {
         with triangularOpportunitiesDict: [String: TriangularOpportunity],
         bot: TGBotPrtcl
     ) {
+        let startTime = CFAbsoluteTimeGetCurrent()
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
             // NOTE: - sending all Alerts to specific people separatly
             let group = DispatchGroup()
@@ -340,7 +354,9 @@ private extension DefaultBotHandlers {
                         triangularOpportunitiesDict: triangularOpportunitiesDict,
                         for: userInfo,
                         completion: { tradedTriangularOpportunity in
-                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: tradedTriangularOpportunity.tradingDescription))
+                            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId),
+                                                                   text: tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")))
                         })
                 }
             }

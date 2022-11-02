@@ -17,9 +17,9 @@ final class AutoTradingService {
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
-    private var bookTickers: [String: BinanceAPIService.BookTicker] = [:]
+    private var latestBookTickers: [String: BinanceAPIService.BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 1.5
+    private let minimumQuantityMultipler: Double = 2.1
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
@@ -36,7 +36,7 @@ final class AutoTradingService {
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 guard let tickers = tickers else { return }
                 
-                self?.bookTickers = tickers.toDictionary(with: { $0.symbol })
+                self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
             }
         }
     }
@@ -70,7 +70,7 @@ final class AutoTradingService {
             let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
-            guard let approximateTickerPrice = bookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
+            guard let approximateTickerPrice = latestBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
             
             let preferableQuantityForFirstTrade: Double
             switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
@@ -435,9 +435,9 @@ private extension AutoTradingService {
     func getApproximatesStableEquivalent(asset: String, assetQuantity: Double) -> Double? {
         guard stablesSet.contains(asset) == false else { return assetQuantity }
         
-        if let assetToStableSymbol = bookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = latestBookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = bookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+        } else if let stableToAssetSymbol = latestBookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
             return nil
