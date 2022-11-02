@@ -76,6 +76,12 @@ final class ArbitrageCalculator {
     // MARK: - Init
     
     private init() {
+        Jobs.add(interval: .seconds(1)) { [weak self] in
+            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+                self?.bookTickersDictionary = tickers?.toDictionary { $0.symbol } ?? [:]
+            }
+        }
+        
         Jobs.add(interval: .seconds(3600)) { [weak self] in
             guard let self = self else { return }
             
@@ -128,41 +134,34 @@ final class ArbitrageCalculator {
     // MARK: Getting Surface Results
     
     func getSurfaceResults(for mode: Mode, completion: @escaping ([SurfaceResult]?, String) -> Void) {
-        BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-            guard let self = self, let tickers = tickers else { return }
-            
-            self.bookTickersDictionary = tickers.toDictionary { $0.symbol }
-            
-            var allSurfaceResults: [SurfaceResult] = []
-            
-            let startTime = CFAbsoluteTimeGetCurrent()
-            
-            let duration: String
-            let statusText: String
-            switch mode {
-            case .standart:
-                self.currentStandartTriangulars.forEach { triangular in
-                    if let surfaceResult = self.calculateSurfaceRate(mode: .standart, triangular: triangular) {
-                        allSurfaceResults.append(surfaceResult)
-                    }
+        var allSurfaceResults: [SurfaceResult] = []
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        let duration: String
+        let statusText: String
+        switch mode {
+        case .standart:
+            currentStandartTriangulars.forEach { triangular in
+                if let surfaceResult = calculateSurfaceRate(mode: .standart, triangular: triangular) {
+                    allSurfaceResults.append(surfaceResult)
                 }
-                duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                statusText = "\n\(self.lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
-            case .stable:
-                self.currentStableTriangulars.forEach { triangular in
-                    if let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: triangular) {
-                        allSurfaceResults.append(surfaceResult)
-                    }
-                }
-                duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                statusText = "\n\(self.lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(self.tradeableSymbols.count) symbols in \(duration) seconds"
             }
-            
-            let valuableSurfaceResults = allSurfaceResults
-                .sorted(by: { $0.profitPercent > $1.profitPercent })
-                .prefix(10)
-            completion(Array(valuableSurfaceResults), statusText)
+            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(tradeableSymbols.count) symbols in \(duration) seconds"
+        case .stable:
+            self.currentStableTriangulars.forEach { triangular in
+                if let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: triangular) {
+                    allSurfaceResults.append(surfaceResult)
+                }
+            }
+            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(tradeableSymbols.count) symbols in \(duration) seconds"
         }
+        
+        let valuableSurfaceResults = allSurfaceResults
+            .sorted(by: { $0.profitPercent > $1.profitPercent })
+            .prefix(10)
+        completion(Array(valuableSurfaceResults), statusText)
     }
 }
 
