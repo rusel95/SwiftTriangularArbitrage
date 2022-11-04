@@ -33,13 +33,13 @@ final class ArbitrageCalculator {
 #if DEBUG
                 return 0.2
 #else
-                return 0.3
+                return 0.4
 #endif
             case .stable:
 #if DEBUG
                 return 0.1
 #else
-                return 0.15
+                return 0.25
 #endif
             }
         }

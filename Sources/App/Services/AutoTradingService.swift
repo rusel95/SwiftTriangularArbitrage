@@ -19,7 +19,7 @@ final class AutoTradingService {
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     private var latestBookTickers: [String: BinanceAPIService.BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 2.1
+    private let minimumQuantityMultipler: Double = 1.1
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
