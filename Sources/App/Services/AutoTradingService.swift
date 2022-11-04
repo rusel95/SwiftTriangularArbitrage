@@ -185,7 +185,8 @@ final class AutoTradingService {
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let minNotionalString = secondSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
-              let minNotional = Double(minNotionalString)
+              let tickSizeString = secondSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
+              let tickSize = Double(tickSizeString)
         else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
             completion(opportunityToTrade)
@@ -195,7 +196,7 @@ final class AutoTradingService {
         let precisionDivider: Double
         switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
         case .quoteToBase:
-            precisionDivider = minNotional
+            precisionDivider = tickSize
         case .baseToQuote:
             precisionDivider = lotSizeMinQty
         case .unknown:
@@ -293,7 +294,8 @@ final class AutoTradingService {
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
-              let minNotional = Double(minNotionalString)
+              let tickSizeString = thirdSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
+              let tickSize = Double(tickSizeString)
         else {
             opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
             completion(opportunityToTrade)
@@ -303,7 +305,7 @@ final class AutoTradingService {
         let precisionDivider: Double
         switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
         case .quoteToBase:
-            precisionDivider = minNotional
+            precisionDivider = tickSize
         case .baseToQuote:
             precisionDivider = lotSizeMinQty
         case .unknown:
