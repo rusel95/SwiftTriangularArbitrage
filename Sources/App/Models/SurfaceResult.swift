@@ -34,6 +34,72 @@ struct SurfaceResult: CustomStringConvertible, Hashable {
     let profitPercent: Double
     let direction: Direction
     
+    var pairAExpectedPrice: Double {
+        switch directionTrade1 {
+        case .quoteToBase:
+            return 1.0 / swap1Rate
+        case .baseToQuote:
+            return swap1Rate
+        case .unknown:
+            return 0.0
+        }
+    }
+    
+    var step1Description: String {
+        switch directionTrade1 {
+        case .quoteToBase:
+            return "Buy \(swap1) at \(pairAExpectedPrice.string(maxFractionDigits: 8)) for \(swap0) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))"
+        case .baseToQuote:
+            return "Sell \(swap0) at \(pairAExpectedPrice.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))"
+        case .unknown:
+            return "unknown"
+        }
+    }
+    
+    var pairBExpectedPrice: Double {
+        switch directionTrade2 {
+        case .quoteToBase:
+            return 1.0 / swap2Rate
+        case .baseToQuote:
+            return swap2Rate
+        case .unknown:
+            return 0.0
+        }
+    }
+    
+    var step2Description: String {
+        switch directionTrade2 {
+        case .quoteToBase:
+            return "Buy \(swap2) at \(pairBExpectedPrice.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))"
+        case .baseToQuote:
+            return "Sell \(swap1) at \(pairBExpectedPrice.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))"
+        case .unknown:
+            return "unknown"
+        }
+    }
+    
+    var pairCExpectedPrice: Double {
+        switch directionTrade3 {
+        case .quoteToBase:
+            return 1.0 / swap3Rate
+        case .baseToQuote:
+            return swap3Rate
+        case .unknown:
+            return 0.0
+        }
+    }
+    
+    var step3Description: String {
+        switch directionTrade3 {
+        case .quoteToBase:
+            return "Buy \(swap3) at \(pairCExpectedPrice.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))"
+        case .baseToQuote:
+            return "Sell \(swap2) at \(pairCExpectedPrice.string(maxFractionDigits: 8)) for \(swap3) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))"
+        case .unknown:
+            return "unknown"
+        }
+    }
+    
     var contractsDescription: String {
         "\(contract1)_\(contract2)_\(contract3)"
     }
@@ -41,9 +107,9 @@ struct SurfaceResult: CustomStringConvertible, Hashable {
     var shortDescription: String {
         String("""
         \(modeDescrion) \(direction) \(contract1) \(contract2) \(contract3)
-        Step 1: Swap \(swap0) at \(swap1Rate.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))
-        Step 2: Swap \(swap1) at \(swap2Rate.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))
-        Step 3: Swap \(swap2) at \(swap3Rate.string(maxFractionDigits: 8)) for \(swap3) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))
+        Step 1: \(step1Description)
+        Step 2: \(step2Description)
+        Step 3: \(step3Description)
         """)
     }
     

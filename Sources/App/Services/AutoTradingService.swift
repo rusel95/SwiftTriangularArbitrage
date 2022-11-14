@@ -19,7 +19,7 @@ final class AutoTradingService {
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     private var latestBookTickers: [String: BinanceAPIService.BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 1.1
+    private let minimumQuantityMultipler: Double = 1.5
     
     private init() {
         Jobs.add(interval: .seconds(1800)) { [weak self] in
@@ -124,7 +124,8 @@ final class AutoTradingService {
                     }
                     
                     opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    opportunityToTrade.autotradeLog.append("\nStep 1: \(firstOrderResponse.description)")
+                    let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
+                    opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
                     
                     let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
                     if commission > 0 {
@@ -227,7 +228,8 @@ final class AutoTradingService {
                 }
                 
                 opportunityToTrade.autotradeCicle = .secondTradeFinished
-                opportunityToTrade.autotradeLog.append("\n\nStep 2: \(secondOrderResponse.description)")
+                let description = self.getComparableDescription(for: secondOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairBExpectedPrice)
+                opportunityToTrade.autotradeLog.append("\n\nStep 2: \(description)")
                 
                 let secondOrderComission: Double = self.getCommissionStableEquivalent(for: secondOrderResponse.fills)
                 if secondOrderComission > 0 {
@@ -335,8 +337,9 @@ final class AutoTradingService {
                     return
                 }
                 
-                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: thirdOrderResponse.description)
-                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(thirdOrderResponse.description)")
+                let description = self.getComparableDescription(for: thirdOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairCExpectedPrice)
+                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: description)
+                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(description)")
                
                 let thirdOrderComission: Double = self.getCommissionStableEquivalent(for: thirdOrderResponse.fills)
                 if thirdOrderComission > 0 {
@@ -405,6 +408,22 @@ final class AutoTradingService {
 // MARK: - Helpers
 
 private extension AutoTradingService {
+    
+    func getComparableDescription(
+        for response: BinanceAPIService.NewOrderResponse,
+        expectedExecutionPrice: Double
+    ) -> String {
+        let averageExecutedPrice = response.averageExecutedPrice
+        let differencePercent = (averageExecutedPrice - expectedExecutionPrice) / expectedExecutionPrice * 100.0
+        var text =
+        """
+        \(response.symbol) \(averageExecutedPrice.string(maxFractionDigits: 8))(\(differencePercent.string(maxFractionDigits: 4))% diff) \(response.side)
+        origQty: \((Double(response.origQty) ?? 0.0).string(maxFractionDigits: 8)), executeQty: \((Double(response.executedQty) ?? 0.0).string(maxFractionDigits: 8)), cummulativeQuoteQty: \((Double(response.cummulativeQuoteQty) ?? 0.0).string(maxFractionDigits: 8))
+        fills:
+        """
+        response.fills.forEach { text.append(" (\($0.description))\n") }
+        return text
+    }
     
     func getApproximateMinimalPortion(for asset: String) -> Double? {
         let minimumQuantityStableEquvalent: Double = 10.0 * minimumQuantityMultipler

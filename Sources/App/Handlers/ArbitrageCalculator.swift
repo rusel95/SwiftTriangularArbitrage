@@ -31,13 +31,13 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.2
+                return 0.3
 #else
                 return 0.5
 #endif
             case .stable:
 #if DEBUG
-                return 0.1
+                return 0.2
 #else
                 return 0.4
 #endif
@@ -625,7 +625,7 @@ private extension ArbitrageCalculator {
             let profitPercent = (profit / startingAmount) * 100.0
             
             // Output results
-            if profitPercent > -0.3 {
+            if profitPercent > -0.1 {
                 return SurfaceResult(
                     modeDescrion: mode.description,
                     swap0: swap0,

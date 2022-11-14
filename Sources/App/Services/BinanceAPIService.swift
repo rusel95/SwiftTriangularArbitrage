@@ -368,7 +368,8 @@ final class BinanceAPIService {
         case full = "FULL"
     }
 
-    struct NewOrderResponse: Codable, CustomStringConvertible {
+    struct NewOrderResponse: Codable {
+        
         let symbol: String
         let orderID, orderListID: Int
         let clientOrderID: String
@@ -385,16 +386,10 @@ final class BinanceAPIService {
             case transactTime, price, origQty, executedQty, cummulativeQuoteQty, status, timeInForce, type, side, fills
         }
         
-        var description: String {
-            var text =
-            """
-            \(symbol) \(side) \(status)
-            origQty: \((Double(origQty) ?? 0.0).string(maxFractionDigits: 8)), executeQty: \((Double(executedQty) ?? 0.0).string(maxFractionDigits: 8)), cummulativeQuoteQty: \((Double(cummulativeQuoteQty) ?? 0.0).string(maxFractionDigits: 8))
-            fills:
-            """
-            fills.forEach { text.append(" (\($0.description))") }
-            return text
+        var averageExecutedPrice: Double {
+            (Double(cummulativeQuoteQty) ?? 0.0) / (Double(executedQty) ?? 1.0)
         }
+        
     }
     
     struct Fill: Codable, CustomStringConvertible {
@@ -402,7 +397,7 @@ final class BinanceAPIService {
         let tradeId: Int
         
         var description: String {
-            "price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), qty: \((Double(qty) ?? 0.0).string(maxFractionDigits: 8)), commission: \((Double(commission) ?? 0.0).string(maxFractionDigits: 8)), commissionAsset: \(commissionAsset)"
+            "price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), qty: \((Double(qty) ?? 0.0).string(maxFractionDigits: 8)), comm: \((Double(commission) ?? 0.0).string(maxFractionDigits: 8)), commAsset: \(commissionAsset)"
         }
     }
     
