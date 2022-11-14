@@ -101,27 +101,31 @@ final class DefaultBotHandlers {
     }
     
     func startAlerting(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(BotMode.alerting.jobInterval)) { [weak self] in
-            ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
-                guard let self = self, let surfaceResults = surfaceResults else { return }
+        Jobs.add(interval: .seconds(BotMode.alerting.jobInterval)) {
+            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+                ArbitrageCalculator.shared.bookTickersDictionary = tickers?.toDictionary { $0.symbol } ?? [:]
                 
-                self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                    from: surfaceResults,
-                    currentOpportunities: self.standartTriangularOpportunitiesDict,
-                    profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
-                )
-                self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
-            }
-            
-            ArbitrageCalculator.shared.getSurfaceResults(for: .stable) { surfaceResults, statusText in
-                guard let self = self, let surfaceResults = surfaceResults else { return }
-
-                self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                    from: surfaceResults,
-                    currentOpportunities: self.stableTriangularOpportunitiesDict,
-                    profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
-                )
-                self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
+                ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
+                    guard let self = self, let surfaceResults = surfaceResults else { return }
+                    
+                    self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                        from: surfaceResults,
+                        currentOpportunities: self.standartTriangularOpportunitiesDict,
+                        profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
+                    )
+                    self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
+                }
+                
+                ArbitrageCalculator.shared.getSurfaceResults(for: .stable) { surfaceResults, statusText in
+                    guard let self = self, let surfaceResults = surfaceResults else { return }
+                    
+                    self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                        from: surfaceResults,
+                        currentOpportunities: self.stableTriangularOpportunitiesDict,
+                        profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
+                    )
+                    self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
+                }
             }
         }
     }

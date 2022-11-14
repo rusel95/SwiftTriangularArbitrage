@@ -37,7 +37,7 @@ final class ArbitrageCalculator {
 #endif
             case .stable:
 #if DEBUG
-                return 0.2
+                return 0.3
 #else
                 return 0.4
 #endif
@@ -49,8 +49,9 @@ final class ArbitrageCalculator {
     
     static let shared = ArbitrageCalculator()
     
+    var bookTickersDictionary: [String: BinanceAPIService.BookTicker] = [:]
+    
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
-    private var bookTickersDictionary: [String: BinanceAPIService.BookTicker] = [:]
     private var currentStandartTriangulars: [Triangular] = []
     private var currentStableTriangulars: [Triangular] = []
     
@@ -76,12 +77,6 @@ final class ArbitrageCalculator {
     // MARK: - Init
     
     private init() {
-        Jobs.add(interval: .seconds(1)) { [weak self] in
-            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-                self?.bookTickersDictionary = tickers?.toDictionary { $0.symbol } ?? [:]
-            }
-        }
-        
         Jobs.add(interval: .seconds(3600)) { [weak self] in
             guard let self = self else { return }
             
