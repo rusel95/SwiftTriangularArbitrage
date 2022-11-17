@@ -11,6 +11,12 @@ import Jobs
 import Logging
 import Vapor
 
+protocol PriceChangeDelegate: AnyObject {
+    
+    func priceDidChange()
+    
+}
+
 final class ArbitrageCalculator {
     
     // MARK: - Structs
@@ -32,15 +38,15 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.3
+                return 0.2
 #else
                 return 0.5
 #endif
             case .stable:
 #if DEBUG
-                return 0.3
+                return 0.15
 #else
-                return 0.4
+                return 0.35
 #endif
             }
         }
@@ -48,7 +54,9 @@ final class ArbitrageCalculator {
     
     // MARK: - Properties
     
-    var latestBookTickers: [String: BookTicker] = [:]
+    var priceChangeHandlerDelegate: PriceChangeDelegate?
+    
+    private var latestBookTickers: [String: BookTicker] = [:]
     
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
     private var currentStandartTriangulars: [Triangular] = []
@@ -143,6 +151,7 @@ final class ArbitrageCalculator {
                         tickers.forEach { ticker in
                             self?.latestBookTickers[ticker.s] = BookTicker(from: ticker)
                         }
+                        self?.priceChangeHandlerDelegate?.priceDidChange()
                         print(Date().readableDescription, tickers.count)
                     } catch (let decodeError) {
                         self?.logger.info(Logger.Message(stringLiteral: decodeError.localizedDescription))
@@ -159,6 +168,7 @@ final class ArbitrageCalculator {
                 }
                 
                 ws.onPong { ws in
+                    ws.sendPing()
                     print(ws)
                 }
                 
@@ -663,7 +673,7 @@ private extension ArbitrageCalculator {
             let profitPercent = (profit / startingAmount) * 100.0
             
             // Output results
-            if profitPercent > -0.1 {
+            if profitPercent > -0.2 {
                 return SurfaceResult(
                     modeDescrion: mode.description,
                     swap0: swap0,
