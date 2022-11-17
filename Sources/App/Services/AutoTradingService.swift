@@ -10,19 +10,17 @@ import CoreFoundation
 
 final class AutoTradingService {
     
-    static let shared: AutoTradingService = AutoTradingService()
-    
     private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
-    private var latestBookTickers: [String: BinanceAPIService.BookTicker] = [:]
+    private var latestBookTickers: [String: BookTicker] = [:]
     
     private let minimumQuantityMultipler: Double = 1.5
     
-    private init() {
-        Jobs.add(interval: .seconds(1800)) { [weak self] in
+    init() {
+        Jobs.add(interval: .seconds(7200)) { [weak self] in
             BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                 guard let symbols = symbols else { return }
                 
