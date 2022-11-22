@@ -69,8 +69,8 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         surfaceResults.map { $0.profitPercent }.averageIncr()
     }
     
-    var duration: Int {
-        Int(latestUpdateDate.timeIntervalSince(startDate))
+    var duration: Double {
+        latestUpdateDate.timeIntervalSince(startDate).seconds.unixTime
     }
     
     var description: String {
