@@ -44,7 +44,7 @@ final class ArbitrageCalculator {
 #endif
             case .stable:
 #if DEBUG
-                return 0.15
+                return 0.2
 #else
                 return 0.35
 #endif
@@ -56,7 +56,7 @@ final class ArbitrageCalculator {
     
     var priceChangeHandlerDelegate: PriceChangeDelegate?
     
-    private var latestBookTickers: [String: BookTicker] = [:]
+    var latestBookTickers: [String: BookTicker] = [:]
     
     private var tradeableSymbols: [BinanceAPIService.Symbol] = []
     private var currentStandartTriangulars: [Triangular] = []
@@ -64,7 +64,7 @@ final class ArbitrageCalculator {
     
     private var lastStandartTriangularsStatusText: String = ""
     private var lastStableTriangularsStatusText: String = ""
-    private var logger = Logger(label: "logget.artitrage.triangular")
+    private var logger = Logger(label: "logger.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
     private var documentsDirectory: URL {
@@ -84,6 +84,15 @@ final class ArbitrageCalculator {
     // MARK: - Init
     
     init() {
+        Jobs.add(interval: .seconds(1)) {
+            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
+                guard let tickers = tickers else { return }
+                
+                self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
+                self?.priceChangeHandlerDelegate?.priceDidChange()
+            }
+        }
+        
         Jobs.add(interval: .seconds(3600)) { [weak self] in
             guard let self = self else { return }
             
@@ -133,51 +142,45 @@ final class ArbitrageCalculator {
         }
     }
     
-    func addHandler(app: Vapor.Application) {
-        BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-            guard let tickers = tickers else { return }
-            
-            self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
-            
-            let url = "wss://stream.binance.com:9443/ws/!ticker@arr"
-            let _ = WebSocket.connect(
-                to: url,
-                configuration: WebSocketClient.Configuration(tlsConfiguration: nil, maxFrameSize: 1 << 20),
-                on: app.eventLoopGroup.next()
-            ) { [weak self] ws in
-                ws.onText { [weak self] ws, text in
-                    do {
-                        let tickers = try JSONDecoder().decode([Ticker].self, from: Data(text.utf8))
-                        tickers.forEach { ticker in
-                            self?.latestBookTickers[ticker.s] = BookTicker(from: ticker)
-                        }
-                        self?.priceChangeHandlerDelegate?.priceDidChange()
-                        print(Date().readableDescription, tickers.count)
-                    } catch (let decodeError) {
-                        self?.logger.info(Logger.Message(stringLiteral: decodeError.localizedDescription))
-                    }
-                }
-
-                ws.onClose.whenComplete { result in
-                    switch result {
-                    case .success:
-                        print("Closed", ws.closeCode.debugDescription)
-                    case .failure(let error):
-                        print("Failed to close connection \(error)")
-                    }
-                }
-                
-                ws.onPong { ws in
-                    ws.sendPing()
-                    print(ws)
-                }
-                
-                ws.onPing { ws in
-                    print(ws.pingInterval)
-                }
-            }
-        }
-    }
+//    func handlePrices(app: Vapor.Application) {
+//        let url = "wss://stream.binance.com:9443/ws/btcusdt@ticker"
+//
+//        _ = WebSocket.connect(
+//            to: url,
+//            configuration: WebSocketClient.Configuration(tlsConfiguration: nil, maxFrameSize: 1 << 20),
+//            on: app.eventLoopGroup.next()
+//        ) { [weak self] ws in
+//            ws.onText { [weak self] ws, text in
+//                if text == "ping" {
+//                    ws.send("pong")
+//                }
+//                do {
+//                    let tickers = try JSONDecoder().decode(SocketBookTicker.self, from: Data(text.utf8))
+////                    tickers.forEach { ticker in
+////                        self?.latestBookTickers[ticker.s] = BookTicker(from: ticker)
+////                    }
+//                    self?.priceChangeHandlerDelegate?.priceDidChange()
+//                    print(Date().readableDescription, tickers)
+//                } catch (let decodeError) {
+//                    self?.logger.info(Logger.Message(stringLiteral: decodeError.localizedDescription))
+//                }
+//            }
+//
+//            ws.onClose.whenComplete { result in
+//                switch result {
+//                case .success:
+//                    print("Closed", ws.closeCode as Any, result)
+//                case .failure(let error):
+//                    print("Failed to close connection \(error)")
+//                }
+//            }
+//
+//            ws.onPing { ws in
+//                ws.send(raw: Data(), opcode: .pong)
+//                print("onPing")
+//            }
+//        }
+//    }
     
     // MARK: Getting Surface Results
     
@@ -378,15 +381,15 @@ private extension ArbitrageCalculator {
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
 
-        guard let pairAPrice = bookTickersDictionary[triangular.pairA],
-              let aAsk = Double(pairAPrice.askPrice),
-              let aBid = Double(pairAPrice.bidPrice),
-              let pairBPrice = bookTickersDictionary[triangular.pairB],
-              let bAsk = Double(pairBPrice.askPrice),
-              let bBid = Double(pairBPrice.bidPrice),
-              let pairCPrice = bookTickersDictionary[triangular.pairC],
-              let cAsk = Double(pairCPrice.askPrice),
-              let cBid = Double(pairCPrice.bidPrice) else {
+        guard let pairABookTicker = latestBookTickers[triangular.pairA],
+              let aAsk = Double(pairABookTicker.askPrice),
+              let aBid = Double(pairABookTicker.bidPrice),
+              let pairBBookTicker = latestBookTickers[triangular.pairB],
+              let bAsk = Double(pairBBookTicker.askPrice),
+              let bBid = Double(pairBBookTicker.bidPrice),
+              let pairCBookTicker = latestBookTickers[triangular.pairC],
+              let cAsk = Double(pairCBookTicker.askPrice),
+              let cBid = Double(pairCBookTicker.bidPrice) else {
             logger.critical("No prices for \(triangular)")
             return nil
         }
@@ -674,6 +677,10 @@ private extension ArbitrageCalculator {
             
             // Output results
             if profitPercent > -0.2 {
+                let contract1AvailableQuantity: Double? = directionTrade1 == .baseToQuote ? Double(pairABookTicker.bidQty)! : (Double(pairABookTicker.askQty)! / swap1Rate)
+                let contract2AvailableQuantity: Double? = directionTrade2 == .baseToQuote ? Double(pairBBookTicker.bidQty)! : (Double(pairBBookTicker.askQty)! / swap2Rate)
+                let contract3AvailableQuantity: Double? = directionTrade3 == .baseToQuote ? Double(pairCBookTicker.bidQty)! : (Double(pairCBookTicker.askQty)! / swap3Rate)
+                
                 return SurfaceResult(
                     modeDescrion: mode.description,
                     swap0: swap0,
@@ -683,6 +690,9 @@ private extension ArbitrageCalculator {
                     contract1: contract1,
                     contract2: contract2,
                     contract3: contract3,
+                    contract1AvailableQuantity: contract1AvailableQuantity,
+                    contract2AvailableQuantity: contract2AvailableQuantity,
+                    contract3AvailableQuantity: contract3AvailableQuantity,
                     directionTrade1: directionTrade1,
                     directionTrade2: directionTrade2,
                     directionTrade3: directionTrade3,

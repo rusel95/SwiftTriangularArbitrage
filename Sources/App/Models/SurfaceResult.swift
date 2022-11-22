@@ -15,22 +15,32 @@ struct SurfaceResult: CustomStringConvertible, Hashable {
     }
     
     let modeDescrion: String
+    
     let swap0: String // starting coin
     let swap1: String
     let swap2: String
     let swap3: String
+    
     let contract1: String
     let contract2: String
     let contract3: String
+    
+    let contract1AvailableQuantity: Double?
+    let contract2AvailableQuantity: Double?
+    let contract3AvailableQuantity: Double?
+    
     let directionTrade1: OrderSide
     let directionTrade2: OrderSide
     let directionTrade3: OrderSide
+    
     let acquiredCoinT1: Double
     let acquiredCoinT2: Double
     let acquiredCoinT3: Double
+    
     let swap1Rate: Double
     let swap2Rate: Double
     let swap3Rate: Double
+    
     let profitPercent: Double
     let direction: Direction
     

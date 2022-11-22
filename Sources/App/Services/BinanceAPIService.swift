@@ -40,7 +40,7 @@ final class BinanceAPIService {
     }
     
     struct Adv: Codable {
-    
+        
         let price, surplusAmount: String
         let maxSingleTransAmount, minSingleTransAmount: String
         
@@ -48,19 +48,19 @@ final class BinanceAPIService {
     
     // MARK: - Welcome
     struct ExchangeInfoResponse: Codable {
-//        let timezone: String
-//        let serverTime: Int
-//        let rateLimits: [RateLimit]
-//        let exchangeFilters: [JSONAny]
+        //        let timezone: String
+        //        let serverTime: Int
+        //        let rateLimits: [RateLimit]
+        //        let exchangeFilters: [JSONAny]
         let symbols: [Symbol]
     }
-
+    
     // MARK: - RateLimit
     struct RateLimit: Codable {
         let rateLimitType, interval: String
         let intervalNum, limit: Int
     }
-
+    
     // MARK: - Symbol
     struct Symbol: Codable {
         let symbol: String
@@ -69,15 +69,15 @@ final class BinanceAPIService {
         let baseAssetPrecision: Int
         let quoteAsset: String
         let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
-//        let orderTypes: [OrderType]
-//        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
-//        let cancelReplaceAllowed: String
+        //        let orderTypes: [OrderType]
+        //        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
+        //        let cancelReplaceAllowed: String
         let isSpotTradingAllowed: Bool
-//        let isMarginTradingAllowed: Bool
+        //        let isMarginTradingAllowed: Bool
         let filters: [Filter]
-//        let permissions: [Permission]
+        //        let permissions: [Permission]
     }
-
+    
     // MARK: - Filter
     struct Filter: Codable {
         let filterType: FilterType
@@ -91,7 +91,7 @@ final class BinanceAPIService {
         let bidMultiplierUp, bidMultiplierDown, askMultiplierUp, askMultiplierDown: String?
         let maxPosition: String?
     }
-
+    
     enum FilterType: String, Codable {
         case icebergParts = "ICEBERG_PARTS"
         case lotSize = "LOT_SIZE"
@@ -105,7 +105,7 @@ final class BinanceAPIService {
         case priceFilter = "PRICE_FILTER"
         case trailingDelta = "TRAILING_DELTA"
     }
-
+    
     enum Permission: String, Codable {
         case leveraged = "LEVERAGED"
         case margin = "MARGIN"
@@ -113,7 +113,7 @@ final class BinanceAPIService {
         case trdGrp003 = "TRD_GRP_003"
         case trdGrp004 = "TRD_GRP_004"
     }
-
+    
     enum Status: String, Codable {
         case statusBREAK = "BREAK"
         case trading = "TRADING"
@@ -135,17 +135,50 @@ final class BinanceAPIService {
     
     // MARK: - METHODS
     
-    func getBookTicker(
-        symbol: String,
-        completion: @escaping(_ ticker: BookTicker?) -> Void
+//    func getOrderbookDepth(
+//        symbol: String,
+//        limit: UInt,
+//        completion: @escaping(_ tickers: [BookTicker]?) -> Void
+//    ) {
+//        let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
+//
+//        var request = URLRequest(url: url)
+//        request.httpMethod = "Get"
+//
+//        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
+//            if let error = error {
+//                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+//                completion(nil)
+//                return
+//            }
+//
+//            guard let data = data else {
+//                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
+//                completion(nil)
+//                return
+//            }
+//
+//            do {
+//                let tickers = try JSONDecoder().decode([BookTicker].self, from: data)
+//                completion(tickers)
+//            } catch (let decodingError) {
+//                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+//                completion(nil)
+//            }
+//        }.resume()
+//    }
+    
+    func getBookTickers(
+        symbols: [String],
+        completion: @escaping(_ tickers: [BookTicker]?) -> Void
     ) {
-        let session = URLSession.shared
-        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker?symbol=\(symbol)")!
+        let symbolsListDescription = symbols.map { String($0) }.joined(separator: ",")
+        let url: URL = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker?symbols=[\(symbolsListDescription)]")!
         
         var request = URLRequest(url: url)
         request.httpMethod = "Get"
         
-        session.dataTask(with: request) { [weak self] (data, response, error) in
+        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
             if let error = error {
                 self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
                 completion(nil)
@@ -159,8 +192,8 @@ final class BinanceAPIService {
             }
             
             do {
-                let ticker = try JSONDecoder().decode(BookTicker.self, from: data)
-                completion(ticker)
+                let tickers = try JSONDecoder().decode([BookTicker].self, from: data)
+                completion(tickers)
             } catch (let decodingError) {
                 self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
                 completion(nil)
@@ -294,7 +327,7 @@ final class BinanceAPIService {
             "rows": numberOfAdvsToConsider,
             "tradeType": tradeType.rawValue
         ]
-//            "transAmount": "2000.00",
+        //            "transAmount": "2000.00",
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: parametersDictionary) as Data
         session.dataTask(with: request) { [weak self] (data, response, error) in
@@ -349,7 +382,7 @@ final class BinanceAPIService {
         case result = "RESULT"
         case full = "FULL"
     }
-
+    
     struct NewOrderResponse: Codable {
         
         let symbol: String
@@ -359,7 +392,7 @@ final class BinanceAPIService {
         let price, origQty, executedQty, cummulativeQuoteQty: String
         let status, timeInForce, type, side: String
         let fills: [Fill]
-
+        
         enum CodingKeys: String, CodingKey {
             case symbol
             case orderID = "orderId"
@@ -406,7 +439,7 @@ final class BinanceAPIService {
             }
         }
     }
-
+    
     func newOrder(
         symbol: String,
         side: OrderSide,
@@ -420,7 +453,7 @@ final class BinanceAPIService {
         let url: URL
         switch side {
         case .baseToQuote:
-           url = URL(string: "https://api.binance.com/api/v3/order?symbol=\(symbol)&side=\(side.rawValue)&type=\(type.rawValue)&quantity=\(quantity)&newOrderRespType=\( newOrderRespType.rawValue)")!
+            url = URL(string: "https://api.binance.com/api/v3/order?symbol=\(symbol)&side=\(side.rawValue)&type=\(type.rawValue)&quantity=\(quantity)&newOrderRespType=\( newOrderRespType.rawValue)")!
         case .quoteToBase:
             url = URL(string: "https://api.binance.com/api/v3/order?symbol=\(symbol)&side=\(side.rawValue)&type=\(type.rawValue)&quoteOrderQty=\(quoteOrderQty)&newOrderRespType=\( newOrderRespType.rawValue)")!
         case .unknown:
@@ -428,7 +461,7 @@ final class BinanceAPIService {
             return
         }
         
-    
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         signRequest(&request)
@@ -461,11 +494,20 @@ final class BinanceAPIService {
         }.resume()
     }
     
-    private func addApiKeyHeader(_ request: inout URLRequest) -> Void {
+    // MARK: - Orderbook
+    
+    
+}
+
+// MARK: - Helpers
+
+private extension BinanceAPIService {
+    
+    func addApiKeyHeader(_ request: inout URLRequest) -> Void {
         request.addValue(apiKeyString, forHTTPHeaderField: "X-MBX-APIKEY")
     }
     
-    private func signRequest(_ request: inout URLRequest) -> Void {
+    func signRequest(_ request: inout URLRequest) -> Void {
         addApiKeyHeader(&request)
         let timestamp = Int(Date().timeIntervalSince1970 * 1000)
         request.url = request.url?.appending("timestamp", value: "\(timestamp)")

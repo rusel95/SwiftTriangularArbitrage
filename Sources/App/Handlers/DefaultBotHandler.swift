@@ -32,8 +32,6 @@ final class DefaultBotHandlers {
     }
     
     func addHandlers(app: Vapor.Application) {
-        arbitrageCalculator.addHandler(app: app)
-        
         commandStartHandler(app: app, bot: bot)
         commandStartTriangularArbitragingHandler(app: app, bot: bot)
         commandStartStableTriangularArbitragingHandler(app: app, bot: bot)
@@ -367,8 +365,20 @@ private extension DefaultBotHandlers {
                         for: userInfo,
                         completion: { tradedTriangularOpportunity in
                             let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                            _ = try? self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId),
-                                                                   text: tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")))
+                            let text = tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")
+                            if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
+                                let editParams: TGEditMessageTextParams = .init(
+                                    chatId: .chat(userInfo.chatId),
+                                    messageId: updateMessageId,
+                                    inlineMessageId: nil,
+                                    text: text
+                                )
+                                _ = try? self?.bot.editMessageText(params: editParams)
+                            } else {
+                                _ = try? self?.bot.sendMessage(
+                                    params: .init(chatId: .chat(userInfo.chatId), text: text)
+                                )
+                            }
                         })
                 }
             }
