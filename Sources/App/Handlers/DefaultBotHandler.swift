@@ -338,6 +338,7 @@ private extension DefaultBotHandlers {
                         sendMessageFuture.whenComplete { result in
                             do {
                                 let triangularOpportunityMessageId = try result.get().messageId
+                                triangularOpportunity.value.updateMessageId = triangularOpportunityMessageId
                                 newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
                                 group.leave()
                             } catch (let botError) {
