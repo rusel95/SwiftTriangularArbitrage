@@ -16,7 +16,8 @@ public func configure(_ app: Application) throws {
     try TGBot.shared.start()
     TGBot.log.logLevel = .error
     
-    DefaultBotHandlers.shared.addHandlers(app: app, bot: TGBot.shared)
+    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
+    defaultBotHandlers.addHandlers(app: app)
     
     try routes(app)
 }

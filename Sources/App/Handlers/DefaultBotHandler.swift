@@ -15,16 +15,23 @@ final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
     
-    static let shared = DefaultBotHandlers()
-    
     private var logger = Logger(label: "handlers.logger")
     
     private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
+    private let arbitrageCalculator: ArbitrageCalculator = ArbitrageCalculator()
+    private let autoTradingService: AutoTradingService = AutoTradingService()
+    private let bot: TGBotPrtcl
+    
     // MARK: - METHODS
     
-    func addHandlers(app: Vapor.Application, bot: TGBotPrtcl) {
+    init(bot: TGBotPrtcl) {
+        self.bot = bot
+        arbitrageCalculator.priceChangeHandlerDelegate = self
+    }
+    
+    func addHandlers(app: Vapor.Application) {
         commandStartHandler(app: app, bot: bot)
         commandStartTriangularArbitragingHandler(app: app, bot: bot)
         commandStartStableTriangularArbitragingHandler(app: app, bot: bot)
@@ -34,13 +41,12 @@ final class DefaultBotHandlers {
         
         startStandartTriangularArbitragingMonitoring(bot: bot)
         startStableTriangularArbitragingMonitoring(bot: bot)
-        startAlerting(bot: bot)
     }
 
     
     func startStandartTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
-            ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
+            self?.arbitrageCalculator.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
                 
                 let text = surfaceResults
@@ -71,7 +77,7 @@ final class DefaultBotHandlers {
     
     func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.stableTriangularArbritraging.jobInterval)) { [weak self] in
-            ArbitrageCalculator.shared.getSurfaceResults(for: .stable) { surfaceResults, statusText in
+            self?.arbitrageCalculator.getSurfaceResults(for: .stable) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
@@ -99,37 +105,37 @@ final class DefaultBotHandlers {
             }
         }
     }
+
+}
+
+// MARK: - PriceChangeHandler
+
+extension DefaultBotHandlers: PriceChangeDelegate {
     
-    func startAlerting(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(BotMode.alerting.jobInterval)) {
-            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-                ArbitrageCalculator.shared.bookTickersDictionary = tickers?.toDictionary { $0.symbol } ?? [:]
-                
-                ArbitrageCalculator.shared.getSurfaceResults(for: .standart) { surfaceResults, statusText in
-                    guard let self = self, let surfaceResults = surfaceResults else { return }
-                    
-                    self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                        from: surfaceResults,
-                        currentOpportunities: self.standartTriangularOpportunitiesDict,
-                        profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
-                    )
-                    self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict, bot: bot)
-                }
-                
-                ArbitrageCalculator.shared.getSurfaceResults(for: .stable) { surfaceResults, statusText in
-                    guard let self = self, let surfaceResults = surfaceResults else { return }
-                    
-                    self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                        from: surfaceResults,
-                        currentOpportunities: self.stableTriangularOpportunitiesDict,
-                        profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
-                    )
-                    self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict, bot: bot)
-                }
-            }
+    func priceDidChange() {
+        arbitrageCalculator.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
+            guard let self = self, let surfaceResults = surfaceResults else { return }
+            
+            self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                from: surfaceResults,
+                currentOpportunities: self.standartTriangularOpportunitiesDict,
+                profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
+            )
+            self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict)
+        }
+        
+        arbitrageCalculator.getSurfaceResults(for: .stable) { [weak self] surfaceResults, statusText in
+            guard let self = self, let surfaceResults = surfaceResults else { return }
+            
+            self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                from: surfaceResults,
+                currentOpportunities: self.stableTriangularOpportunitiesDict,
+                profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
+            )
+            self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict)
         }
     }
-
+    
 }
 
 // MARK: - HANDLERS
@@ -292,8 +298,7 @@ private extension DefaultBotHandlers {
     
     func alertUsers(
         for mode: ArbitrageCalculator.Mode,
-        with triangularOpportunitiesDict: [String: TriangularOpportunity],
-        bot: TGBotPrtcl
+        with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
         let startTime = CFAbsoluteTimeGetCurrent()
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
@@ -346,7 +351,7 @@ private extension DefaultBotHandlers {
                     }
                 }
             }
-            group.notify(queue: .global()) {
+            group.notify(queue: .global()) { [weak self] in
                 switch mode {
                 case .standart:
                     userInfo.standartTriangularOpportunitiesMessagesInfo = newUserOpportunities
@@ -355,13 +360,25 @@ private extension DefaultBotHandlers {
                 }
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
                 if triangularOpportunitiesDict.isEmpty == false, userInfo.userId == 204251205 {
-                    AutoTradingService.shared.handle(
+                    self?.autoTradingService.handle(
                         triangularOpportunitiesDict: triangularOpportunitiesDict,
                         for: userInfo,
                         completion: { tradedTriangularOpportunity in
                             let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId),
-                                                                   text: tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")))
+                            let text = tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")
+                            if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
+                                let editParams: TGEditMessageTextParams = .init(
+                                    chatId: .chat(userInfo.chatId),
+                                    messageId: updateMessageId,
+                                    inlineMessageId: nil,
+                                    text: text
+                                )
+                                _ = try? self?.bot.editMessageText(params: editParams)
+                            } else {
+                                _ = try? self?.bot.sendMessage(
+                                    params: .init(chatId: .chat(userInfo.chatId), text: text)
+                                )
+                            }
                         })
                 }
             }

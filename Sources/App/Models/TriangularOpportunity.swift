@@ -69,8 +69,8 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         surfaceResults.map { $0.profitPercent }.averageIncr()
     }
     
-    var duration: Int {
-        Int(latestUpdateDate.timeIntervalSince(startDate))
+    var duration: Double {
+        latestUpdateDate.timeIntervalSince(startDate).seconds.unixTime
     }
     
     var description: String {
@@ -78,7 +78,7 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
         \(surfaceResults.last?.shortDescription ?? "")\n
         start time: \(startDate.readableDescription)
         last update time: \(latestUpdateDate.readableDescription)
-        duration: \(duration) seconds
+        duration: \(duration.string(maxFractionDigits: 4)) seconds
         starting profit: \(surfaceResults.first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
         average profit: \(averageProfitPercent.string(maxFractionDigits: 2))%
         highest profit: \(surfaceResults.sorted(by: { $0.profitPercent > $1.profitPercent }).first?.profitPercent.string(maxFractionDigits: 2) ?? "")%
