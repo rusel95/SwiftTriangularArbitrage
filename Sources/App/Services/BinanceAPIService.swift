@@ -135,38 +135,38 @@ final class BinanceAPIService {
     
     // MARK: - METHODS
     
-//    func getOrderbookDepth(
-//        symbol: String,
-//        limit: UInt,
-//        completion: @escaping(_ tickers: [BookTicker]?) -> Void
-//    ) {
-//        let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
-//
-//        var request = URLRequest(url: url)
-//        request.httpMethod = "Get"
-//
-//        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
-//            if let error = error {
-//                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-//                completion(nil)
-//                return
-//            }
-//
-//            guard let data = data else {
-//                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
-//                completion(nil)
-//                return
-//            }
-//
-//            do {
-//                let tickers = try JSONDecoder().decode([BookTicker].self, from: data)
-//                completion(tickers)
-//            } catch (let decodingError) {
-//                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
-//                completion(nil)
-//            }
-//        }.resume()
-//    }
+    func getOrderbookDepth(
+        symbol: String,
+        limit: UInt,
+        completion: @escaping(_ result: Result<OrderbookDepth, Error>) -> Void
+    ) {
+        let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "Get"
+
+        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
+            if let error = error {
+                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
+                completion(.failure(error))
+                return
+            }
+
+            guard let data = data else {
+                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
+                completion(.failure(BinanceError.noData))
+                return
+            }
+
+            do {
+                let orderbookDepth = try JSONDecoder().decode(OrderbookDepth.self, from: data)
+                    completion(.success(orderbookDepth))
+            } catch (let decodingError) {
+                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
+                completion(.failure(decodingError))
+            }
+        }.resume()
+    }
     
     func getBookTickers(
         symbols: [String],

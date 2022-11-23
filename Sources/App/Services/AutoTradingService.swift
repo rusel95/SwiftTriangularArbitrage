@@ -40,9 +40,62 @@ final class AutoTradingService {
                 self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
             }
         }
+    
     }
     
-    // MARK: - First Trade
+    func getDepth(
+        for triangularOpportunity: TriangularOpportunity,
+        completion: @escaping(_ triangularOpportunityDepth: TriangularOpportunityDepth) -> Void
+    ) {
+        let group = DispatchGroup()
+        
+        var pairADepth: OrderbookDepth
+        var pairBDepth: OrderbookDepth
+        var pairCDepth: OrderbookDepth
+        
+        group.enter()
+        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { [weak self] result in
+            switch result {
+            case .success(let orderbookDepth):
+                pairADepth = orderbookDepth
+                group.leave()
+                break
+            case .failure:
+                group.leave()
+                break
+            }
+        }
+        group.enter()
+        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { result in
+            switch result {
+            case .success(let orderbookDepth):
+                pairBDepth = orderbookDepth
+                group.leave()
+                break
+            case .failure:
+                group.leave()
+                break
+            }
+        }
+        group.enter()
+        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { result in
+            switch result {
+            case .success(let orderbookDepth):
+                pairCDepth = orderbookDepth
+                group.leave()
+                break
+            case .failure:
+                group.leave()
+                break
+            }
+        }
+        group.notify(queue: .global()) {
+            let TriangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+            
+        }
+    }
+    
+    // MARK: - Main Trade
     
     func handle(
         triangularOpportunitiesDict: [String: TriangularOpportunity],
