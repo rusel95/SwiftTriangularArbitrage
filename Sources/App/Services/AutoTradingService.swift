@@ -76,7 +76,7 @@ final class AutoTradingService {
                     let trade1AveragePrice = depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) < self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("Trade 1 price difference: \(trade1PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        opportunityToTrade.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
                     }
@@ -84,7 +84,7 @@ final class AutoTradingService {
                     let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                     guard abs(trade2PriceDifferencePercent) < self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("Trade 2 price difference: \(trade2PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
                     }
@@ -92,7 +92,7 @@ final class AutoTradingService {
                     let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                     guard abs(trade3PriceDifferencePercent) < self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("Trade 3 price difference: \(trade3PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
                     }
