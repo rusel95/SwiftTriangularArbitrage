@@ -15,10 +15,11 @@ final class AutoTradingService {
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
-    private var latestBookTickers: [String: BookTicker] = [:]
+    private var approximateBookTickers: [String: BookTicker] = [:]
     
     private let minimumQuantityMultipler: Double = 1.5
     private let minimumQuantityStableEquivalent: Double
+    private let maximalDifferencePercent = 0.1
     
     init() {
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
@@ -37,24 +38,89 @@ final class AutoTradingService {
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 guard let tickers = tickers else { return }
                 
-                self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
+                self?.approximateBookTickers = tickers.toDictionary(with: { $0.symbol })
             }
         }
     
     }
     
-    func getDepth(
-        for triangularOpportunity: TriangularOpportunity,
-        completion: @escaping(_ triangularOpportunityDepth: TriangularOpportunityDepth) -> Void
+    // MARK: - Depth Check
+    
+    func handle(
+        triangularOpportunitiesDict: [String: TriangularOpportunity],
+        for userInfo: UserInfo,
+        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
+    ) {
+        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { allowedAssetsToTrade.contains($0.value.firstSurfaceResult.swap0) })?.value,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
+              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else {
+            return
+        }
+        
+        switch opportunityToTrade.autotradeCicle {
+        case .pending:
+            guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else { return }
+            
+            let depthStartTime = CFAbsoluteTimeGetCurrent()
+            getDepth(for: lastSurfaceResult) { [weak self] result in
+                guard let self = self else { return }
+                
+                let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - depthStartTime)
+                opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
+                
+                switch result {
+                case .success(let depth):
+                    let trade1AveragePrice = depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
+                    let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
+                    guard abs(trade1PriceDifferencePercent) < self.maximalDifferencePercent else {
+                        opportunityToTrade.autotradeLog.append("Trade 1 price difference: \(trade1PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        completion(opportunityToTrade)
+                        return
+                    }
+                    
+                    let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
+                    let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
+                    guard abs(trade2PriceDifferencePercent) < self.maximalDifferencePercent else {
+                        opportunityToTrade.autotradeLog.append("Trade 2 price difference: \(trade2PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        completion(opportunityToTrade)
+                        return
+                    }
+                    
+                    let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
+                    let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
+                    guard abs(trade3PriceDifferencePercent) < self.maximalDifferencePercent else {
+                        opportunityToTrade.autotradeLog.append("Trade 3 price difference: \(trade3PriceDifferencePercent.string(maxFractionDigits: 4))%\n")
+                        completion(opportunityToTrade)
+                        return
+                    }
+                    
+                    self.handleFirstTrade(for: opportunityToTrade, completion: completion)
+                case .failure(let error):
+                    opportunityToTrade.autotradeLog.append(error.localizedDescription)
+                    completion(opportunityToTrade)
+                    return
+                }
+            }
+        default:
+            return
+        }
+    }
+    
+    // MARK: - Get depth
+    
+    private func getDepth(
+        for surfaceResult: SurfaceResult,
+        completion: @escaping(_ result: Result<TriangularOpportunityDepth, Error>) -> Void
     ) {
         let group = DispatchGroup()
         
-        var pairADepth: OrderbookDepth
-        var pairBDepth: OrderbookDepth
-        var pairCDepth: OrderbookDepth
+        var pairADepth: OrderbookDepth? = nil
+        var pairBDepth: OrderbookDepth? = nil
+        var pairCDepth: OrderbookDepth? = nil
         
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { [weak self] result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: 20) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairADepth = orderbookDepth
@@ -66,7 +132,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: 20) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairBDepth = orderbookDepth
@@ -78,7 +144,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: "BTCUSDT", limit: 20) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: 20) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairCDepth = orderbookDepth
@@ -90,58 +156,15 @@ final class AutoTradingService {
             }
         }
         group.notify(queue: .global()) {
-            let TriangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+            guard let pairADepth = pairADepth, let pairBDepth = pairBDepth, let pairCDepth = pairCDepth else {
+                completion(.failure(BinanceAPIService.BinanceError.noData))
+                return
+            }
             
+            let triangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+            completion(.success(triangularOpportunityDepth))
         }
     }
-    
-    // MARK: - Main Trade
-    
-    func handle(
-        triangularOpportunitiesDict: [String: TriangularOpportunity],
-        for userInfo: UserInfo,
-        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
-    ) {
-        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { allowedAssetsToTrade.contains($0.value.firstSurfaceResult.swap0) })?.value,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false,
-              opportunityToTrade.duration >= 1.0 else {
-            return
-        }
-        
-        switch opportunityToTrade.autotradeCicle {
-        case .pending:
-            guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else { return }
-            
-            let contract1StableEquivalent = getApproximatesStableEquivalent(asset: lastSurfaceResult.swap0, assetQuantity: lastSurfaceResult.contract1AvailableQuantity ?? 0.0) ?? 0.0
-            guard contract1StableEquivalent > minimumQuantityStableEquivalent else {
-                opportunityToTrade.autotradeLog.append("Not enough quantity: \(contract1StableEquivalent) < \(minimumQuantityStableEquivalent) USDT\n")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            let contract2StableEquivalent = getApproximatesStableEquivalent(asset: lastSurfaceResult.swap1, assetQuantity: lastSurfaceResult.contract2AvailableQuantity ?? 0.0) ?? 0.0
-            guard contract2StableEquivalent > minimumQuantityStableEquivalent else {
-                opportunityToTrade.autotradeLog.append("Not enough quantity: \(contract2StableEquivalent) < \(minimumQuantityStableEquivalent) USDT\n")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            let contract3StableEquivalent = getApproximatesStableEquivalent(asset: lastSurfaceResult.swap2, assetQuantity: lastSurfaceResult.contract3AvailableQuantity ?? 0.0) ?? 0.0
-            guard contract3StableEquivalent > minimumQuantityStableEquivalent else {
-                opportunityToTrade.autotradeLog.append("Not enough quantity: \(contract3StableEquivalent) < \(minimumQuantityStableEquivalent) USDT\n")
-                completion(opportunityToTrade)
-                return
-            }
-                    
-            handleFirstTrade(for: opportunityToTrade, completion: completion)
-        default:
-            return
-        }
-    }
-    
-    
     
     // MARK: - First Trade
     
@@ -162,7 +185,7 @@ final class AutoTradingService {
             let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
-            guard let approximateTickerPrice = latestBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
+            guard let approximateTickerPrice = approximateBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
             
             let preferableQuantityForFirstTrade: Double
             switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
@@ -543,9 +566,9 @@ private extension AutoTradingService {
     func getApproximatesStableEquivalent(asset: String, assetQuantity: Double) -> Double? {
         guard stablesSet.contains(asset) == false else { return assetQuantity }
         
-        if let assetToStableSymbol = latestBookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = approximateBookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = latestBookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+        } else if let stableToAssetSymbol = approximateBookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
             return nil

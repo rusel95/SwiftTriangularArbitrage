@@ -300,7 +300,6 @@ private extension DefaultBotHandlers {
         for mode: ArbitrageCalculator.Mode,
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
-        let startTime = CFAbsoluteTimeGetCurrent()
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
             // NOTE: - sending all Alerts to specific people separatly
             let group = DispatchGroup()
@@ -323,7 +322,7 @@ private extension DefaultBotHandlers {
                     let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
                                                                     messageId: currentUserOpportunityMessageId,
                                                                     inlineMessageId: nil,
-                                                                    text: triangularOpportunity.value.description.appending("\n\nUpdated at: \(Date().readableDescription)"))
+                                                                    text: triangularOpportunity.value.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)"))
                     do {
                         _ = try bot.editMessageText(params: editParams)
                         newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
@@ -365,8 +364,7 @@ private extension DefaultBotHandlers {
                         triangularOpportunitiesDict: triangularOpportunitiesDict,
                         for: userInfo,
                         completion: { tradedTriangularOpportunity in
-                            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                            let text = tradedTriangularOpportunity.tradingDescription.appending(" Full Time: \(duration)")
+                            let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
                             if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
                                 let editParams: TGEditMessageTextParams = .init(
                                     chatId: .chat(userInfo.chatId),

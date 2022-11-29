@@ -42,11 +42,13 @@ struct OrderbookDepth: Codable {
         
         guard let minimalQuantity = sortetMarketOrders.first?.quantity else { return 0.0 }
         
+        var multiplers: Double = 0
         let totalPrice = sortetMarketOrders.reduce(0.0) { partialResult, marketOrder in
             let multipler = marketOrder.quantity / minimalQuantity
+            multiplers += multipler
             return partialResult + (multipler * marketOrder.price)
         }
-        return totalPrice / Double(sortetMarketOrders.count)
+        return totalPrice / multiplers
     }
     
     func getQuantity(for orderSide: OrderSide) -> Double {

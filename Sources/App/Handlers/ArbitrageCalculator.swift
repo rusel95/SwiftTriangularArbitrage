@@ -38,13 +38,13 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.2
+                return 0.0
 #else
                 return 0.3
 #endif
             case .stable:
 #if DEBUG
-                return 0.2
+                return 0.0
 #else
                 return 0.2
 #endif
@@ -56,9 +56,15 @@ final class ArbitrageCalculator {
     
     var priceChangeHandlerDelegate: PriceChangeDelegate?
     
-    var latestBookTickers: [String: BookTicker] = [:]
+    var latestBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
-    private var tradeableSymbols: [BinanceAPIService.Symbol] = []
+    private var tradeableSymbols: [BinanceAPIService.Symbol] = [] {
+        didSet {
+            tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
+        }
+    }
+    private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
+    
     private var currentStandartTriangulars: [Triangular] = []
     private var currentStableTriangulars: [Triangular] = []
     
@@ -88,7 +94,7 @@ final class ArbitrageCalculator {
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 guard let tickers = tickers else { return }
                 
-                self?.latestBookTickers = tickers.toDictionary(with: { $0.symbol })
+                self?.latestBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
                 self?.priceChangeHandlerDelegate?.priceDidChange()
             }
         }
