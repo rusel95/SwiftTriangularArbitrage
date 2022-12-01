@@ -64,16 +64,15 @@ final class AutoTradingService {
         case .pending:
             guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else { return }
             
-            let depthStartTime = CFAbsoluteTimeGetCurrent()
             getDepth(for: lastSurfaceResult) { [weak self] result in
                 guard let self = self else { return }
                 
-                let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - depthStartTime)
-                opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
-                
                 switch result {
-                case .success(let depth):
-                    let trade1AveragePrice = depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
+                case .success(let tupple):
+                    let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - tupple.startTime)
+                    opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
+                    
+                    let trade1AveragePrice = tupple.depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) < self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -81,7 +80,7 @@ final class AutoTradingService {
                         return
                     }
                     
-                    let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
+                    let trade2AveragePrice = tupple.depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                     guard abs(trade2PriceDifferencePercent) < self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -89,7 +88,7 @@ final class AutoTradingService {
                         return
                     }
                     
-                    let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
+                    let trade3AveragePrice = tupple.depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                     guard abs(trade3PriceDifferencePercent) < self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -113,8 +112,9 @@ final class AutoTradingService {
     
     private func getDepth(
         for surfaceResult: SurfaceResult,
-        completion: @escaping(_ result: Result<TriangularOpportunityDepth, Error>) -> Void
+        completion: @escaping(_ result: Result<(startTime: CFAbsoluteTime, depth: TriangularOpportunityDepth), Error>) -> Void
     ) {
+        let startTime = CFAbsoluteTimeGetCurrent()
         let group = DispatchGroup()
         
         var pairADepth: OrderbookDepth? = nil
@@ -122,7 +122,7 @@ final class AutoTradingService {
         var pairCDepth: OrderbookDepth? = nil
         
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: 20) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: 10) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairADepth = orderbookDepth
@@ -134,7 +134,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: 20) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: 10) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairBDepth = orderbookDepth
@@ -146,7 +146,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: 20) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: 10) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairCDepth = orderbookDepth
@@ -164,7 +164,7 @@ final class AutoTradingService {
             }
             
             let triangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
-            completion(.success(triangularOpportunityDepth))
+            completion(.success((startTime, triangularOpportunityDepth)))
         }
     }
     
