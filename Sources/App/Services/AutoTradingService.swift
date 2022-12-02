@@ -62,14 +62,17 @@ final class AutoTradingService {
         
         switch opportunityToTrade.autotradeCicle {
         case .pending:
-            guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else { return }
+            guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else {
+                opportunityToTrade.autotradeLog.append("no last result..")
+                return
+            }
             
             getDepth(for: lastSurfaceResult) { [weak self] result in
                 guard let self = self else { return }
                 
                 switch result {
                 case .success(let tupple):
-                    let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - tupple.startTime)
+                    let depthCheckDuration = String(format: "%.4f", Date().timeIntervalSince(tupple.startTime).string(maxFractionDigits: 2))
                     opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
                     
                     let trade1AveragePrice = tupple.depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
@@ -112,17 +115,18 @@ final class AutoTradingService {
     
     private func getDepth(
         for surfaceResult: SurfaceResult,
-        completion: @escaping(_ result: Result<(startTime: CFAbsoluteTime, depth: TriangularOpportunityDepth), Error>) -> Void
+        completion: @escaping(_ result: Result<(startTime: Date, depth: TriangularOpportunityDepth), Error>) -> Void
     ) {
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = Date()
         let group = DispatchGroup()
         
         var pairADepth: OrderbookDepth? = nil
         var pairBDepth: OrderbookDepth? = nil
         var pairCDepth: OrderbookDepth? = nil
         
+        let limit: UInt = 5
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: 10) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairADepth = orderbookDepth
@@ -134,7 +138,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: 10) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairBDepth = orderbookDepth
@@ -146,7 +150,7 @@ final class AutoTradingService {
             }
         }
         group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: 10) { result in
+        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit) { result in
             switch result {
             case .success(let orderbookDepth):
                 pairCDepth = orderbookDepth
