@@ -72,12 +72,12 @@ final class AutoTradingService {
                 
                 switch result {
                 case .success(let tupple):
-                    let depthCheckDuration = String(format: "%.4f", Date().timeIntervalSince(tupple.startTime).string(maxFractionDigits: 2))
+                    let depthCheckDuration = Date().timeIntervalSince(tupple.startTime).string(maxFractionDigits: 4)
                     opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
                     
                     let trade1AveragePrice = tupple.depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
-                    guard abs(trade1PriceDifferencePercent) < self.maximalDifferencePercent else {
+                    guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
@@ -85,7 +85,7 @@ final class AutoTradingService {
                     
                     let trade2AveragePrice = tupple.depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
-                    guard abs(trade2PriceDifferencePercent) < self.maximalDifferencePercent else {
+                    guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
@@ -93,13 +93,14 @@ final class AutoTradingService {
                     
                     let trade3AveragePrice = tupple.depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
-                    guard abs(trade3PriceDifferencePercent) < self.maximalDifferencePercent else {
+                    guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(opportunityToTrade)
                         return
                     }
                     
                     self.handleFirstTrade(for: opportunityToTrade, completion: completion)
+                    
                 case .failure(let error):
                     opportunityToTrade.autotradeLog.append(error.localizedDescription)
                     completion(opportunityToTrade)
