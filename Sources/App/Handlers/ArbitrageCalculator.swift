@@ -444,7 +444,6 @@ private extension ArbitrageCalculator {
             contract1 = pairA
             acquiredCoinT1 = startingAmount * swap1Rate * pairAComissionMultipler
             
-            // TODO: - only once scenario at a time can be used - so need to use "else if"
             /* FORWARD */
             // MARK: SCENARIO 1
             // Check if aQoute (acquired coin) matches bQuote
@@ -485,7 +484,7 @@ private extension ArbitrageCalculator {
                     contract2 = pairB
                     
                     // if bQuote (aquired coin) mathces cBase
-                    if bBase == cBase {
+                    if bQuote == cBase {
                         swap2 = cBase
                         swap3 = cQuote
                         swap3Rate = cBid
@@ -537,7 +536,7 @@ private extension ArbitrageCalculator {
                 else if aQuote == cBase {
                     swap2Rate = cBid
                     acquiredCoinT2 = acquiredCoinT1 * swap2Rate * pairCComissionMultipler
-                    directionTrade2 = .quoteToBase
+                    directionTrade2 = .baseToQuote
                     contract2 = pairC
                     
                     // if cQuote (aquired coin) mathces bBase
@@ -600,7 +599,7 @@ private extension ArbitrageCalculator {
                     contract2 = pairB
                     
                     // if bQuote (aquired coin) mathces cBase
-                    if bBase == cBase {
+                    if bQuote == cBase {
                         swap2 = cBase
                         swap3 = cQuote
                         swap3Rate = cBid
