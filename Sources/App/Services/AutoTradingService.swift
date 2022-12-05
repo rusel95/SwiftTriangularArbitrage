@@ -49,21 +49,23 @@ final class AutoTradingService {
     // MARK: - Depth Check
     
     func handle(
-        triangularOpportunitiesDict: [String: TriangularOpportunity],
+        triangularOpportunity: TriangularOpportunity,
         for userInfo: UserInfo,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
-        guard let opportunityToTrade = triangularOpportunitiesDict.first(where: { allowedAssetsToTrade.contains($0.value.firstSurfaceResult.swap0) })?.value,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap0) == false,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap1) == false,
-              forbiddenAssetsToTrade.contains(opportunityToTrade.firstSurfaceResult.swap2) == false else {
+        // NOTE: - remove handling only first - handle all of opportunities
+        guard allowedAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0),
+              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0) == false,
+              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap1) == false,
+              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
+            triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity")
             return
         }
         
-        switch opportunityToTrade.autotradeCicle {
+        switch triangularOpportunity.autotradeCicle {
         case .pending:
-            guard let lastSurfaceResult = opportunityToTrade.surfaceResults.last else {
-                opportunityToTrade.autotradeLog.append("no last result..")
+            guard let lastSurfaceResult = triangularOpportunity.surfaceResults.last else {
+                triangularOpportunity.autotradeLog.append("no last result..")
                 return
             }
             
@@ -72,38 +74,38 @@ final class AutoTradingService {
                 
                 switch result {
                 case .success(let tupple):
-                    let depthCheckDuration = Date().timeIntervalSince(tupple.startTime).string(maxFractionDigits: 4)
-                    opportunityToTrade.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
+                    let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - tupple.startTime)
+                    triangularOpportunity.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
                     
                     let trade1AveragePrice = tupple.depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(opportunityToTrade)
+                        triangularOpportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                        completion(triangularOpportunity)
                         return
                     }
                     
                     let trade2AveragePrice = tupple.depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                     guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(opportunityToTrade)
+                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                        completion(triangularOpportunity)
                         return
                     }
                     
                     let trade3AveragePrice = tupple.depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                     guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        opportunityToTrade.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(opportunityToTrade)
+                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                        completion(triangularOpportunity)
                         return
                     }
                     
-                    self.handleFirstTrade(for: opportunityToTrade, completion: completion)
+                    //self.handleFirstTrade(for: opportunityToTrade, completion: completion)
                     
                 case .failure(let error):
-                    opportunityToTrade.autotradeLog.append(error.localizedDescription)
-                    completion(opportunityToTrade)
+                    triangularOpportunity.autotradeLog.append(error.localizedDescription)
+                    completion(triangularOpportunity)
                     return
                 }
             }
@@ -116,9 +118,9 @@ final class AutoTradingService {
     
     private func getDepth(
         for surfaceResult: SurfaceResult,
-        completion: @escaping(_ result: Result<(startTime: Date, depth: TriangularOpportunityDepth), Error>) -> Void
+        completion: @escaping(_ result: Result<(startTime: CFAbsoluteTime, depth: TriangularOpportunityDepth), Error>) -> Void
     ) {
-        let startTime = Date()
+        let startTime = CFAbsoluteTimeGetCurrent()
         let group = DispatchGroup()
         
         var pairADepth: OrderbookDepth? = nil

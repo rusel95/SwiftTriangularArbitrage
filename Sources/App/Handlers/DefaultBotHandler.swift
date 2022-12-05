@@ -359,26 +359,28 @@ private extension DefaultBotHandlers {
                     userInfo.stableTriangularOpportunitiesMessagesInfo = newUserOpportunities
                 }
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
-                if triangularOpportunitiesDict.isEmpty == false, userInfo.userId == 204251205 {
-                    self?.autoTradingService.handle(
-                        triangularOpportunitiesDict: triangularOpportunitiesDict,
-                        for: userInfo,
-                        completion: { tradedTriangularOpportunity in
-                            let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                            if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
-                                let editParams: TGEditMessageTextParams = .init(
-                                    chatId: .chat(userInfo.chatId),
-                                    messageId: updateMessageId,
-                                    inlineMessageId: nil,
-                                    text: text
-                                )
-                                _ = try? self?.bot.editMessageText(params: editParams)
-                            } else {
-                                _ = try? self?.bot.sendMessage(
-                                    params: .init(chatId: .chat(userInfo.chatId), text: text)
-                                )
-                            }
-                        })
+                if userInfo.userId == 204251205 {
+                    triangularOpportunitiesDict.forEach { _, opportunity in
+                        self?.autoTradingService.handle(
+                            triangularOpportunity: opportunity,
+                            for: userInfo,
+                            completion: { tradedTriangularOpportunity in
+                                let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
+                                if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
+                                    let editParams: TGEditMessageTextParams = .init(
+                                        chatId: .chat(userInfo.chatId),
+                                        messageId: updateMessageId,
+                                        inlineMessageId: nil,
+                                        text: text
+                                    )
+                                    _ = try? self?.bot.editMessageText(params: editParams)
+                                } else {
+                                    _ = try? self?.bot.sendMessage(
+                                        params: .init(chatId: .chat(userInfo.chatId), text: text)
+                                    )
+                                }
+                            })
+                    }
                 }
             }
         }
