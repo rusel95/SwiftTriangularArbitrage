@@ -21,7 +21,7 @@ final class AutoTradingService {
     
     private let minimumQuantityMultipler: Double = 1.5
     private let minimumQuantityStableEquivalent: Double
-    private let maximalDifferencePercent = 0.15
+    private let maximalDifferencePercent = 0.3
     
     init() {
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
@@ -58,14 +58,18 @@ final class AutoTradingService {
               forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0) == false,
               forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap1) == false,
               forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
-            triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity")
+            triangularOpportunity.autotradeCicle = .forbidden
+            triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity\n")
+            completion(triangularOpportunity)
             return
         }
         
         switch triangularOpportunity.autotradeCicle {
         case .pending:
             guard let lastSurfaceResult = triangularOpportunity.surfaceResults.last else {
+                triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append("no last result..")
+                completion(triangularOpportunity)
                 return
             }
             
@@ -73,11 +77,8 @@ final class AutoTradingService {
                 guard let self = self else { return }
                 
                 switch result {
-                case .success(let tupple):
-                    let depthCheckDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - tupple.startTime)
-                    triangularOpportunity.autotradeLog.append("\nDepth Check time: \(depthCheckDuration)s")
-                    
-                    let trade1AveragePrice = tupple.depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
+                case .success(let depth):
+                    let trade1AveragePrice = depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         triangularOpportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -85,7 +86,7 @@ final class AutoTradingService {
                         return
                     }
                     
-                    let trade2AveragePrice = tupple.depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
+                    let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                     guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -93,7 +94,7 @@ final class AutoTradingService {
                         return
                     }
                     
-                    let trade3AveragePrice = tupple.depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
+                    let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                     guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -104,6 +105,7 @@ final class AutoTradingService {
                     self.handleFirstTrade(for: triangularOpportunity, completion: completion)
                     
                 case .failure(let error):
+                    triangularOpportunity.autotradeCicle = .forbidden
                     triangularOpportunity.autotradeLog.append(error.localizedDescription)
                     completion(triangularOpportunity)
                     return
@@ -118,16 +120,15 @@ final class AutoTradingService {
     
     private func getDepth(
         for surfaceResult: SurfaceResult,
-        completion: @escaping(_ result: Result<(startTime: CFAbsoluteTime, depth: TriangularOpportunityDepth), Error>) -> Void
+        completion: @escaping(_ result: Result<TriangularOpportunityDepth, Error>) -> Void
     ) {
-        let startTime = CFAbsoluteTimeGetCurrent()
         let group = DispatchGroup()
         
         var pairADepth: OrderbookDepth? = nil
         var pairBDepth: OrderbookDepth? = nil
         var pairCDepth: OrderbookDepth? = nil
         
-        let limit: UInt = 5
+        let limit: UInt = 3
         group.enter()
         BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit) { result in
             switch result {
@@ -171,7 +172,7 @@ final class AutoTradingService {
             }
             
             let triangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
-            completion(.success((startTime, triangularOpportunityDepth)))
+            completion(.success(triangularOpportunityDepth))
         }
     }
     
@@ -181,7 +182,11 @@ final class AutoTradingService {
         for opportunityToTrade: TriangularOpportunity,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
-            guard let firstSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract1] else { return }
+            guard let firstSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract1] else {
+                opportunityToTrade.autotradeLog.append("\nError: No contract1 at tradeable symbols")
+                completion(opportunityToTrade)
+                return
+            }
             
             guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
                   let firstOrderMinNotional = Double(firstOrderMinNotionalString)
@@ -194,7 +199,11 @@ final class AutoTradingService {
             let startTime = CFAbsoluteTimeGetCurrent()
             opportunityToTrade.autotradeCicle = .firstTradeStarted
             
-            guard let approximateTickerPrice = approximateBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else { return }
+            guard let approximateTickerPrice = approximateBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else {
+                opportunityToTrade.autotradeLog.append("No approximate ticker price")
+                completion(opportunityToTrade)
+                return
+            }
             
             let preferableQuantityForFirstTrade: Double
             switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
@@ -230,6 +239,7 @@ final class AutoTradingService {
             
             guard quantityToExequte > 0 else {
                 opportunityToTrade.autotradeLog.append("Quantity to Qxecute is 0 - have to have bigger amount")
+                completion(opportunityToTrade)
                 return
             }
             
