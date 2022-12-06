@@ -101,7 +101,7 @@ final class AutoTradingService {
                         return
                     }
                     
-                    //self.handleFirstTrade(for: opportunityToTrade, completion: completion)
+                    self.handleFirstTrade(for: triangularOpportunity, completion: completion)
                     
                 case .failure(let error):
                     triangularOpportunity.autotradeLog.append(error.localizedDescription)
