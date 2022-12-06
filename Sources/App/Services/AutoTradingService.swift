@@ -21,7 +21,7 @@ final class AutoTradingService {
     
     private let minimumQuantityMultipler: Double = 1.5
     private let minimumQuantityStableEquivalent: Double
-    private let maximalDifferencePercent = 0.3
+    private let maximalDifferencePercent = 0.2
     
     init() {
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
