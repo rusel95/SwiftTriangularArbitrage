@@ -53,19 +53,19 @@ final class AutoTradingService {
         for userInfo: UserInfo,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
-        // NOTE: - remove handling only first - handle all of opportunities
-        guard allowedAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0),
-              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0) == false,
-              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap1) == false,
-              forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
-            triangularOpportunity.autotradeCicle = .forbidden
-            triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity\n")
-            completion(triangularOpportunity)
-            return
-        }
-        
         switch triangularOpportunity.autotradeCicle {
         case .pending:
+            // NOTE: - remove handling only first - handle all of opportunities
+            guard allowedAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0),
+                  forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap0) == false,
+                  forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap1) == false,
+                  forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
+                triangularOpportunity.autotradeCicle = .forbidden
+                triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity\n")
+                completion(triangularOpportunity)
+                return
+            }
+            
             guard let lastSurfaceResult = triangularOpportunity.surfaceResults.last else {
                 triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append("no last result..")

@@ -17,7 +17,7 @@ protocol PriceChangeDelegate: AnyObject {
     
 }
 
-final class ArbitrageCalculator {
+final class ArbitrageCalculatorService {
     
     // MARK: - Structs
     
@@ -38,7 +38,7 @@ final class ArbitrageCalculator {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.0
+                return 0.05
 #else
                 return 0.3
 #endif
@@ -224,7 +224,7 @@ final class ArbitrageCalculator {
 
 // MARK: - Collect Triangles
 
-private extension ArbitrageCalculator {
+private extension ArbitrageCalculatorService {
     
     func getTriangularsInfo(
         for mode: Mode,
@@ -356,7 +356,7 @@ private extension ArbitrageCalculator {
 
 // MARK: - Calculate Triangular's Surface Rate
 
-private extension ArbitrageCalculator {
+private extension ArbitrageCalculatorService {
     
     func calculateSurfaceRate(mode: Mode, triangular: Triangular) -> SurfaceResult? {
         let startingAmount: Double = 1.0

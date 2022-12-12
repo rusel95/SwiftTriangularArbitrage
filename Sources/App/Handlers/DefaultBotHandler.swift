@@ -20,15 +20,17 @@ final class DefaultBotHandlers {
     private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
-    private let arbitrageCalculator: ArbitrageCalculator = ArbitrageCalculator()
+    private let arbitrageCalculatorService = ArbitrageCalculatorService()
     private let autoTradingService: AutoTradingService = AutoTradingService()
     private let bot: TGBotPrtcl
+    
+    private let printQueue = DispatchQueue(label: "serial.queue", attributes: .concurrent)
     
     // MARK: - METHODS
     
     init(bot: TGBotPrtcl) {
         self.bot = bot
-        arbitrageCalculator.priceChangeHandlerDelegate = self
+        arbitrageCalculatorService.priceChangeHandlerDelegate = self
     }
     
     func addHandlers(app: Vapor.Application) {
@@ -46,7 +48,7 @@ final class DefaultBotHandlers {
     
     func startStandartTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculator.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
+            self?.arbitrageCalculatorService.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
                 
                 let text = surfaceResults
@@ -77,7 +79,7 @@ final class DefaultBotHandlers {
     
     func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.stableTriangularArbritraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculator.getSurfaceResults(for: .stable) { surfaceResults, statusText in
+            self?.arbitrageCalculatorService.getSurfaceResults(for: .stable) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
@@ -113,24 +115,24 @@ final class DefaultBotHandlers {
 extension DefaultBotHandlers: PriceChangeDelegate {
     
     func priceDidChange() {
-        arbitrageCalculator.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
+        arbitrageCalculatorService.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
             guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.standartTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent
+                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
             )
             self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict)
         }
         
-        arbitrageCalculator.getSurfaceResults(for: .stable) { [weak self] surfaceResults, statusText in
+        arbitrageCalculatorService.getSurfaceResults(for: .stable) { [weak self] surfaceResults, statusText in
             guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.stableTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent
+                profitPercent: ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent
             )
             self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict)
         }
@@ -156,7 +158,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -220,8 +222,8 @@ private extension DefaultBotHandlers {
             do {
                 let text = """
                     Starting alerting about:
-                    [Standart] opportunities with >= \(ArbitrageCalculator.Mode.standart.interestingProfitabilityPercent)% profitability
-                    [Stable] opportunities with >= \(ArbitrageCalculator.Mode.stable.interestingProfitabilityPercent)% profitability
+                    [Standart] opportunities with >= \(ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent)% profitability
+                    [Stable] opportunities with >= \(ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent)% profitability
                     """
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
@@ -297,7 +299,7 @@ private extension DefaultBotHandlers {
     }
     
     func alertUsers(
-        for mode: ArbitrageCalculator.Mode,
+        for mode: ArbitrageCalculatorService.Mode,
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
