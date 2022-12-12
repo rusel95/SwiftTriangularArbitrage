@@ -66,16 +66,22 @@ final class DefaultBotHandlers {
                                                                         messageId: standartTriangularArbitragingMessageId,
                                                                         inlineMessageId: nil,
                                                                         text: text)
-                        self.printQueue.addOperation {
-                            _ = try? self.bot.editMessageText(params: editParams)
-                            print(Date().readableDescription)
-                            Thread.sleep(forTimeInterval: 2)
+                        self.printQueue.addOperation { [weak self] in
+                            do {
+                                _ = try self?.bot.editMessageText(params: editParams)
+                                Thread.sleep(forTimeInterval: 3)
+                            } catch (let botError) {
+                                self?.logger.report(error: botError)
+                            }
                         }
                     } else {
-                        self.printQueue.addOperation {
-                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                            print(Date().readableDescription)
-                            Thread.sleep(forTimeInterval: 2)
+                        self.printQueue.addOperation { [weak self] in
+                            do {
+                                _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                Thread.sleep(forTimeInterval: 3)
+                            } catch (let botError) {
+                                self?.logger.report(error: botError)
+                            }
                         }
                     }
                 }
@@ -100,16 +106,22 @@ final class DefaultBotHandlers {
                                                                         messageId: triangularArbitragingMessageId,
                                                                         inlineMessageId: nil,
                                                                         text: text)
-                        self.printQueue.addOperation {
-                            _ = try? self.bot.editMessageText(params: editParams)
-                            print(Date().readableDescription)
-                            Thread.sleep(forTimeInterval: 2)
+                        self.printQueue.addOperation { [weak self] in
+                            do {
+                                _ = try self?.bot.editMessageText(params: editParams)
+                                Thread.sleep(forTimeInterval: 3)
+                            } catch (let botError) {
+                                self?.logger.report(error: botError)
+                            }
                         }
                     } else {
-                        self.printQueue.addOperation {
-                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                            print(Date().readableDescription)
-                            Thread.sleep(forTimeInterval: 2)
+                        self.printQueue.addOperation { [weak self] in
+                            do { _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                Thread.sleep(forTimeInterval: 3)
+                            } catch (let botError) {
+                                self?.logger.report(error: botError)
+                            }
+                            
                         }
                     }
                 }
@@ -334,14 +346,16 @@ private extension DefaultBotHandlers {
                                                                     messageId: currentUserOpportunityMessageId,
                                                                     inlineMessageId: nil,
                                                                     text: triangularOpportunity.value.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)"))
-                    do {
-                        _ = try bot.editMessageText(params: editParams)
-                        newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
-                        group.leave()
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                        group.leave()
+                    self.printQueue.addOperation { [weak self] in
+                        do {
+                            _ = try self?.bot.editMessageText(params: editParams)
+                            Thread.sleep(forTimeInterval: 3)
+                        } catch (let botError) {
+                            self?.logger.report(error: botError)
+                        }
                     }
+                    newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
+                    group.leave()
                 } else {
                     do {
                         let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
@@ -384,16 +398,23 @@ private extension DefaultBotHandlers {
                                         inlineMessageId: nil,
                                         text: text
                                     )
-                                    self?.printQueue.addOperation {
-                                        _ = try? self?.bot.editMessageText(params: editParams)
-                                        Thread.sleep(forTimeInterval: 2)
+                                    self?.printQueue.addOperation { [weak self] in
+                                        do {
+                                            _ = try self?.bot.editMessageText(params: editParams)
+                                            Thread.sleep(forTimeInterval: 3)
+                                        } catch (let botError) {
+                                            self?.logger.report(error: botError)
+                                        }
                                     }
+                                    
                                 } else {
-                                    self?.printQueue.addOperation {
-                                        _ = try? self?.bot.sendMessage(
-                                            params: .init(chatId: .chat(userInfo.chatId), text: text)
-                                        )
-                                        Thread.sleep(forTimeInterval: 2)
+                                    self?.printQueue.addOperation { [weak self] in
+                                        do {
+                                            _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                            Thread.sleep(forTimeInterval: 3)
+                                        } catch (let botError) {
+                                            self?.logger.report(error: botError)
+                                        }
                                     }
                                 }
                             })

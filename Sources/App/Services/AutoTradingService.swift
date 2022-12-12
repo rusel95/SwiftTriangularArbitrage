@@ -97,7 +97,7 @@ final class AutoTradingService {
                     let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
                     let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                     guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                        triangularOpportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(triangularOpportunity)
                         return
                     }
