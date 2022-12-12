@@ -89,7 +89,7 @@ final class AutoTradingService {
                     let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
                     let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                     guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string()) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                         completion(triangularOpportunity)
                         return
                     }

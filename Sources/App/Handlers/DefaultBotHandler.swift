@@ -24,13 +24,15 @@ final class DefaultBotHandlers {
     private let autoTradingService: AutoTradingService = AutoTradingService()
     private let bot: TGBotPrtcl
     
-    private let printQueue = DispatchQueue(label: "serial.queue", attributes: .concurrent)
+    private let printQueue = OperationQueue()
     
     // MARK: - METHODS
     
     init(bot: TGBotPrtcl) {
         self.bot = bot
         arbitrageCalculatorService.priceChangeHandlerDelegate = self
+        printQueue.maxConcurrentOperationCount = 1
+        
     }
     
     func addHandlers(app: Vapor.Application) {
@@ -59,18 +61,22 @@ final class DefaultBotHandlers {
                 
                 // NOTE: - sending all info to specific people separatly
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).forEach { userInfo in
-                    do {
-                        if let standartTriangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
-                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                            messageId: standartTriangularArbitragingMessageId,
-                                                                            inlineMessageId: nil,
-                                                                            text: text)
-                            _ = try bot.editMessageText(params: editParams)
-                        } else {
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                    if let standartTriangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
+                        let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                        messageId: standartTriangularArbitragingMessageId,
+                                                                        inlineMessageId: nil,
+                                                                        text: text)
+                        self.printQueue.addOperation {
+                            _ = try? self.bot.editMessageText(params: editParams)
+                            print(Date().readableDescription)
+                            Thread.sleep(forTimeInterval: 2)
                         }
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
+                    } else {
+                        self.printQueue.addOperation {
+                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                            print(Date().readableDescription)
+                            Thread.sleep(forTimeInterval: 2)
+                        }
                     }
                 }
             }
@@ -89,19 +95,22 @@ final class DefaultBotHandlers {
                     .appending("\nUp to date as of: \(Date().readableDescription)")
                 
                 UsersInfoProvider.shared.getUsersInfo(selectedMode: .stableTriangularArbritraging).forEach { userInfo in
-                    do {
-                        if let triangularArbitragingMessageId = userInfo.stableTriangularArbitragingMessageId {
-                            let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                            messageId: triangularArbitragingMessageId,
-                                                                            inlineMessageId: nil,
-                                                                            text: text)
-                            _ = try bot.editMessageText(params: editParams)
-                        } else {
-                            _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                    if let triangularArbitragingMessageId = userInfo.stableTriangularArbitragingMessageId {
+                        let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
+                                                                        messageId: triangularArbitragingMessageId,
+                                                                        inlineMessageId: nil,
+                                                                        text: text)
+                        self.printQueue.addOperation {
+                            _ = try? self.bot.editMessageText(params: editParams)
+                            print(Date().readableDescription)
+                            Thread.sleep(forTimeInterval: 2)
                         }
-                        
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
+                    } else {
+                        self.printQueue.addOperation {
+                            _ = try? bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                            print(Date().readableDescription)
+                            Thread.sleep(forTimeInterval: 2)
+                        }
                     }
                 }
             }
@@ -366,7 +375,7 @@ private extension DefaultBotHandlers {
                         self?.autoTradingService.handle(
                             triangularOpportunity: opportunity,
                             for: userInfo,
-                            completion: { tradedTriangularOpportunity in
+                            completion: { [weak self] tradedTriangularOpportunity in
                                 let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
                                 if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
                                     let editParams: TGEditMessageTextParams = .init(
@@ -375,11 +384,17 @@ private extension DefaultBotHandlers {
                                         inlineMessageId: nil,
                                         text: text
                                     )
-                                    _ = try? self?.bot.editMessageText(params: editParams)
+                                    self?.printQueue.addOperation {
+                                        _ = try? self?.bot.editMessageText(params: editParams)
+                                        Thread.sleep(forTimeInterval: 2)
+                                    }
                                 } else {
-                                    _ = try? self?.bot.sendMessage(
-                                        params: .init(chatId: .chat(userInfo.chatId), text: text)
-                                    )
+                                    self?.printQueue.addOperation {
+                                        _ = try? self?.bot.sendMessage(
+                                            params: .init(chatId: .chat(userInfo.chatId), text: text)
+                                        )
+                                        Thread.sleep(forTimeInterval: 2)
+                                    }
                                 }
                             })
                     }
