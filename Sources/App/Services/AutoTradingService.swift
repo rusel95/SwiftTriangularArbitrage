@@ -13,7 +13,7 @@ import CoreFoundation
 final class AutoTradingService {
     
     private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
-    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB")
+    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
@@ -61,7 +61,7 @@ final class AutoTradingService {
                   forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap1) == false,
                   forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
                 triangularOpportunity.autotradeCicle = .forbidden
-                triangularOpportunity.autotradeLog.append("Not possible to trade this opportunity\n")
+                triangularOpportunity.autotradeLog.append("Not tradeable opportunity\n")
                 completion(triangularOpportunity)
                 return
             }
@@ -74,7 +74,12 @@ final class AutoTradingService {
             }
             
             getDepth(for: lastSurfaceResult) { [weak self] result in
-                guard let self = self else { return }
+                guard let self = self else {
+                    triangularOpportunity.autotradeCicle = .forbidden
+                    triangularOpportunity.autotradeLog.append("no autotradingservice exist")
+                    return
+                    
+                }
                 
                 switch result {
                 case .success(let depth):
@@ -238,6 +243,7 @@ final class AutoTradingService {
             let quantityToExequte = (preferableQuantityForFirstTrade - leftoversAfterRounding).roundToDecimal(8)
             
             guard quantityToExequte > 0 else {
+                opportunityToTrade.autotradeCicle = .forbidden
                 opportunityToTrade.autotradeLog.append("Quantity to Qxecute is 0 - have to have bigger amount")
                 completion(opportunityToTrade)
                 return

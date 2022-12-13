@@ -69,7 +69,7 @@ final class DefaultBotHandlers {
                         self.printQueue.addOperation { [weak self] in
                             do {
                                 _ = try self?.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: 3)
+                                Thread.sleep(forTimeInterval: 2.5)
                             } catch (let botError) {
                                 self?.logger.report(error: botError)
                             }
@@ -78,7 +78,7 @@ final class DefaultBotHandlers {
                         self.printQueue.addOperation { [weak self] in
                             do {
                                 _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: 3)
+                                Thread.sleep(forTimeInterval: 2.5)
                             } catch (let botError) {
                                 self?.logger.report(error: botError)
                             }
@@ -109,7 +109,7 @@ final class DefaultBotHandlers {
                         self.printQueue.addOperation { [weak self] in
                             do {
                                 _ = try self?.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: 3)
+                                Thread.sleep(forTimeInterval: 2.5)
                             } catch (let botError) {
                                 self?.logger.report(error: botError)
                             }
@@ -117,7 +117,7 @@ final class DefaultBotHandlers {
                     } else {
                         self.printQueue.addOperation { [weak self] in
                             do { _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: 3)
+                                Thread.sleep(forTimeInterval: 2.5)
                             } catch (let botError) {
                                 self?.logger.report(error: botError)
                             }
@@ -349,7 +349,8 @@ private extension DefaultBotHandlers {
                     self.printQueue.addOperation { [weak self] in
                         do {
                             _ = try self?.bot.editMessageText(params: editParams)
-                            Thread.sleep(forTimeInterval: 3)
+                            print(self?.printQueue.operationCount ?? "")
+                            Thread.sleep(forTimeInterval: 2.5)
                         } catch (let botError) {
                             self?.logger.report(error: botError)
                         }
@@ -386,6 +387,8 @@ private extension DefaultBotHandlers {
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
                 if userInfo.userId == 204251205 {
                     triangularOpportunitiesDict.forEach { _, opportunity in
+                        guard opportunity.autotradeCicle != .forbidden else { return }
+                        
                         self?.autoTradingService.handle(
                             triangularOpportunity: opportunity,
                             for: userInfo,
@@ -401,23 +404,25 @@ private extension DefaultBotHandlers {
                                     self?.printQueue.addOperation { [weak self] in
                                         do {
                                             _ = try self?.bot.editMessageText(params: editParams)
-                                            Thread.sleep(forTimeInterval: 3)
+                                            print(self?.printQueue.operationCount ?? "")
+                                            Thread.sleep(forTimeInterval: 2.5)
                                         } catch (let botError) {
                                             self?.logger.report(error: botError)
                                         }
                                     }
-                                    
                                 } else {
                                     self?.printQueue.addOperation { [weak self] in
                                         do {
                                             _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                            Thread.sleep(forTimeInterval: 3)
+                                            print(self?.printQueue.operationCount ?? "")
+                                            Thread.sleep(forTimeInterval: 2.5)
                                         } catch (let botError) {
                                             self?.logger.report(error: botError)
                                         }
                                     }
                                 }
-                            })
+                            }
+                        )
                     }
                 }
             }

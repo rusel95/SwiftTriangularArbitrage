@@ -9,7 +9,7 @@ import Foundation
 
 final class TriangularOpportunity: CustomStringConvertible, Hashable {
     
-    enum AutoTradeCicle {
+    enum AutoTradeCicle: Equatable {
         case forbidden
         case pending
         case firstTradeStarted
