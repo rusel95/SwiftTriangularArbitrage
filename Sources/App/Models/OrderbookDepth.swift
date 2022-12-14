@@ -33,16 +33,8 @@ struct OrderbookDepth: Codable {
         let sortedMarketOrders: [MarketOrder] = orderSide == .baseToQuote
             ? bidMarketOrders.sorted(by: { $0.quantity < $1.quantity })
             : askMarketOrders.sorted(by: { $0.quantity < $1.quantity })
-        
-        guard let minimalQuantity = sortedMarketOrders.first?.quantity else { return 0.0 }
-        
-        var multiplers: Double = 0
-        let totalPrice = sortedMarketOrders.reduce(0.0) { partialResult, marketOrder in
-            let multipler = marketOrder.quantity / minimalQuantity
-            multiplers += multipler
-            return partialResult + (multipler * marketOrder.price)
-        }
-        return totalPrice / multiplers
+
+        return getAveragePrice(for: sortedMarketOrders)
     }
     
     // Returns probable price for specific amount of coin
@@ -50,9 +42,9 @@ struct OrderbookDepth: Codable {
         let sortedMarketOrders: [MarketOrder] = orderSide == .baseToQuote
             ? bidMarketOrders.sorted(by: { $0.price > $1.price })
             : askMarketOrders.sorted(by: { $0.price < $1.price })
-        
+
         var marketOrdersToFullfill: [MarketOrder] = []
-        
+
         var leftoverAmount = amount
         sortedMarketOrders.forEach { marketOrder in
             if leftoverAmount > 0 {
@@ -60,12 +52,28 @@ struct OrderbookDepth: Codable {
                 marketOrdersToFullfill.append(marketOrder)
             }
         }
-        return 0
+        return getAveragePrice(for: marketOrdersToFullfill)
     }
     
     func getQuantity(for orderSide: OrderSide) -> Double {
         (orderSide == .baseToQuote ? bidMarketOrders : askMarketOrders)
             .reduce(0.0) { partialResult, marketOrder in return partialResult + marketOrder.quantity }
+    }
+    
+}
+
+private extension OrderbookDepth {
+    
+    func getAveragePrice(for marketOrders: [MarketOrder]) -> Double {
+        guard let minimalQuantity = marketOrders.first?.quantity else { return 0.0 }
+        
+        var multiplers: Double = 0
+        let totalPrice = marketOrders.reduce(0.0) { partialResult, marketOrder in
+            let multipler = marketOrder.quantity / minimalQuantity
+            multiplers += multipler
+            return partialResult + (multipler * marketOrder.price)
+        }
+        return totalPrice / multiplers
     }
     
 }
