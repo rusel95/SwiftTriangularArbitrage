@@ -137,11 +137,7 @@ final class BinanceAPIService {
     
     func getOrderbookDepth(symbol: String, limit: UInt) async throws -> OrderbookDepth {
         let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "Get"
-
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await URLSession.shared.asyncData(from: url)
         return try JSONDecoder().decode(OrderbookDepth.self, from: data)
     }
     
