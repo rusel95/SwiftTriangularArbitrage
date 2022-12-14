@@ -12,6 +12,10 @@ import CoreFoundation
 
 final class AutoTradingService {
     
+    enum TradingError: Error {
+        case customError(description: String)
+    }
+    
     private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
@@ -73,17 +77,16 @@ final class AutoTradingService {
                 return
             }
             
-            getDepth(for: lastSurfaceResult) { [weak self] result in
-                guard let self = self else {
-                    triangularOpportunity.autotradeCicle = .forbidden
-                    triangularOpportunity.autotradeLog.append("no autotradingservice exist")
-                    return
+            Task {
+                do {
+                    let depth = try await getDepth(for: lastSurfaceResult, limit: 3)
                     
-                }
-                
-                switch result {
-                case .success(let depth):
-                    let trade1AveragePrice = depth.pairADepth.getAveragePrice(for: lastSurfaceResult.directionTrade1)
+                    let firstOrderQuantity = try getFirstTradeQuantity(for: triangularOpportunity)
+                    
+                    let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
+                        for: lastSurfaceResult.directionTrade1,
+                        amount: firstOrderQuantity * 10 // to be sure our amount exist
+                    )
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
                         triangularOpportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
@@ -107,204 +110,153 @@ final class AutoTradingService {
                         return
                     }
                     
-                    self.handleFirstTrade(for: triangularOpportunity, completion: completion)
-                    
-                case .failure(let error):
+                    self.handleFirstTrade(
+                        for: triangularOpportunity,
+                        quantityToExequte: firstOrderQuantity,
+                        completion: completion
+                    )
+                } catch TradingError.customError(let description) {
+                    triangularOpportunity.autotradeCicle = .forbidden
+                    triangularOpportunity.autotradeLog.append(description)
+                    completion(triangularOpportunity)
+                } catch {
                     triangularOpportunity.autotradeCicle = .forbidden
                     triangularOpportunity.autotradeLog.append(error.localizedDescription)
                     completion(triangularOpportunity)
-                    return
                 }
             }
         default:
             return
         }
     }
-    
+
     // MARK: - Get depth
     
-    private func getDepth(
-        for surfaceResult: SurfaceResult,
-        completion: @escaping(_ result: Result<TriangularOpportunityDepth, Error>) -> Void
-    ) {
-        let group = DispatchGroup()
+    private func getDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit)
+        async let pairBDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit)
+        async let pairCDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit)
         
-        var pairADepth: OrderbookDepth? = nil
-        var pairBDepth: OrderbookDepth? = nil
-        var pairCDepth: OrderbookDepth? = nil
-        
-        let limit: UInt = 3
-        group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit) { result in
-            switch result {
-            case .success(let orderbookDepth):
-                pairADepth = orderbookDepth
-                group.leave()
-                break
-            case .failure:
-                group.leave()
-                break
-            }
-        }
-        group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit) { result in
-            switch result {
-            case .success(let orderbookDepth):
-                pairBDepth = orderbookDepth
-                group.leave()
-                break
-            case .failure:
-                group.leave()
-                break
-            }
-        }
-        group.enter()
-        BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit) { result in
-            switch result {
-            case .success(let orderbookDepth):
-                pairCDepth = orderbookDepth
-                group.leave()
-                break
-            case .failure:
-                group.leave()
-                break
-            }
-        }
-        group.notify(queue: .global()) {
-            guard let pairADepth = pairADepth, let pairBDepth = pairBDepth, let pairCDepth = pairCDepth else {
-                completion(.failure(BinanceAPIService.BinanceError.noData))
-                return
-            }
-            
-            let triangularOpportunityDepth = TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
-            completion(.success(triangularOpportunityDepth))
-        }
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
     }
     
     // MARK: - First Trade
     
+    func getFirstTradeQuantity(for opportunity: TriangularOpportunity) throws -> Double {
+        guard let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
+            throw TradingError.customError(description: "\nError: No contract1 at tradeable symbols")
+        }
+        
+        guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
+              let firstOrderMinNotional = Double(firstOrderMinNotionalString)
+        else {
+            throw TradingError.customError(description: "\nError: No min notional")
+        }
+        
+        guard let approximateTickerPrice = approximateBookTickers[opportunity.firstSurfaceResult.contract1]?.buyPrice else {
+            throw TradingError.customError(description: "No approximate ticker price")
+        }
+        
+        let preferableQuantityForFirstTrade: Double
+        switch opportunity.firstSurfaceResult.directionTrade1 {
+        case .baseToQuote:
+            let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler / approximateTickerPrice
+            if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0) {
+                preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
+            } else {
+                preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
+            }
+        case .quoteToBase:
+            let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler
+            if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0) {
+                preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
+            } else {
+                preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
+            }
+        case .unknown:
+            throw TradingError.customError(description: "Unknown side")
+        }
+        
+        guard let lotSizeMinQtyString = firstSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
+              let lotSizeMinQty = Double(lotSizeMinQtyString) else {
+            throw TradingError.customError(description: "No Lot_Size for \(opportunity.firstSurfaceResult.contract2)")
+        }
+        
+        let leftoversAfterRounding = preferableQuantityForFirstTrade.truncatingRemainder(dividingBy: lotSizeMinQty)
+        let quantityToExequte = (preferableQuantityForFirstTrade - leftoversAfterRounding).roundToDecimal(8)
+        
+        guard quantityToExequte > 0 else {
+            throw TradingError.customError(description: "Quantity to Qxecute is 0 - have to have bigger amount")
+        }
+        
+        return quantityToExequte
+    }
+    
     private func handleFirstTrade(
         for opportunityToTrade: TriangularOpportunity,
+        quantityToExequte: Double,
         completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
     ) {
-            guard let firstSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract1] else {
-                opportunityToTrade.autotradeLog.append("\nError: No contract1 at tradeable symbols")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
-                  let firstOrderMinNotional = Double(firstOrderMinNotionalString)
-            else {
-                opportunityToTrade.autotradeLog.append("\nError: No min notional")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            let startTime = CFAbsoluteTimeGetCurrent()
-            opportunityToTrade.autotradeCicle = .firstTradeStarted
-            
-            guard let approximateTickerPrice = approximateBookTickers[opportunityToTrade.firstSurfaceResult.contract1]?.buyPrice else {
-                opportunityToTrade.autotradeLog.append("No approximate ticker price")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            let preferableQuantityForFirstTrade: Double
-            switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
-            case .baseToQuote:
-                let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler / approximateTickerPrice
-                if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunityToTrade.firstSurfaceResult.swap0) {
-                    preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
-                } else {
-                    preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
-                }
-            case .quoteToBase:
-                let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler
-                if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunityToTrade.firstSurfaceResult.swap0) {
-                    preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
-                } else {
-                    preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
-                }
-            case .unknown:
-                opportunityToTrade.autotradeLog.append("Unknown side")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            guard let lotSizeMinQtyString = firstSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
-                  let lotSizeMinQty = Double(lotSizeMinQtyString) else {
-                opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
-                completion(opportunityToTrade)
-                return
-            }
-
-            let leftoversAfterRounding = preferableQuantityForFirstTrade.truncatingRemainder(dividingBy: lotSizeMinQty)
-            let quantityToExequte = (preferableQuantityForFirstTrade - leftoversAfterRounding).roundToDecimal(8)
-            
-            guard quantityToExequte > 0 else {
-                opportunityToTrade.autotradeCicle = .forbidden
-                opportunityToTrade.autotradeLog.append("Quantity to Qxecute is 0 - have to have bigger amount")
-                completion(opportunityToTrade)
-                return
-            }
-            
-            BinanceAPIService.shared.newOrder(
-                symbol: opportunityToTrade.firstSurfaceResult.contract1,
-                side: opportunityToTrade.firstSurfaceResult.directionTrade1,
-                type: .market,
-                quantity: quantityToExequte,
-                quoteOrderQty: quantityToExequte,
-                newOrderRespType: .full,
-                success: { [weak self] firstOrderResponse in
-                    guard let self = self, let firstOrderResponse = firstOrderResponse else {
-                        opportunityToTrade.autotradeLog.append("\n\nStep 1: No Response")
-                        completion(opportunityToTrade)
-                        return
-                    }
-                    
-                    opportunityToTrade.autotradeCicle = .firstTradeFinished
-                    let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
-                    opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
-                    
-                    let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
-                    if commission > 0 {
-                        opportunityToTrade.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
-                    }
-                    
-                    let usedCapital: Double
-                    let preferableQuantityForSecondTrade: Double
-                    switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
-                    case .quoteToBase:
-                        usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                        preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
-                    case .baseToQuote:
-                        usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
-                        preferableQuantityForSecondTrade = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                    case .unknown:
-                        usedCapital = 0
-                        preferableQuantityForSecondTrade = 0
-                    }
-                    
-                    self.handleSecondTrade(for: opportunityToTrade,
-                                           usedCapital: usedCapital,
-                                           firstOrderComission: commission,
-                                           preferableQuantityToExecute: preferableQuantityForSecondTrade,
-                                           startTime: startTime,
-                                           completion: completion)
-                }, failure: { error in
-                    var errorDescription: String
-                    if let binanceError = error as? BinanceAPIService.BinanceError {
-                        errorDescription = binanceError.description
-                    } else {
-                        errorDescription = error.localizedDescription
-                    }
-                    errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(firstOrderMinNotional)")
-                    opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
-                    opportunityToTrade.autotradeLog.append("\n\n Step 1:\(errorDescription)")
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        opportunityToTrade.autotradeCicle = .firstTradeStarted
+        
+        BinanceAPIService.shared.newOrder(
+            symbol: opportunityToTrade.firstSurfaceResult.contract1,
+            side: opportunityToTrade.firstSurfaceResult.directionTrade1,
+            type: .market,
+            quantity: quantityToExequte,
+            quoteOrderQty: quantityToExequte,
+            newOrderRespType: .full,
+            success: { [weak self] firstOrderResponse in
+                guard let self = self, let firstOrderResponse = firstOrderResponse else {
+                    opportunityToTrade.autotradeLog.append("\n\nStep 1: No Response")
                     completion(opportunityToTrade)
+                    return
                 }
-            )
+                
+                opportunityToTrade.autotradeCicle = .firstTradeFinished
+                let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
+                opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
+                
+                let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
+                if commission > 0 {
+                    opportunityToTrade.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
+                }
+                
+                let usedCapital: Double
+                let preferableQuantityForSecondTrade: Double
+                switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+                case .quoteToBase:
+                    usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+                    preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
+                case .baseToQuote:
+                    usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
+                    preferableQuantityForSecondTrade = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+                case .unknown:
+                    usedCapital = 0
+                    preferableQuantityForSecondTrade = 0
+                }
+                
+                self.handleSecondTrade(for: opportunityToTrade,
+                                       usedCapital: usedCapital,
+                                       firstOrderComission: commission,
+                                       preferableQuantityToExecute: preferableQuantityForSecondTrade,
+                                       startTime: startTime,
+                                       completion: completion)
+            }, failure: { error in
+                var errorDescription: String
+                if let binanceError = error as? BinanceAPIService.BinanceError {
+                    errorDescription = binanceError.description
+                } else {
+                    errorDescription = error.localizedDescription
+                }
+                opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
+                opportunityToTrade.autotradeLog.append("\n\n Step 1:\(errorDescription)")
+                completion(opportunityToTrade)
+            }
+        )
     }
     // MARK: - Second Trade
     
