@@ -79,13 +79,13 @@ final class AutoTradingService {
             
             Task {
                 do {
-                    let depth = try await getDepth(for: lastSurfaceResult, limit: 3)
+                    let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
                     
                     let firstOrderQuantity = try getFirstTradeQuantity(for: triangularOpportunity)
                     
                     let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
                         for: lastSurfaceResult.directionTrade1,
-                        amount: firstOrderQuantity * 10 // to be sure our amount exist
+                        amount: firstOrderQuantity * 5 // to be sure our amount exist
                     )
                     let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                     guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {

@@ -25,6 +25,7 @@ final class DefaultBotHandlers {
     private let bot: TGBotPrtcl
     
     private let printQueue = OperationQueue()
+    private let printBreakTime: TimeInterval = 3.0
     
     // MARK: - METHODS
     
@@ -67,20 +68,23 @@ final class DefaultBotHandlers {
                                                                         inlineMessageId: nil,
                                                                         text: text)
                         self.printQueue.addOperation { [weak self] in
+                            guard let self = self else { return }
+                            
                             do {
-                                _ = try self?.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: 2.5)
+                                _ = try self.bot.editMessageText(params: editParams)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
                             } catch (let botError) {
-                                self?.logger.report(error: botError)
+                                self.logger.report(error: botError)
                             }
                         }
                     } else {
                         self.printQueue.addOperation { [weak self] in
+                            guard let self = self else { return }
                             do {
                                 _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: 2.5)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
                             } catch (let botError) {
-                                self?.logger.report(error: botError)
+                                self.logger.report(error: botError)
                             }
                         }
                     }
@@ -107,19 +111,23 @@ final class DefaultBotHandlers {
                                                                         inlineMessageId: nil,
                                                                         text: text)
                         self.printQueue.addOperation { [weak self] in
+                            guard let self = self else { return }
+                            
                             do {
-                                _ = try self?.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: 2.5)
+                                _ = try self.bot.editMessageText(params: editParams)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
                             } catch (let botError) {
-                                self?.logger.report(error: botError)
+                                self.logger.report(error: botError)
                             }
                         }
                     } else {
                         self.printQueue.addOperation { [weak self] in
-                            do { _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: 2.5)
+                            guard let self = self else { return }
+                            
+                            do { _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
                             } catch (let botError) {
-                                self?.logger.report(error: botError)
+                                self.logger.report(error: botError)
                             }
                             
                         }
@@ -347,12 +355,14 @@ private extension DefaultBotHandlers {
                                                                     inlineMessageId: nil,
                                                                     text: triangularOpportunity.value.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)"))
                     self.printQueue.addOperation { [weak self] in
+                        guard let self = self else { return }
+                        
                         do {
-                            _ = try self?.bot.editMessageText(params: editParams)
-                            print(self?.printQueue.operationCount ?? "")
-                            Thread.sleep(forTimeInterval: 2.5)
+                            _ = try self.bot.editMessageText(params: editParams)
+                            print(self.printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: self.printBreakTime)
                         } catch (let botError) {
-                            self?.logger.report(error: botError)
+                            self.logger.report(error: botError)
                         }
                     }
                     newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
@@ -402,22 +412,26 @@ private extension DefaultBotHandlers {
                                         text: text
                                     )
                                     self?.printQueue.addOperation { [weak self] in
+                                        guard let self = self else { return }
+                                        
                                         do {
-                                            _ = try self?.bot.editMessageText(params: editParams)
-                                            print(self?.printQueue.operationCount ?? "")
-                                            Thread.sleep(forTimeInterval: 2.5)
+                                            _ = try self.bot.editMessageText(params: editParams)
+                                            print(self.printQueue.operationCount)
+                                            Thread.sleep(forTimeInterval: self.printBreakTime)
                                         } catch (let botError) {
-                                            self?.logger.report(error: botError)
+                                            self.logger.report(error: botError)
                                         }
                                     }
                                 } else {
                                     self?.printQueue.addOperation { [weak self] in
+                                        guard let self = self else { return }
+                                        
                                         do {
-                                            _ = try self?.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                            print(self?.printQueue.operationCount ?? "")
-                                            Thread.sleep(forTimeInterval: 2.5)
+                                            _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                            print(self.printQueue.operationCount)
+                                            Thread.sleep(forTimeInterval: self.printBreakTime)
                                         } catch (let botError) {
-                                            self?.logger.report(error: botError)
+                                            self.logger.report(error: botError)
                                         }
                                     }
                                 }
