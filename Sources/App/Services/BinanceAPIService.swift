@@ -18,6 +18,20 @@ enum OrderSide: String {
     case unknown = "UNKNOWN"
 }
 
+enum BinanceError: Error, CustomStringConvertible {
+    case unexpected(message: String)
+    case noData
+    
+    var description: String {
+        switch self {
+        case .unexpected(let message):
+            return message
+        case .noData:
+            return "No Data"
+        }
+    }
+}
+
 final class BinanceAPIService {
     
     // MARK: - STRUCTS
@@ -400,20 +414,6 @@ final class BinanceAPIService {
         let msg: String
     }
     
-    enum BinanceError: Error, CustomStringConvertible {
-        case unexpected(message: String)
-        case noData
-        
-        var description: String {
-            switch self {
-            case .unexpected(let message):
-                return message
-            case .noData:
-                return "No Data"
-            }
-        }
-    }
-    
     func newOrder(
         symbol: String,
         side: OrderSide,
@@ -437,6 +437,10 @@ final class BinanceAPIService {
         signRequest(&request)
         
         let (data, _) = try await URLSession.shared.asyncData(from: request)
+        
+        if let unexpectedResponseError = try? JSONDecoder().decode(ResponseError.self, from: data) {
+            throw BinanceError.unexpected(message: unexpectedResponseError.description)
+        }
         
         return try JSONDecoder().decode(NewOrderResponse.self, from: data)
     }

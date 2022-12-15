@@ -5,8 +5,6 @@
 //  Created by Ruslan on 12.10.2022.
 //
 
-import Vapor
-import telegram_vapor_bot
 import Jobs
 import CoreFoundation
 
@@ -23,7 +21,7 @@ final class AutoTradingService {
     private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
     private var approximateBookTickers: [String: BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 1.5
+    private let minimumQuantityMultipler: Double = 2
     private let minimumQuantityStableEquivalent: Double
     private let maximalDifferencePercent = 0.2
     
@@ -77,11 +75,10 @@ final class AutoTradingService {
             do {
                 let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
                 
-                let firstOrderQuantity = try getFirstTradeQuantity(for: triangularOpportunity)
-                
+                let trade1Quantity = try getFirstTradeQuantity(for: triangularOpportunity)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade1,
-                    amount: firstOrderQuantity * 10 // to be sure our amount exist
+                    amount: trade1Quantity * 10 // to be sure our amount exist
                 )
                 let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                 guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -89,25 +86,34 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
+                let trade2ApproximateQuantity = trade1Quantity * lastSurfaceResult.swap2Rate
+                let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
+                    for: lastSurfaceResult.directionTrade2,
+                    amount: trade2ApproximateQuantity * 10 // Extra
+                )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
                     triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                     return triangularOpportunity
                 }
                 
-                let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
+                let trade3ApproximateQuantity = trade2ApproximateQuantity * lastSurfaceResult.swap3Rate
+                let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
+                    for: lastSurfaceResult.directionTrade3,
+                    amount: trade3ApproximateQuantity * 10
+                )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
                     triangularOpportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                     return triangularOpportunity
                 }
                 
-                return try await handleFirstTrade(
-                    for: triangularOpportunity,
-                    quantityToExequte: firstOrderQuantity
-                )
+                return try await handleFirstTrade(for: triangularOpportunity, quantityToExequte: trade1Quantity)
             } catch TradingError.customError(let description) {
+                triangularOpportunity.autotradeCicle = .forbidden
+                triangularOpportunity.autotradeLog.append(description)
+                return triangularOpportunity
+            } catch BinanceError.unexpected(let description) {
                 triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append(description)
                 return triangularOpportunity
@@ -179,6 +185,7 @@ final class AutoTradingService {
         let quantityToExequte = (preferableQuantityForFirstTrade - leftoversAfterRounding).roundToDecimal(8)
         
         guard quantityToExequte > 0 else {
+            opportunity.autotradeCicle = .forbidden
             throw TradingError.customError(description: "Quantity to Qxecute is 0 - have to have bigger amount")
         }
         
@@ -234,11 +241,6 @@ final class AutoTradingService {
         )
     }
     // MARK: - Second Trade
-    
-//    private func getApproximateSecondTradeQuantityToExecute(for opportunity: TriangularOpportunity) throws -> Double {
-//        opportunity.firstSurfaceResult.pairBExpectedPrice
-//        return quantityToExequte
-//    }
     
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
@@ -341,7 +343,6 @@ final class AutoTradingService {
         guard let thirdSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract3],
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
-//              let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
               let tickSizeString = thirdSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
               let tickSize = Double(tickSizeString)
         else {
