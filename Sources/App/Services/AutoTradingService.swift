@@ -73,7 +73,7 @@ final class AutoTradingService {
             }
             
             do {
-                let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
+                let depth = try await getDepth(for: lastSurfaceResult, limit: 10)
                 
                 let trade1Quantity = try getFirstTradeQuantity(for: triangularOpportunity)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
@@ -86,7 +86,10 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                let trade2ApproximateQuantity = trade1Quantity * lastSurfaceResult.swap2Rate
+                let trade2ApproximateQuantity = lastSurfaceResult.directionTrade1 == .baseToQuote
+                ? trade1Quantity * trade1AveragePrice
+                : trade1Quantity * (1.0 / trade1AveragePrice)
+                
                 let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade2,
                     amount: trade2ApproximateQuantity * 10 // Extra
@@ -97,7 +100,10 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                let trade3ApproximateQuantity = trade2ApproximateQuantity * lastSurfaceResult.swap3Rate
+                let trade3ApproximateQuantity = lastSurfaceResult.directionTrade2 == .baseToQuote
+                ? trade2ApproximateQuantity * trade2AveragePrice
+                : trade2ApproximateQuantity * (1.0 / trade2AveragePrice)
+                
                 let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade3,
                     amount: trade3ApproximateQuantity * 10
