@@ -75,10 +75,10 @@ final class AutoTradingService {
             do {
                 let depth = try await getDepth(for: lastSurfaceResult, limit: 10)
                 
-                let trade1Quantity = try getFirstTradeQuantity(for: triangularOpportunity)
+                let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade1,
-                    amount: trade1Quantity * 10 // to be sure our amount exist
+                    amount: trade1ApproximateOrderbookQuantity * 10 // to be sure our amount exist
                 )
                 let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                 guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -86,13 +86,10 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                let trade2ApproximateQuantity = lastSurfaceResult.directionTrade1 == .baseToQuote
-                ? trade1Quantity * trade1AveragePrice
-                : trade1Quantity * (1.0 / trade1AveragePrice)
-                
+                let trade2ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract2, asset: lastSurfaceResult.swap1)
                 let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade2,
-                    amount: trade2ApproximateQuantity * 10 // Extra
+                    amount: trade2ApproximateOrderbookQuantity * 10 // Extra
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -100,13 +97,10 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                let trade3ApproximateQuantity = lastSurfaceResult.directionTrade2 == .baseToQuote
-                ? trade2ApproximateQuantity * trade2AveragePrice
-                : trade2ApproximateQuantity * (1.0 / trade2AveragePrice)
-                
+                let trade3ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract3, asset: lastSurfaceResult.swap2)
                 let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade3,
-                    amount: trade3ApproximateQuantity * 10
+                    amount: trade3ApproximateOrderbookQuantity * 10
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -114,7 +108,7 @@ final class AutoTradingService {
                     return triangularOpportunity
                 }
                 
-                return try await handleFirstTrade(for: triangularOpportunity, quantityToExequte: trade1Quantity)
+                return try await handleFirstTrade(for: triangularOpportunity)
             } catch TradingError.customError(let description) {
                 triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append(description)
@@ -166,18 +160,12 @@ final class AutoTradingService {
         switch opportunity.firstSurfaceResult.directionTrade1 {
         case .baseToQuote:
             let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler / approximateTickerPrice
-            if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0) {
-                preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
-            } else {
-                preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
-            }
+            let minStableEquivalentQuantity = try getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0)
+            preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
         case .quoteToBase:
             let minNotionalEquivalentQuantity = firstOrderMinNotional * minimumQuantityMultipler
-            if let minStableEquivalentQuantity = getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0) {
-                preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
-            } else {
-                preferableQuantityForFirstTrade = minNotionalEquivalentQuantity
-            }
+            let minStableEquivalentQuantity = try getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0)
+            preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
         case .unknown:
             throw TradingError.customError(description: "Unknown side")
         }
@@ -198,35 +186,33 @@ final class AutoTradingService {
         return quantityToExequte
     }
     
-    private func handleFirstTrade(
-        for opportunityToTrade: TriangularOpportunity,
-        quantityToExequte: Double
-    ) async throws -> TriangularOpportunity {
+    private func handleFirstTrade(for opportunity: TriangularOpportunity) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        opportunityToTrade.autotradeCicle = .firstTradeStarted
+        let trade1Quantity = try getFirstTradeQuantity(for: opportunity)
+        opportunity.autotradeCicle = .firstTradeStarted
         
         let firstOrderResponse = try await BinanceAPIService.shared.newOrder(
-            symbol: opportunityToTrade.firstSurfaceResult.contract1,
-            side: opportunityToTrade.firstSurfaceResult.directionTrade1,
+            symbol: opportunity.firstSurfaceResult.contract1,
+            side: opportunity.firstSurfaceResult.directionTrade1,
             type: .market,
-            quantity: quantityToExequte,
-            quoteOrderQty: quantityToExequte,
+            quantity: trade1Quantity,
+            quoteOrderQty: trade1Quantity,
             newOrderRespType: .full
         )
         
-        opportunityToTrade.autotradeCicle = .firstTradeFinished
-        let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
-        opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
+        opportunity.autotradeCicle = .firstTradeFinished
+        let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunity.firstSurfaceResult.pairAExpectedPrice)
+        opportunity.autotradeLog.append("\nStep 1: \(description)")
         
         let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
         if commission > 0 {
-            opportunityToTrade.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
+            opportunity.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
         }
         
         let usedCapital: Double
         let preferableQuantityForSecondTrade: Double
-        switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+        switch opportunity.firstSurfaceResult.directionTrade1 {
         case .quoteToBase:
             usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
             preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
@@ -239,7 +225,7 @@ final class AutoTradingService {
         }
                 
         return try await handleSecondTrade(
-            for: opportunityToTrade,
+            for: opportunity,
             usedCapital: usedCapital,
             firstOrderComission: commission,
             preferableQuantityToExecute: preferableQuantityForSecondTrade,
@@ -442,6 +428,11 @@ final class AutoTradingService {
 
 private extension AutoTradingService {
     
+    func getApproximateMinimalAssetPortionToReceive(contract: String, asset: String) throws -> Double {
+        let baseAsset = contract.starts(with: asset) ? asset : contract.replace(asset, "")
+        return try getApproximateMinimalPortion(for: baseAsset)
+    }
+    
     func getComparableDescription(
         for response: BinanceAPIService.NewOrderResponse,
         expectedExecutionPrice: Double
@@ -458,11 +449,11 @@ private extension AutoTradingService {
         return text
     }
     
-    func getApproximateMinimalPortion(for asset: String) -> Double? {
+    func getApproximateMinimalPortion(for asset: String) throws -> Double {
         if let approximatesStableEquivalent = getApproximatesStableEquivalent(asset: asset, assetQuantity: 1) {
             return minimumQuantityStableEquivalent / approximatesStableEquivalent
         } else {
-            return nil
+            throw TradingError.customError(description: "No Approximate Minimal Portion for asset \(asset)")
         }
     }
     
