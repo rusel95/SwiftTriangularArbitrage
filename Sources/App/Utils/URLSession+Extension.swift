@@ -20,7 +20,7 @@ public enum URLSessionAsyncErrors: Error {
 /// Needed because the Linux version of Swift does not support async URLSession yet.
 public extension URLSession {
  
-    /// A reimplementation of `URLSession.shared.data(from: url)` required for Linux
+    /// A reimplementation of `URLSession.shared.data(from: urlRequest)` required for Linux
     ///
     /// - Parameter url: The URL for which to load data.
     /// - Returns: Data and response.
@@ -28,9 +28,9 @@ public extension URLSession {
     /// - Usage:
     ///
     ///     let (data, response) = try await URLSession.shared.asyncData(from: url)
-    func asyncData(from url: URL) async throws -> (Data, URLResponse) {
+    func asyncData(from urlRequest: URLRequest) async throws -> (Data, URLResponse) {
         return try await withCheckedThrowingContinuation { continuation in
-            let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return

@@ -135,12 +135,6 @@ final class BinanceAPIService {
     
     // MARK: - METHODS
     
-    func getOrderbookDepth(symbol: String, limit: UInt) async throws -> OrderbookDepth {
-        let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
-        let (data, _) = try await URLSession.shared.asyncData(from: url)
-        return try JSONDecoder().decode(OrderbookDepth.self, from: data)
-    }
-    
     func getBookTickers(
         symbols: [String],
         completion: @escaping(_ tickers: [BookTicker]?) -> Void
@@ -327,6 +321,13 @@ final class BinanceAPIService {
         }.resume()
     }
     
+    // MARK: - Depth
+    
+    func getOrderbookDepth(symbol: String, limit: UInt) async throws -> OrderbookDepth {
+        let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        return try JSONDecoder().decode(OrderbookDepth.self, from: data)
+    }
     
     // MARK: - NewOrder
     
@@ -419,10 +420,8 @@ final class BinanceAPIService {
         type: OrderType,
         quantity: Double,
         quoteOrderQty: Double,
-        newOrderRespType: OrderResponseType,
-        success: @escaping(_ newOrderResponse: NewOrderResponse?) -> Void,
-        failure: @escaping(_ error: Error) -> Void
-    ) {
+        newOrderRespType: OrderResponseType
+    ) async throws -> NewOrderResponse {
         let url: URL
         switch side {
         case .baseToQuote:
@@ -430,41 +429,16 @@ final class BinanceAPIService {
         case .quoteToBase:
             url = URL(string: "https://api.binance.com/api/v3/order?symbol=\(symbol)&side=\(side.rawValue)&type=\(type.rawValue)&quoteOrderQty=\(quoteOrderQty)&newOrderRespType=\( newOrderRespType.rawValue)")!
         case .unknown:
-            failure(BinanceError.unexpected(message: "wrong order"))
-            return
+            throw BinanceError.unexpected(message: "wrong order")
         }
-        
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         signRequest(&request)
         
-        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
-            if let error = error {
-                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-                failure(error)
-                return
-            }
-            
-            guard let data = data else {
-                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Symbols \(url.debugDescription)"))
-                failure(BinanceError.noData)
-                return
-            }
-            
-            if let unexpectedResponseError = try? JSONDecoder().decode(ResponseError.self, from: data) {
-                failure(BinanceError.unexpected(message: unexpectedResponseError.description))
-                return
-            }
-            
-            do {
-                let newOrderResponse = try JSONDecoder().decode(NewOrderResponse.self, from: data)
-                success(newOrderResponse)
-            } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                failure(decodingError)
-            }
-        }.resume()
+        let (data, _) = try await URLSession.shared.asyncData(from: request)
+        
+        return try JSONDecoder().decode(NewOrderResponse.self, from: data)
     }
     
     // MARK: - Orderbook

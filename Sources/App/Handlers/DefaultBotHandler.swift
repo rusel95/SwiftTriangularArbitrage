@@ -397,12 +397,14 @@ private extension DefaultBotHandlers {
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
                 if userInfo.userId == 204251205 {
                     triangularOpportunitiesDict.forEach { _, opportunity in
-                        guard opportunity.autotradeCicle != .forbidden else { return }
+                        guard let self = self, opportunity.autotradeCicle != .forbidden else { return }
                         
-                        self?.autoTradingService.handle(
-                            triangularOpportunity: opportunity,
-                            for: userInfo,
-                            completion: { [weak self] tradedTriangularOpportunity in
+                        Task {
+                            do {
+                                let tradedTriangularOpportunity = try await self.autoTradingService.handle(
+                                    triangularOpportunity: opportunity,
+                                    for: userInfo
+                                )
                                 let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
                                 if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
                                     let editParams: TGEditMessageTextParams = .init(
@@ -411,7 +413,7 @@ private extension DefaultBotHandlers {
                                         inlineMessageId: nil,
                                         text: text
                                     )
-                                    self?.printQueue.addOperation { [weak self] in
+                                    self.printQueue.addOperation { [weak self] in
                                         guard let self = self else { return }
                                         
                                         do {
@@ -423,7 +425,7 @@ private extension DefaultBotHandlers {
                                         }
                                     }
                                 } else {
-                                    self?.printQueue.addOperation { [weak self] in
+                                    self.printQueue.addOperation { [weak self] in
                                         guard let self = self else { return }
                                         
                                         do {
@@ -435,8 +437,20 @@ private extension DefaultBotHandlers {
                                         }
                                     }
                                 }
+                            } catch {
+                                self.printQueue.addOperation { [weak self] in
+                                    guard let self = self else { return }
+                                    
+                                    do {
+                                        _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
+                                        print(self.printQueue.operationCount)
+                                        Thread.sleep(forTimeInterval: self.printBreakTime)
+                                    } catch (let botError) {
+                                        self.logger.report(error: botError)
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
                 }
             }

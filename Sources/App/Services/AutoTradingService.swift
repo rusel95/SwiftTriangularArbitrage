@@ -54,9 +54,8 @@ final class AutoTradingService {
     
     func handle(
         triangularOpportunity: TriangularOpportunity,
-        for userInfo: UserInfo,
-        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
-    ) {
+        for userInfo: UserInfo
+    ) async throws -> TriangularOpportunity {
         switch triangularOpportunity.autotradeCicle {
         case .pending:
             // NOTE: - remove handling only first - handle all of opportunities
@@ -66,67 +65,60 @@ final class AutoTradingService {
                   forbiddenAssetsToTrade.contains(triangularOpportunity.firstSurfaceResult.swap2) == false else {
                 triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append("Not tradeable opportunity\n")
-                completion(triangularOpportunity)
-                return
+                return triangularOpportunity
             }
             
             guard let lastSurfaceResult = triangularOpportunity.surfaceResults.last else {
                 triangularOpportunity.autotradeCicle = .forbidden
                 triangularOpportunity.autotradeLog.append("no last result..")
-                completion(triangularOpportunity)
-                return
+                return triangularOpportunity
             }
             
-            Task {
-                do {
-                    let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
-                    
-                    let firstOrderQuantity = try getFirstTradeQuantity(for: triangularOpportunity)
-                    
-                    let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
-                        for: lastSurfaceResult.directionTrade1,
-                        amount: firstOrderQuantity * 5 // to be sure our amount exist
-                    )
-                    let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
-                    guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        triangularOpportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(triangularOpportunity)
-                        return
-                    }
-                    
-                    let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
-                    let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
-                    guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(triangularOpportunity)
-                        return
-                    }
-                    
-                    let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
-                    let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
-                    guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                        triangularOpportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
-                        completion(triangularOpportunity)
-                        return
-                    }
-                    
-                    self.handleFirstTrade(
-                        for: triangularOpportunity,
-                        quantityToExequte: firstOrderQuantity,
-                        completion: completion
-                    )
-                } catch TradingError.customError(let description) {
-                    triangularOpportunity.autotradeCicle = .forbidden
-                    triangularOpportunity.autotradeLog.append(description)
-                    completion(triangularOpportunity)
-                } catch {
-                    triangularOpportunity.autotradeCicle = .forbidden
-                    triangularOpportunity.autotradeLog.append(error.localizedDescription)
-                    completion(triangularOpportunity)
+            do {
+                let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
+                
+                let firstOrderQuantity = try getFirstTradeQuantity(for: triangularOpportunity)
+                
+                let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
+                    for: lastSurfaceResult.directionTrade1,
+                    amount: firstOrderQuantity * 10 // to be sure our amount exist
+                )
+                let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
+                guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                    triangularOpportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    return triangularOpportunity
                 }
+                
+                let trade2AveragePrice = depth.pairBDepth.getAveragePrice(for: lastSurfaceResult.directionTrade2)
+                let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
+                guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                    triangularOpportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    return triangularOpportunity
+                }
+                
+                let trade3AveragePrice = depth.pairCDepth.getAveragePrice(for: lastSurfaceResult.directionTrade3)
+                let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
+                guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                    triangularOpportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    return triangularOpportunity
+                }
+                
+                return try await handleFirstTrade(
+                    for: triangularOpportunity,
+                    quantityToExequte: firstOrderQuantity
+                )
+            } catch TradingError.customError(let description) {
+                triangularOpportunity.autotradeCicle = .forbidden
+                triangularOpportunity.autotradeLog.append(description)
+                return triangularOpportunity
+            } catch {
+                triangularOpportunity.autotradeCicle = .forbidden
+                triangularOpportunity.autotradeLog.append(error.localizedDescription)
+                return triangularOpportunity
             }
+            
         default:
-            return
+            return triangularOpportunity
         }
     }
 
@@ -143,7 +135,7 @@ final class AutoTradingService {
     
     // MARK: - First Trade
     
-    func getFirstTradeQuantity(for opportunity: TriangularOpportunity) throws -> Double {
+    private func getFirstTradeQuantity(for opportunity: TriangularOpportunity) throws -> Double {
         guard let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
             throw TradingError.customError(description: "\nError: No contract1 at tradeable symbols")
         }
@@ -195,91 +187,75 @@ final class AutoTradingService {
     
     private func handleFirstTrade(
         for opportunityToTrade: TriangularOpportunity,
-        quantityToExequte: Double,
-        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
-    ) {
+        quantityToExequte: Double
+    ) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         opportunityToTrade.autotradeCicle = .firstTradeStarted
         
-        BinanceAPIService.shared.newOrder(
+        let firstOrderResponse = try await BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract1,
             side: opportunityToTrade.firstSurfaceResult.directionTrade1,
             type: .market,
             quantity: quantityToExequte,
             quoteOrderQty: quantityToExequte,
-            newOrderRespType: .full,
-            success: { [weak self] firstOrderResponse in
-                guard let self = self, let firstOrderResponse = firstOrderResponse else {
-                    opportunityToTrade.autotradeLog.append("\n\nStep 1: No Response")
-                    completion(opportunityToTrade)
-                    return
-                }
+            newOrderRespType: .full
+        )
+        
+        opportunityToTrade.autotradeCicle = .firstTradeFinished
+        let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
+        opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
+        
+        let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
+        if commission > 0 {
+            opportunityToTrade.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
+        }
+        
+        let usedCapital: Double
+        let preferableQuantityForSecondTrade: Double
+        switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
+        case .quoteToBase:
+            usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+            preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
+        case .baseToQuote:
+            usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
+            preferableQuantityForSecondTrade = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
+        case .unknown:
+            usedCapital = 0
+            preferableQuantityForSecondTrade = 0
+        }
                 
-                opportunityToTrade.autotradeCicle = .firstTradeFinished
-                let description = self.getComparableDescription(for: firstOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairAExpectedPrice)
-                opportunityToTrade.autotradeLog.append("\nStep 1: \(description)")
-                
-                let commission: Double = self.getCommissionStableEquivalent(for: firstOrderResponse.fills)
-                if commission > 0 {
-                    opportunityToTrade.autotradeLog.append("\nCommission: ≈\(commission.string(maxFractionDigits: 4))")
-                }
-                
-                let usedCapital: Double
-                let preferableQuantityForSecondTrade: Double
-                switch opportunityToTrade.firstSurfaceResult.directionTrade1 {
-                case .quoteToBase:
-                    usedCapital = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                    preferableQuantityForSecondTrade = Double(firstOrderResponse.executedQty) ?? 0.0
-                case .baseToQuote:
-                    usedCapital = Double(firstOrderResponse.executedQty) ?? 0.0
-                    preferableQuantityForSecondTrade = Double(firstOrderResponse.cummulativeQuoteQty) ?? 0.0
-                case .unknown:
-                    usedCapital = 0
-                    preferableQuantityForSecondTrade = 0
-                }
-                
-                self.handleSecondTrade(for: opportunityToTrade,
-                                       usedCapital: usedCapital,
-                                       firstOrderComission: commission,
-                                       preferableQuantityToExecute: preferableQuantityForSecondTrade,
-                                       startTime: startTime,
-                                       completion: completion)
-            }, failure: { error in
-                var errorDescription: String
-                if let binanceError = error as? BinanceAPIService.BinanceError {
-                    errorDescription = binanceError.description
-                } else {
-                    errorDescription = error.localizedDescription
-                }
-                opportunityToTrade.autotradeCicle = .firstTradeError(description: errorDescription)
-                opportunityToTrade.autotradeLog.append("\n\n Step 1:\(errorDescription)")
-                completion(opportunityToTrade)
-            }
+        return try await handleSecondTrade(
+            for: opportunityToTrade,
+            usedCapital: usedCapital,
+            firstOrderComission: commission,
+            preferableQuantityToExecute: preferableQuantityForSecondTrade,
+            startTime: startTime
         )
     }
     // MARK: - Second Trade
+    
+//    private func getApproximateSecondTradeQuantityToExecute(for opportunity: TriangularOpportunity) throws -> Double {
+//        opportunity.firstSurfaceResult.pairBExpectedPrice
+//        return quantityToExequte
+//    }
     
     private func handleSecondTrade(
         for opportunityToTrade: TriangularOpportunity,
         usedCapital: Double,
         firstOrderComission: Double,
         preferableQuantityToExecute: Double,
-        startTime: CFAbsoluteTime,
-        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
-    ) {
+        startTime: CFAbsoluteTime
+    ) async throws -> TriangularOpportunity {
         opportunityToTrade.autotradeCicle = .secondTradeStarted
         
         guard let secondSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract2],
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
-              let minNotionalString = secondSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
               let tickSizeString = secondSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
               let tickSize = Double(tickSizeString)
         else {
-            opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
-            completion(opportunityToTrade)
-            return
+            throw TradingError.customError(description:"No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract2)")
         }
         
         let precisionDivider: Double
@@ -301,69 +277,52 @@ final class AutoTradingService {
         
         let quantityToExequte = (preferableQuantityToExecute - leftoversAfterRounding).roundToDecimal(8)
         opportunityToTrade.autotradeLog.append("\nQuantity to execute on second trade: \(quantityToExequte) \(opportunityToTrade.firstSurfaceResult.swap1)")
-        BinanceAPIService.shared.newOrder(
+        let secondOrderResponse = try await BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract2,
             side: opportunityToTrade.firstSurfaceResult.directionTrade2,
             type: .market,
             quantity: quantityToExequte,
             quoteOrderQty: quantityToExequte,
-            newOrderRespType: .full,
-            success: { [weak self] secondOrderResponse in
-                guard let self = self, let secondOrderResponse = secondOrderResponse else {
-                    opportunityToTrade.autotradeLog.append("\n\nStep 2: No Response")
-                    completion(opportunityToTrade)
-                    return
-                }
-                
-                opportunityToTrade.autotradeCicle = .secondTradeFinished
-                let description = self.getComparableDescription(for: secondOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairBExpectedPrice)
-                opportunityToTrade.autotradeLog.append("\n\nStep 2: \(description)")
-                
-                let secondOrderComission: Double = self.getCommissionStableEquivalent(for: secondOrderResponse.fills)
-                if secondOrderComission > 0 {
-                    opportunityToTrade.autotradeLog.append("\nCommission: ≈ \(secondOrderComission.string(maxFractionDigits: 4)) USDT")
-                }
-                
-                let usedAssetQuantity: Double
-                let preferableQuantityFotThirdTrade: Double
-                switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
-                case .quoteToBase:
-                    usedAssetQuantity = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
-                    preferableQuantityFotThirdTrade = Double(secondOrderResponse.executedQty) ?? 0.0
-                case .baseToQuote:
-                    usedAssetQuantity = Double(secondOrderResponse.executedQty) ?? 0.0
-                    preferableQuantityFotThirdTrade = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
-                case .unknown:
-                    usedAssetQuantity = 0
-                    preferableQuantityFotThirdTrade = 0
-                }
-                
-                let leftovers = quantityToExequte - usedAssetQuantity
-                var approximatesStableEquivalentLeftover: Double = 0.0
-                if leftovers > 0 {
-                    approximatesStableEquivalentLeftover = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap1, assetQuantity: leftovers) ?? 0.0
-                    opportunityToTrade.autotradeLog.append("\nLeftovers: \(leftovers.string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1) \(self.getApproximateStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap1, quantity: leftovers) ?? "")")
-                }
-                
-                self.handleThirdTrade(for: opportunityToTrade,
-                                      usedCapital: usedCapital,
-                                      commissions: firstOrderComission + secondOrderComission,
-                                      preferableQuantityToExecute: preferableQuantityFotThirdTrade,
-                                      startTime: startTime,
-                                      secondTradeStableLeftovers: leftoversAfterRoundingStableEquivalent + approximatesStableEquivalentLeftover,
-                                      completion: completion)
-            }, failure: { error in
-                var errorDescription: String
-                if let binanceError = error as? BinanceAPIService.BinanceError {
-                    errorDescription = binanceError.description
-                } else {
-                    errorDescription = error.localizedDescription
-                }
-                errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), preferableQuantityToExecute: \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
-                opportunityToTrade.autotradeCicle = .secondTradeError(description: errorDescription)
-                opportunityToTrade.autotradeLog.append("\n\n Step 2:\(errorDescription)")
-                completion(opportunityToTrade)
-            }
+            newOrderRespType: .full
+        )
+        
+        opportunityToTrade.autotradeCicle = .secondTradeFinished
+        let description = self.getComparableDescription(for: secondOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairBExpectedPrice)
+        opportunityToTrade.autotradeLog.append("\n\nStep 2: \(description)")
+        
+        let secondOrderComission: Double = self.getCommissionStableEquivalent(for: secondOrderResponse.fills)
+        if secondOrderComission > 0 {
+            opportunityToTrade.autotradeLog.append("\nCommission: ≈ \(secondOrderComission.string(maxFractionDigits: 4)) USDT")
+        }
+        
+        let usedAssetQuantity: Double
+        let preferableQuantityFotThirdTrade: Double
+        switch opportunityToTrade.firstSurfaceResult.directionTrade2 {
+        case .quoteToBase:
+            usedAssetQuantity = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
+            preferableQuantityFotThirdTrade = Double(secondOrderResponse.executedQty) ?? 0.0
+        case .baseToQuote:
+            usedAssetQuantity = Double(secondOrderResponse.executedQty) ?? 0.0
+            preferableQuantityFotThirdTrade = Double(secondOrderResponse.cummulativeQuoteQty) ?? 0.0
+        case .unknown:
+            usedAssetQuantity = 0
+            preferableQuantityFotThirdTrade = 0
+        }
+        
+        let leftovers = quantityToExequte - usedAssetQuantity
+        var approximatesStableEquivalentLeftover: Double = 0.0
+        if leftovers > 0 {
+            approximatesStableEquivalentLeftover = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap1, assetQuantity: leftovers) ?? 0.0
+            opportunityToTrade.autotradeLog.append("\nLeftovers: \(leftovers.string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap1) \(self.getApproximateStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap1, quantity: leftovers) ?? "")")
+        }
+        
+        return try await handleThirdTrade(
+            for: opportunityToTrade,
+            usedCapital: usedCapital,
+            commissions: firstOrderComission + secondOrderComission,
+            preferableQuantityToExecute: preferableQuantityFotThirdTrade,
+            startTime: startTime,
+            secondTradeStableLeftovers: leftoversAfterRoundingStableEquivalent + approximatesStableEquivalentLeftover
         )
     }
     
@@ -375,21 +334,18 @@ final class AutoTradingService {
         commissions: Double,
         preferableQuantityToExecute: Double,
         startTime: CFAbsoluteTime,
-        secondTradeStableLeftovers: Double, // USDT
-        completion: @escaping(_ finishedTriangularOpportunity: TriangularOpportunity) -> Void
-    ) {
+        secondTradeStableLeftovers: Double // USDT
+    ) async throws -> TriangularOpportunity {
         opportunityToTrade.autotradeCicle = .thirdTradeStarted
         
         guard let thirdSymbolDetails = tradeableSymbolsDict[opportunityToTrade.firstSurfaceResult.contract3],
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
-              let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
+//              let minNotionalString = thirdSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
               let tickSizeString = thirdSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
               let tickSize = Double(tickSizeString)
         else {
-            opportunityToTrade.autotradeLog.append("No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
-            completion(opportunityToTrade)
-            return
+            throw TradingError.customError(description: "No Lot_Size for \(opportunityToTrade.firstSurfaceResult.contract3)")
         }
         
         let precisionDivider: Double
@@ -411,84 +367,66 @@ final class AutoTradingService {
         
         let quantityToExequte = (preferableQuantityToExecute - leftoversAfterRounding).roundToDecimal(8)
         opportunityToTrade.autotradeLog.append("\nQuantity to execute on third trade: \(quantityToExequte) \(opportunityToTrade.firstSurfaceResult.swap2)")
-        BinanceAPIService.shared.newOrder(
+        let thirdOrderResponse = try await BinanceAPIService.shared.newOrder(
             symbol: opportunityToTrade.firstSurfaceResult.contract3,
             side: opportunityToTrade.firstSurfaceResult.directionTrade3,
             type: .market,
             quantity: quantityToExequte,
             quoteOrderQty: quantityToExequte,
-            newOrderRespType: .full,
-            success: { [weak self] thirdOrderResponse in
-                guard let self = self, let thirdOrderResponse = thirdOrderResponse else {
-                    opportunityToTrade.autotradeLog.append("\n\nStep 3: No Response")
-                    completion(opportunityToTrade)
-                    return
-                }
-                
-                let description = self.getComparableDescription(for: thirdOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairCExpectedPrice)
-                opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: description)
-                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(description)")
-               
-                let thirdOrderComission: Double = self.getCommissionStableEquivalent(for: thirdOrderResponse.fills)
-                if thirdOrderComission > 0 {
-                    opportunityToTrade.autotradeLog.append("\nCommission: \(thirdOrderComission.string(maxFractionDigits: 4)) USDT")
-                }
-                
-                let usedAssetQuantity: Double
-                let actualResultingAmount: Double
-                switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
-                case .quoteToBase:
-                    usedAssetQuantity = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
-                    actualResultingAmount = Double(thirdOrderResponse.executedQty) ?? 0.0
-                case .baseToQuote:
-                    usedAssetQuantity = Double(thirdOrderResponse.executedQty) ?? 0.0
-                    actualResultingAmount = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
-                case .unknown:
-                    usedAssetQuantity = 0
-                    actualResultingAmount = 0
-                }
-                
-                let thirdTradeLeftovers = quantityToExequte - usedAssetQuantity
-                if thirdTradeLeftovers > 0 {
-                    opportunityToTrade.autotradeLog.append("\nLeftovers: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2) \(self.getApproximateStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap2, quantity: quantityToExequte - usedAssetQuantity) ?? "")")
-                }
-                
-                let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                opportunityToTrade.autotradeLog.append("\n\nCicle trading time: \(duration)s")
-                
-                let totalComission = commissions + thirdOrderComission
-                if totalComission > 0 {
-                    opportunityToTrade.autotradeLog.append("\nTotal comission: ≈ \(totalComission.string(maxFractionDigits: 4)) USDT")
-                }
-                
-                let thirdTradeStableEquivalentLeftover = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap2, assetQuantity: thirdTradeLeftovers) ?? 0.0
-                let totalStableEquivalentLeftover = secondTradeStableLeftovers + leftoversAfterRoundingStableEquivalent + thirdTradeStableEquivalentLeftover
-                if totalStableEquivalentLeftover > 0.0 {
-                    opportunityToTrade.autotradeLog.append("\nTotal leftovers: ≈ \(totalStableEquivalentLeftover.string(maxFractionDigits: 6)) USDT")
-                }
-                
-                opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
-                
-                let usedCapitalStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap0, assetQuantity: usedCapital) ?? 0.0
-                let actualResultingAmountStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap0, assetQuantity: actualResultingAmount) ?? 0.0
-                
-                let profit: Double = actualResultingAmountStableEquivalent + totalStableEquivalentLeftover - usedCapitalStableEquivalent - commissions
-                opportunityToTrade.autotradeLog.append("\nActual Profit: ≈ \(profit.string(maxFractionDigits: 4)) USDT")
-                opportunityToTrade.autotradeLog.append(" | \((profit / usedCapitalStableEquivalent * 100.0).string(maxFractionDigits: 4))%")
-                completion(opportunityToTrade)
-            }, failure: { error in
-                var errorDescription: String
-                if let binanceError = error as? BinanceAPIService.BinanceError {
-                    errorDescription = binanceError.description
-                } else {
-                    errorDescription = error.localizedDescription
-                }
-                errorDescription.append("\nQuantity: \(quantityToExequte.string(maxFractionDigits: 8)), preferableQuantityToExecute \(preferableQuantityToExecute), lotSizeMinQty: \(lotSizeMinQty), minNotional: \(minNotionalString)")
-                opportunityToTrade.autotradeCicle = .thirdTradeError(description: errorDescription)
-                opportunityToTrade.autotradeLog.append("\n\nStep 3: \(errorDescription)")
-                completion(opportunityToTrade)
-            }
+            newOrderRespType: .full
         )
+        
+        let description = self.getComparableDescription(for: thirdOrderResponse, expectedExecutionPrice: opportunityToTrade.firstSurfaceResult.pairCExpectedPrice)
+        opportunityToTrade.autotradeCicle = .thirdTradeFinished(result: description)
+        opportunityToTrade.autotradeLog.append("\n\nStep 3: \(description)")
+        
+        let thirdOrderComission: Double = self.getCommissionStableEquivalent(for: thirdOrderResponse.fills)
+        if thirdOrderComission > 0 {
+            opportunityToTrade.autotradeLog.append("\nCommission: \(thirdOrderComission.string(maxFractionDigits: 4)) USDT")
+        }
+        
+        let usedAssetQuantity: Double
+        let actualResultingAmount: Double
+        switch opportunityToTrade.firstSurfaceResult.directionTrade3 {
+        case .quoteToBase:
+            usedAssetQuantity = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
+            actualResultingAmount = Double(thirdOrderResponse.executedQty) ?? 0.0
+        case .baseToQuote:
+            usedAssetQuantity = Double(thirdOrderResponse.executedQty) ?? 0.0
+            actualResultingAmount = Double(thirdOrderResponse.cummulativeQuoteQty) ?? 0.0
+        case .unknown:
+            usedAssetQuantity = 0
+            actualResultingAmount = 0
+        }
+        
+        let thirdTradeLeftovers = quantityToExequte - usedAssetQuantity
+        if thirdTradeLeftovers > 0 {
+            opportunityToTrade.autotradeLog.append("\nLeftovers: \((quantityToExequte - usedAssetQuantity).string(maxFractionDigits: 8)) \(opportunityToTrade.firstSurfaceResult.swap2) \(self.getApproximateStableEquivalentDescription(asset: opportunityToTrade.firstSurfaceResult.swap2, quantity: quantityToExequte - usedAssetQuantity) ?? "")")
+        }
+        
+        let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+        opportunityToTrade.autotradeLog.append("\n\nCicle trading time: \(duration)s")
+        
+        let totalComission = commissions + thirdOrderComission
+        if totalComission > 0 {
+            opportunityToTrade.autotradeLog.append("\nTotal comission: ≈ \(totalComission.string(maxFractionDigits: 4)) USDT")
+        }
+        
+        let thirdTradeStableEquivalentLeftover = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap2, assetQuantity: thirdTradeLeftovers) ?? 0.0
+        let totalStableEquivalentLeftover = secondTradeStableLeftovers + leftoversAfterRoundingStableEquivalent + thirdTradeStableEquivalentLeftover
+        if totalStableEquivalentLeftover > 0.0 {
+            opportunityToTrade.autotradeLog.append("\nTotal leftovers: ≈ \(totalStableEquivalentLeftover.string(maxFractionDigits: 6)) USDT")
+        }
+        
+        opportunityToTrade.autotradeLog.append("\nUsed Capital: \(usedCapital) | Actual Resulting Amount: \(actualResultingAmount)")
+        
+        let usedCapitalStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap0, assetQuantity: usedCapital) ?? 0.0
+        let actualResultingAmountStableEquivalent = self.getApproximatesStableEquivalent(asset: opportunityToTrade.firstSurfaceResult.swap0, assetQuantity: actualResultingAmount) ?? 0.0
+        
+        let profit: Double = actualResultingAmountStableEquivalent + totalStableEquivalentLeftover - usedCapitalStableEquivalent - commissions
+        opportunityToTrade.autotradeLog.append("\nActual Profit: ≈ \(profit.string(maxFractionDigits: 4)) USDT")
+        opportunityToTrade.autotradeLog.append(" | \((profit / usedCapitalStableEquivalent * 100.0).string(maxFractionDigits: 4))%")
+        return opportunityToTrade
     }
     
 }
