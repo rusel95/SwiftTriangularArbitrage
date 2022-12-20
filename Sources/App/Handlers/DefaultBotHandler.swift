@@ -397,7 +397,7 @@ private extension DefaultBotHandlers {
                 // TODO: - make a separate mode for autotrading - currently trading only for admin
                 if userInfo.userId == 204251205 {
                     triangularOpportunitiesDict.forEach { _, opportunity in
-                        guard let self = self, opportunity.autotradeCicle != .forbidden else { return }
+                        guard let self = self, opportunity.autotradeCicle == .pending else { return }
                         
                         Task {
                             do {

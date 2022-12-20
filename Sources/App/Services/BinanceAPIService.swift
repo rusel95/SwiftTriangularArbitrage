@@ -439,7 +439,7 @@ final class BinanceAPIService {
         let (data, _) = try await URLSession.shared.asyncData(from: request)
         
         if let unexpectedResponseError = try? JSONDecoder().decode(ResponseError.self, from: data) {
-            throw BinanceError.unexpected(message: unexpectedResponseError.description)
+            throw BinanceError.unexpected(message: unexpectedResponseError.msg)
         }
         
         return try JSONDecoder().decode(NewOrderResponse.self, from: data)
