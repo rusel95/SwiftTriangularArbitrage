@@ -176,8 +176,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nerzh/telegram-vapor-bot",
       "state" : {
-        "branch" : "master",
-        "revision" : "13d9e4dd073fcde65af723c2588aa3c0a50419ef"
+        "revision" : "e7236cd5c92392b39dc6e63963a9c21788a8e09f",
+        "version" : "1.6.4"
       }
     },
     {
