@@ -342,11 +342,11 @@ private extension DefaultBotHandlers {
                 Task {
                     do {
                         let tradedTriangularOpportunity = try await autoTradingService.handle(
-                            triangularOpportunity: opportunity,
+                            opportunity: opportunity,
                             for: userInfo
                         )
                         let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                        if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
+                        if let updateMessageId = opportunity.updateMessageId {
                             let editParams: TGEditMessageTextParams = .init(
                                 chatId: .chat(userInfo.chatId),
                                 messageId: updateMessageId,

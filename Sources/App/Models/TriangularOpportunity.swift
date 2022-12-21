@@ -12,15 +12,9 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
     enum AutoTradeCicle: Equatable {
         case forbidden
         case pending
-        case firstTradeStarted
-        case firstTradeFinished
-        case firstTradeError(description: String)
-        case secondTradeStarted
-        case secondTradeFinished
-        case secondTradeError(description: String)
-        case thirdTradeStarted
-        case thirdTradeFinished(result: String)
-        case thirdTradeError(description: String)
+        case depthCheck
+        case trading
+        case completed
     }
     
     let contractsDescription: String
