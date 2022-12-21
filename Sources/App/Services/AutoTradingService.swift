@@ -57,6 +57,7 @@ final class AutoTradingService {
     ) async throws -> TriangularOpportunity {
         switch opportunity.autotradeCicle {
         case .pending:
+            
             opportunity.autotradeCicle = .depthCheck
             // NOTE: - remove handling only first - handle all of opportunities
             guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0),
@@ -75,7 +76,7 @@ final class AutoTradingService {
             }
             
             do {
-                let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
+                let depth = try await getDepth(for: lastSurfaceResult, limit: 10)
                 
                 let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
@@ -92,7 +93,7 @@ final class AutoTradingService {
                 let trade2ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract2, asset: lastSurfaceResult.swap1)
                 let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade2,
-                    amount: trade2ApproximateOrderbookQuantity * 4 // Extra
+                    amount: trade2ApproximateOrderbookQuantity * 5 // Extra
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -104,7 +105,7 @@ final class AutoTradingService {
                 let trade3ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract3, asset: lastSurfaceResult.swap2)
                 let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade3,
-                    amount: trade3ApproximateOrderbookQuantity * 5
+                    amount: trade3ApproximateOrderbookQuantity * 7
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -123,8 +124,17 @@ final class AutoTradingService {
                 opportunity.autotradeLog.append(description)
                 return opportunity
             } catch BinanceError.unexpected(let description) {
-                opportunity.autotradeCicle = .pending
+                opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
+                
+                // NOTE: - handle email sending
+                try await EmailAPIService.shared.sendEmail(with: .init(
+                    personalizations: [.init(to: [.init(email: "ruslanpopesku95@gmail.com")])],
+                    from: .init(email: "ruslanpopesku95@gmail.com"),
+                    subject: "Binance Error: \(description)",
+                    content: [.init(type: "test type", value: description)]
+                ))
+                
                 return opportunity
             } catch {
                 opportunity.autotradeCicle = .pending
@@ -135,17 +145,6 @@ final class AutoTradingService {
         default:
             return opportunity
         }
-    }
-
-    // MARK: - Get depth
-    
-    private func getDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
-        async let pairADepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit)
-        async let pairBDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit)
-        async let pairCDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit)
-        
-        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
-        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
     }
     
     // MARK: - First Trade
@@ -220,7 +219,7 @@ final class AutoTradingService {
         }
         
         let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-        opportunity.autotradeLog.append("\nFirst trade time: \(duration)s")
+        opportunity.autotradeLog.append("First trade time: \(duration)s")
         
         let usedCapital: Double
         let preferableQuantityForSecondTrade: Double
@@ -297,9 +296,6 @@ final class AutoTradingService {
             opportunity.autotradeLog.append("\nCommission: ≈ \(secondOrderComission.string(maxFractionDigits: 4)) USDT")
         }
         
-        let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-        opportunity.autotradeLog.append("\nSecond trade time: \(duration)s")
-        
         let usedAssetQuantity: Double
         let preferableQuantityFotThirdTrade: Double
         switch opportunity.firstSurfaceResult.directionTrade2 {
@@ -320,6 +316,9 @@ final class AutoTradingService {
             approximatesStableEquivalentLeftover = try getApproximatesStableEquivalent(asset: opportunity.firstSurfaceResult.swap1, assetQuantity: leftovers)
             opportunity.autotradeLog.append("\nLeftovers: \(leftovers.string(maxFractionDigits: 8)) \(opportunity.firstSurfaceResult.swap1) \(try getApproximateStableEquivalentDescription(asset: opportunity.firstSurfaceResult.swap1, quantity: leftovers) )")
         }
+        
+        let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+        opportunity.autotradeLog.append("\nSecond trade time: \(duration)s")
         
         return try await handleThirdTrade(
             for: opportunity,
@@ -413,7 +412,7 @@ final class AutoTradingService {
         
         let totalComission = commissions + thirdOrderComission
         if totalComission > 0 {
-            opportunity.autotradeLog.append("\nTotal comission: ≈ \(totalComission.string(maxFractionDigits: 4)) USDT")
+            opportunity.autotradeLog.append("\n\nTotal comission: ≈ \(totalComission.string(maxFractionDigits: 4)) USDT")
         }
         
         let thirdTradeStableEquivalentLeftover = try getApproximatesStableEquivalent(asset: opportunity.firstSurfaceResult.swap2, assetQuantity: thirdTradeLeftovers)
@@ -430,6 +429,15 @@ final class AutoTradingService {
         let profit: Double = actualResultingAmountStableEquivalent + totalStableEquivalentLeftover - usedCapitalStableEquivalent - commissions
         opportunity.autotradeLog.append("\nActual Profit: ≈ \(profit.string(maxFractionDigits: 4)) USDT")
         opportunity.autotradeLog.append(" | \((profit / usedCapitalStableEquivalent * 100.0).string(maxFractionDigits: 4))%")
+
+        // NOTE: - handle email sending
+        try await EmailAPIService.shared.sendEmail(with: .init(
+            personalizations: [.init(to: [.init(email: "ruslanpopesku95@gmail.com")])],
+            from: .init(email: "ruslanpopesku95@gmail.com"),
+            subject: "Profit: \(profit.string(maxFractionDigits: 4))",
+            content: [.init(type: "test type", value: opportunity.tradingDescription)]
+        ))
+        
         return opportunity
     }
     
@@ -438,6 +446,15 @@ final class AutoTradingService {
 // MARK: - Helpers
 
 private extension AutoTradingService {
+    
+    func getDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit)
+        async let pairBDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit)
+        async let pairCDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit)
+        
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+    }
     
     func getApproximateMinimalAssetPortionToReceive(contract: String, asset: String) throws -> Double {
         let baseAsset = contract.starts(with: asset) ? asset : contract.replace(asset, "")

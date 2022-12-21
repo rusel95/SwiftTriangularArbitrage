@@ -10,7 +10,6 @@ import Foundation
 import FoundationNetworking
 #endif
 import Logging
-import Crypto
 
 enum OrderSide: String {
     case quoteToBase = "BUY"
@@ -434,7 +433,7 @@ final class BinanceAPIService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        signRequest(&request)
+        request.sign(apiKeyString: apiKeyString, secretString: secretString)
         
         let (data, _) = try await URLSession.shared.asyncData(from: request)
         
@@ -449,27 +448,3 @@ final class BinanceAPIService {
     
     
 }
-
-// MARK: - Helpers
-
-private extension BinanceAPIService {
-    
-    func addApiKeyHeader(_ request: inout URLRequest) -> Void {
-        request.addValue(apiKeyString, forHTTPHeaderField: "X-MBX-APIKEY")
-    }
-    
-    func signRequest(_ request: inout URLRequest) -> Void {
-        addApiKeyHeader(&request)
-        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
-        request.url = request.url?.appending("timestamp", value: "\(timestamp)")
-        guard let query = request.url?.query else {
-            fatalError("query should be here!")
-        }
-        let symmetricKey = SymmetricKey(data: secretString.data(using: .utf8)!)
-        let signature = HMAC<SHA256>.authenticationCode(for: query.data(using: .utf8)!, using: symmetricKey)
-        let signatureString = Data(signature).map { String(format: "%02hhx", $0) }.joined()
-        request.url = request.url?.appending("signature", value: signatureString)
-    }
-    
-}
-
