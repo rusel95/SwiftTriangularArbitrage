@@ -9,7 +9,7 @@ let package = Package(
     dependencies: [
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
-        .package(url: "https://github.com/nerzh/telegram-vapor-bot", .upToNextMajor(from: "1.0.2")),
+        .package(url: "https://github.com/nerzh/telegram-vapor-bot", branch: "master"),
         .package(url: "https://github.com/BrettRToomey/Jobs.git", from: "1.1.1"),
         .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0" ..< "3.0.0")
     ],

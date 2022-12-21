@@ -38,7 +38,7 @@ final class ArbitrageCalculatorService {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.0
+                return -0.05
 #else
                 return 0.3
 #endif
@@ -84,7 +84,7 @@ final class ArbitrageCalculatorService {
         documentsDirectory.appendingPathComponent("stable_triangulars")
     }
     
-    private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCRUB", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
+    private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stables: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
     // MARK: - Init

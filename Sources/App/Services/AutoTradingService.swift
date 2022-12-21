@@ -74,7 +74,7 @@ final class AutoTradingService {
             }
             
             do {
-                let depth = try await getDepth(for: lastSurfaceResult, limit: 10)
+                let depth = try await getDepth(for: lastSurfaceResult, limit: 5)
                 
                 let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
@@ -90,7 +90,7 @@ final class AutoTradingService {
                 let trade2ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract2, asset: lastSurfaceResult.swap1)
                 let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade2,
-                    amount: trade2ApproximateOrderbookQuantity * 5 // Extra
+                    amount: trade2ApproximateOrderbookQuantity * 4 // Extra
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -101,7 +101,7 @@ final class AutoTradingService {
                 let trade3ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract3, asset: lastSurfaceResult.swap2)
                 let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade3,
-                    amount: trade3ApproximateOrderbookQuantity * 7
+                    amount: trade3ApproximateOrderbookQuantity * 5
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {

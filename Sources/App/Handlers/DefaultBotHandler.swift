@@ -333,107 +333,68 @@ private extension DefaultBotHandlers {
     ) {
         // NOTE: - sending all Alerts to specific people separatly
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-            let group = DispatchGroup()
-            // Update each user's opportunities to message
-            var newUserOpportunities: [String: Int?] = [:]
+            // TODO: - make a separate mode for autotrading - currently trading only for admin
+            guard userInfo.userId == 204251205 else { return }
             
-            // Remove user's opportunities which are not presented at the moment
-            triangularOpportunitiesDict.forEach { triangularOpportunity in
-                group.enter()
+            triangularOpportunitiesDict.forEach { _, opportunity in
+                guard opportunity.autotradeCicle == .pending else { return }
                 
-                let currentUserOpportunityMessageId: Int?
-                switch mode {
-                case .standart:
-                    currentUserOpportunityMessageId = userInfo.standartTriangularOpportunitiesMessagesInfo[triangularOpportunity.key] ?? nil
-                case .stable:
-                    currentUserOpportunityMessageId = userInfo.stableTriangularOpportunitiesMessagesInfo[triangularOpportunity.key] ?? nil
-                }
-                
-                if let currentUserOpportunityMessageId = currentUserOpportunityMessageId {
-                    newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
-                    group.leave()
-                } else {
+                Task {
                     do {
-                        let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: triangularOpportunity.value.description))
-                        sendMessageFuture.whenComplete { result in
-                            do {
-                                let triangularOpportunityMessageId = try result.get().messageId
-                                triangularOpportunity.value.updateMessageId = triangularOpportunityMessageId
-                                newUserOpportunities[triangularOpportunity.key] = triangularOpportunityMessageId
-                                group.leave()
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                                group.leave()
+                        let tradedTriangularOpportunity = try await autoTradingService.handle(
+                            triangularOpportunity: opportunity,
+                            for: userInfo
+                        )
+                        let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
+                        if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
+                            let editParams: TGEditMessageTextParams = .init(
+                                chatId: .chat(userInfo.chatId),
+                                messageId: updateMessageId,
+                                inlineMessageId: nil,
+                                text: text
+                            )
+                            self.printQueue.addOperation { [weak self] in
+                                guard let self = self else { return }
+                                
+                                do {
+                                    _ = try self.bot.editMessageText(params: editParams)
+                                    print(self.printQueue.operationCount)
+                                    Thread.sleep(forTimeInterval: self.printBreakTime)
+                                } catch (let botError) {
+                                    self.logger.report(error: botError)
+                                }
+                            }
+                        } else {
+                            self.printQueue.addOperation { [weak self] in
+                                guard let self = self else { return }
+                                
+                                do {
+                                    let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                    sendMessageFuture.whenComplete { result in
+                                        do {
+                                            let triangularOpportunityMessageId = try result.get().messageId
+                                            opportunity.updateMessageId = triangularOpportunityMessageId
+                                        } catch (let botError) {
+                                            self.logger.report(error: botError)
+                                        }
+                                    }
+                                    print(self.printQueue.operationCount)
+                                    Thread.sleep(forTimeInterval: self.printBreakTime)
+                                } catch (let botError) {
+                                    self.logger.report(error: botError)
+                                }
                             }
                         }
-                    } catch (let botError) {
-                        self.logger.report(error: botError)
-                        group.leave()
-                    }
-                }
-            }
-            group.notify(queue: .global()) { [weak self] in
-                switch mode {
-                case .standart:
-                    userInfo.standartTriangularOpportunitiesMessagesInfo = newUserOpportunities
-                case .stable:
-                    userInfo.stableTriangularOpportunitiesMessagesInfo = newUserOpportunities
-                }
-                // TODO: - make a separate mode for autotrading - currently trading only for admin
-                if userInfo.userId == 204251205 {
-                    triangularOpportunitiesDict.forEach { _, opportunity in
-                        guard let self = self, opportunity.autotradeCicle == .pending else { return }
-                        
-                        Task {
+                    } catch {
+                        self.printQueue.addOperation { [weak self] in
+                            guard let self = self else { return }
+                            
                             do {
-                                let tradedTriangularOpportunity = try await self.autoTradingService.handle(
-                                    triangularOpportunity: opportunity,
-                                    for: userInfo
-                                )
-                                let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                                if let updateMessageId = tradedTriangularOpportunity.updateMessageId {
-                                    let editParams: TGEditMessageTextParams = .init(
-                                        chatId: .chat(userInfo.chatId),
-                                        messageId: updateMessageId,
-                                        inlineMessageId: nil,
-                                        text: text
-                                    )
-                                    self.printQueue.addOperation { [weak self] in
-                                        guard let self = self else { return }
-                                        
-                                        do {
-                                            _ = try self.bot.editMessageText(params: editParams)
-                                            print(self.printQueue.operationCount)
-                                            Thread.sleep(forTimeInterval: self.printBreakTime)
-                                        } catch (let botError) {
-                                            self.logger.report(error: botError)
-                                        }
-                                    }
-                                } else {
-                                    self.printQueue.addOperation { [weak self] in
-                                        guard let self = self else { return }
-                                        
-                                        do {
-                                            _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                            print(self.printQueue.operationCount)
-                                            Thread.sleep(forTimeInterval: self.printBreakTime)
-                                        } catch (let botError) {
-                                            self.logger.report(error: botError)
-                                        }
-                                    }
-                                }
-                            } catch {
-                                self.printQueue.addOperation { [weak self] in
-                                    guard let self = self else { return }
-                                    
-                                    do {
-                                        _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
-                                        print(self.printQueue.operationCount)
-                                        Thread.sleep(forTimeInterval: self.printBreakTime)
-                                    } catch (let botError) {
-                                        self.logger.report(error: botError)
-                                    }
-                                }
+                                let _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
+                                print(self.printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
+                            } catch (let botError) {
+                                self.logger.report(error: botError)
                             }
                         }
                     }
