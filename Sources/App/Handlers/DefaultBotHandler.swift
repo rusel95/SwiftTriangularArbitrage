@@ -331,8 +331,8 @@ private extension DefaultBotHandlers {
         for mode: ArbitrageCalculatorService.Mode,
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
+        // NOTE: - sending all Alerts to specific people separatly
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-            // NOTE: - sending all Alerts to specific people separatly
             let group = DispatchGroup()
             // Update each user's opportunities to message
             var newUserOpportunities: [String: Int?] = [:]
@@ -350,21 +350,6 @@ private extension DefaultBotHandlers {
                 }
                 
                 if let currentUserOpportunityMessageId = currentUserOpportunityMessageId {
-                    let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                    messageId: currentUserOpportunityMessageId,
-                                                                    inlineMessageId: nil,
-                                                                    text: triangularOpportunity.value.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)"))
-                    self.printQueue.addOperation { [weak self] in
-                        guard let self = self else { return }
-                        
-                        do {
-                            _ = try self.bot.editMessageText(params: editParams)
-                            print(self.printQueue.operationCount)
-                            Thread.sleep(forTimeInterval: self.printBreakTime)
-                        } catch (let botError) {
-                            self.logger.report(error: botError)
-                        }
-                    }
                     newUserOpportunities[triangularOpportunity.key] = currentUserOpportunityMessageId
                     group.leave()
                 } else {

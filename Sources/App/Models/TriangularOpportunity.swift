@@ -89,7 +89,7 @@ final class TriangularOpportunity: CustomStringConvertible, Hashable {
     
     var tradingDescription: String {
         """
-        \(description)\n
+        \(description)
         \(autotradeLog)
         """
     }
