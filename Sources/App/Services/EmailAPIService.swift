@@ -9,13 +9,20 @@ import SMTPKitten
 import Vapor
 
 final class EmailAPIService {
-    
-    // MARK: - STRUCTS
-
-    private let app: Application
 
     // MARK: - PROPERTIES
     
+    private let app: Application
+    
+    private lazy var environmentDescription: String = {
+#if DEBUG
+        return "[Debug]"
+#else
+        return ""
+#endif
+    }()
+    
+    // MARK: - Init
     init(app: Application) {
         self.app = app
 #if DEBUG
@@ -33,7 +40,7 @@ final class EmailAPIService {
             to: [
                 MailUser(name: "Myself", email: "ruslanpopesku95@gmail.com")
             ],
-            subject: subject,
+            subject: "\(environmentDescription)\(subject)",
             contentType: .plain,
             text: text
         )
