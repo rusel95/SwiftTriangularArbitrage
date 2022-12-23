@@ -18,6 +18,11 @@ final class EmailAPIService {
     
     init(app: Application) {
         self.app = app
+#if DEBUG
+#else
+        sendEmail(subject: "restart", text: "server restarted at \(Date().fullDateReadableDescription)")
+#endif
+        
     }
     
     // MARK: - METHODS
