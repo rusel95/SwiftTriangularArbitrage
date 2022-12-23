@@ -22,13 +22,13 @@ final class EmailAPIService {
     
     // MARK: - METHODS
     
-    func sendEmail(text: String) {
+    func sendEmail(subject: String, text: String) {
         let email = Mail(
             from: "ruslanpopesku95@gmail.com",
             to: [
                 MailUser(name: "Myself", email: "ruslanpopesku95@gmail.com")
             ],
-            subject: "Your new mail server!",
+            subject: subject,
             contentType: .plain,
             text: text
         )

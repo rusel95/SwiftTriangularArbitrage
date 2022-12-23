@@ -127,17 +127,17 @@ final class AutoTradingService {
             } catch TradingError.customError(let description) {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
+                emailService.sendEmail(subject: "trading error", text: description)
                 return opportunity
             } catch BinanceError.unexpected(let description) {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
-                
-                emailService.sendEmail(text: description)
-                
+                emailService.sendEmail(subject: "binance error", text: description)
                 return opportunity
             } catch {
                 opportunity.autotradeCicle = .pending
                 opportunity.autotradeLog.append(error.localizedDescription)
+                emailService.sendEmail(subject: "unexpected error", text: error.localizedDescription)
                 return opportunity
             }
             
@@ -426,11 +426,12 @@ final class AutoTradingService {
         let actualResultingAmountStableEquivalent = try getApproximatesStableEquivalent(asset: opportunity.firstSurfaceResult.swap0, assetQuantity: actualResultingAmount)
         
         let profit: Double = actualResultingAmountStableEquivalent + totalStableEquivalentLeftover - usedCapitalStableEquivalent - commissions
-        opportunity.autotradeLog.append("\nActual Profit: ≈ \(profit.string(maxFractionDigits: 4)) USDT")
+        let actualProfitString = "\nActual Profit: ≈ \(profit.string(maxFractionDigits: 4)) USDT"
+        opportunity.autotradeLog.append(actualProfitString)
         opportunity.autotradeLog.append(" | \((profit / usedCapitalStableEquivalent * 100.0).string(maxFractionDigits: 4))%")
 
         // NOTE: - handle email sending
-        emailService.sendEmail(text: opportunity.tradingDescription)
+        emailService.sendEmail(subject: actualProfitString, text: opportunity.tradingDescription)
         
         return opportunity
     }
