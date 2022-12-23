@@ -10,13 +10,12 @@ public func configure(_ app: Application) throws {
             StreamLogHandler.standardOutput(label: label)
         ])
     }
-    
     let connection: TGConnectionPrtcl = TGLongPollingConnection()
     TGBot.configure(connection: connection, botId: String.readToken(from: "token"), vaporClient: app.client)
     try TGBot.shared.start()
     TGBot.log.logLevel = .error
     
-    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
+    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared, app: app)
     defaultBotHandlers.addHandlers(app: app)
     
     try routes(app)

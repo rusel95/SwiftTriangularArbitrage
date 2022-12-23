@@ -21,7 +21,7 @@ final class DefaultBotHandlers {
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
     private let arbitrageCalculatorService = ArbitrageCalculatorService()
-    private let autoTradingService: AutoTradingService = AutoTradingService()
+    private let autoTradingService: AutoTradingService
     private let bot: TGBotPrtcl
     
     private let printQueue = OperationQueue()
@@ -29,8 +29,10 @@ final class DefaultBotHandlers {
     
     // MARK: - METHODS
     
-    init(bot: TGBotPrtcl) {
+    init(bot: TGBotPrtcl, app: Application) {
         self.bot = bot
+        self.autoTradingService = AutoTradingService(app: app)
+        
         arbitrageCalculatorService.priceChangeHandlerDelegate = self
         printQueue.maxConcurrentOperationCount = 1
         

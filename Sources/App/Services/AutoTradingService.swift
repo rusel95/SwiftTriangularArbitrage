@@ -7,6 +7,7 @@
 
 import Jobs
 import CoreFoundation
+import Vapor
 
 final class AutoTradingService {
     
@@ -26,7 +27,11 @@ final class AutoTradingService {
     private let minimumQuantityStableEquivalent: Double
     private let maximalDifferencePercent = 0.2
     
-    init() {
+    private let emailService: EmailAPIService
+    
+    init(app: Application) {
+        self.emailService = EmailAPIService(app: app)
+        
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
         
         Jobs.add(interval: .seconds(7200)) { [weak self] in
@@ -127,13 +132,7 @@ final class AutoTradingService {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
                 
-                // NOTE: - handle email sending
-                try await EmailAPIService.shared.sendEmail(with: .init(
-                    personalizations: [.init(to: [.init(email: "ruslanpopesku95@gmail.com")])],
-                    from: .init(email: "ruslanpopesku95@gmail.com"),
-                    subject: "Binance Error: \(description)",
-                    content: [.init(type: "test type", value: description)]
-                ))
+                emailService.sendEmail(text: description)
                 
                 return opportunity
             } catch {
@@ -431,12 +430,7 @@ final class AutoTradingService {
         opportunity.autotradeLog.append(" | \((profit / usedCapitalStableEquivalent * 100.0).string(maxFractionDigits: 4))%")
 
         // NOTE: - handle email sending
-        try await EmailAPIService.shared.sendEmail(with: .init(
-            personalizations: [.init(to: [.init(email: "ruslanpopesku95@gmail.com")])],
-            from: .init(email: "ruslanpopesku95@gmail.com"),
-            subject: "Profit: \(profit.string(maxFractionDigits: 4))",
-            content: [.init(type: "test type", value: opportunity.tradingDescription)]
-        ))
+        emailService.sendEmail(text: opportunity.tradingDescription)
         
         return opportunity
     }

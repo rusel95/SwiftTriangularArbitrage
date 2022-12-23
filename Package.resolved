@@ -55,6 +55,15 @@
       }
     },
     {
+      "identity" : "smtpkitten",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/autimatisering/SMTPKitten.git",
+      "state" : {
+        "revision" : "84699b87957068ca2eb69ecd5c2ed7f3ff4a9604",
+        "version" : "0.1.9"
+      }
+    },
+    {
       "identity" : "swift-algorithms",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",
@@ -187,6 +196,15 @@
       "state" : {
         "revision" : "12e2e7460ab912b65fb7a0fe47e4f638a7d5e642",
         "version" : "4.62.0"
+      }
+    },
+    {
+      "identity" : "vaporsmtpkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Joannis/VaporSMTPKit.git",
+      "state" : {
+        "revision" : "330f788e1349d871e87eaa517705d8595c8ef885",
+        "version" : "1.0.3"
       }
     },
     {
