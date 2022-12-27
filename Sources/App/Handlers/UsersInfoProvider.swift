@@ -25,6 +25,7 @@ public final class UsersInfoProvider: NSObject {
     
     override init() {
         super.init()
+        
         do {
             let jsonData = try Data(contentsOf: storageURL)
             self.usersInfo = try JSONDecoder().decode(Set<UserInfo>.self, from: jsonData)

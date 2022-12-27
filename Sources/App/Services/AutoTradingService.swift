@@ -20,8 +20,8 @@ final class AutoTradingService {
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
-    private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
-    private var approximateBookTickers: [String: BookTicker] = [:]
+    private var tradeableSymbolsDict = ThreadSafeDictionary<String, BinanceAPIService.Symbol>()
+    private var approximateBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
     private let minimumQuantityMultipler: Double = 1.5
     private let minimumQuantityStableEquivalent: Double
@@ -40,7 +40,7 @@ final class AutoTradingService {
                 
                 let tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
                 
-                self?.tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
+                self?.tradeableSymbolsDict = ThreadSafeDictionary(dict: tradeableSymbols.toDictionary(with: { $0.symbol }))
             }
         }
         
@@ -48,7 +48,7 @@ final class AutoTradingService {
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 guard let tickers = tickers else { return }
                 
-                self?.approximateBookTickers = tickers.toDictionary(with: { $0.symbol })
+                self?.approximateBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
             }
         }
     
@@ -56,10 +56,7 @@ final class AutoTradingService {
     
     // MARK: - Depth Check
     
-    func handle(
-        opportunity: TriangularOpportunity,
-        for userInfo: UserInfo
-    ) async throws -> TriangularOpportunity {
+    func handle(opportunity: TriangularOpportunity, for userInfo: UserInfo) async throws -> TriangularOpportunity {
         switch opportunity.autotradeCicle {
         case .pending:
             
@@ -81,12 +78,12 @@ final class AutoTradingService {
             }
             
             do {
-                let depth = try await getDepth(for: lastSurfaceResult, limit: 10)
+                let depth = try await getDepth(for: lastSurfaceResult, limit: 6)
                 
                 let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
                 let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade1,
-                    amount: trade1ApproximateOrderbookQuantity * 5 // to be sure our amount exist
+                    amount: trade1ApproximateOrderbookQuantity * 4 // to be sure our amount exist
                 )
                 let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                 guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -98,7 +95,7 @@ final class AutoTradingService {
                 let trade2ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract2, asset: lastSurfaceResult.swap1)
                 let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade2,
-                    amount: trade2ApproximateOrderbookQuantity * 7 // Extra
+                    amount: trade2ApproximateOrderbookQuantity * 5 // Extra
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
@@ -110,7 +107,7 @@ final class AutoTradingService {
                 let trade3ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract3, asset: lastSurfaceResult.swap2)
                 let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
                     for: lastSurfaceResult.directionTrade3,
-                    amount: trade3ApproximateOrderbookQuantity * 7
+                    amount: trade3ApproximateOrderbookQuantity * 6
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
