@@ -15,23 +15,17 @@ final class ByBitAPIService {
     
     // MARK: - STRUCTS
 
-    struct TickersResponse: Codable {
-//        let retCode: Int
-//        let retMsg: String
+    struct TickerResponse: Codable {
         let result: [Ticker]
-//        let extCode, extInfo, timeNow: String
-
-        enum CodingKeys: String, CodingKey {
-//            case retCode = "ret_code"
-//            case retMsg = "ret_msg"
-            case result
-//            case extCode = "ext_code"
-//            case extInfo = "ext_info"
-//            case timeNow = "time_now"
-        }
+    }
+    
+    struct SymbolResponse: Codable {
+        let result: [Symbol]
     }
 
-    // MARK: - Result
+
+    // MARK: - Ticker
+    
     struct Ticker: Codable {
         let symbol, bidPrice, askPrice, lastPrice: String
 //        let lastTickDirection, prevPrice24H, price24HPcnt, highPrice24H: String
@@ -75,19 +69,88 @@ final class ByBitAPIService {
         }
     }
 
+    // MARK: - Result
+    struct Symbol: Codable {
+        let name, alias, status, baseCurrency: String
+        let quoteCurrency: String
+        let priceScale: Int
+        let takerFee, makerFee: String
+        let fundingInterval: Int
+        let leverageFilter: LeverageFilter
+        let priceFilter: PriceFilter
+        let lotSizeFilter: LotSizeFilter
+
+        enum CodingKeys: String, CodingKey {
+            case name, alias, status
+            case baseCurrency = "base_currency"
+            case quoteCurrency = "quote_currency"
+            case priceScale = "price_scale"
+            case takerFee = "taker_fee"
+            case makerFee = "maker_fee"
+            case fundingInterval = "funding_interval"
+            case leverageFilter = "leverage_filter"
+            case priceFilter = "price_filter"
+            case lotSizeFilter = "lot_size_filter"
+        }
+    }
+
+    // MARK: - LeverageFilter
+    struct LeverageFilter: Codable {
+        let minLeverage, maxLeverage: Int
+        let leverageStep: String
+
+        enum CodingKeys: String, CodingKey {
+            case minLeverage = "min_leverage"
+            case maxLeverage = "max_leverage"
+            case leverageStep = "leverage_step"
+        }
+    }
+
+    // MARK: - LotSizeFilter
+    struct LotSizeFilter: Codable {
+        let maxTradingQty: Int
+        let minTradingQty, qtyStep: Double
+        let postOnlyMaxTradingQty: String
+
+        enum CodingKeys: String, CodingKey {
+            case maxTradingQty = "max_trading_qty"
+            case minTradingQty = "min_trading_qty"
+            case qtyStep = "qty_step"
+            case postOnlyMaxTradingQty = "post_only_max_trading_qty"
+        }
+    }
+
+    // MARK: - PriceFilter
+    struct PriceFilter: Codable {
+        let minPrice, maxPrice, tickSize: String
+
+        enum CodingKeys: String, CodingKey {
+            case minPrice = "min_price"
+            case maxPrice = "max_price"
+            case tickSize = "tick_size"
+        }
+    }
+
 
     // MARK: - PROPERTIES
     
     static let shared = ByBitAPIService()
     
-    private var logger = Logger(label: "api.whitebit")
+    private var logger = Logger(label: "api.bybit")
     
     // MARK: - METHODS
     
-    func getTickersInfo() async throws -> [Ticker] {
+    func getTickers() async throws -> [Ticker] {
         let url: URL = URL(string: "https://api-testnet.bybit.com/v2/public/tickers")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        let response = try JSONDecoder().decode(TickersResponse.self, from: data)
+        let response = try JSONDecoder().decode(TickerResponse.self, from: data)
+        return response.result
+    }
+    
+    func getSymbols() async throws -> [Symbol] {
+        let url: URL = URL(string: "https://api-testnet.bybit.com/v2/public/symbols")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        let response = try JSONDecoder().decode(SymbolResponse.self, from: data)
         return response.result
     }
    
