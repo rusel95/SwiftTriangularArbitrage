@@ -38,7 +38,7 @@ final class ArbitrageCalculatorService {
             switch self {
             case .standart:
 #if DEBUG
-                return 0.0
+                return -0.05
 #else
                 return 0.3
 #endif
@@ -58,15 +58,13 @@ final class ArbitrageCalculatorService {
     
     var latestBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
-    private var tradeableSymbols: [BinanceAPIService.Symbol] = [] {
-        didSet {
-            tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
-        }
-    }
-    private var tradeableSymbolsDict: [String: BinanceAPIService.Symbol] = [:]
+    private var binanceTradeableSymbols: [TradeableSymbol] = []
+    private var binanceStandartTriangulars: [Triangular] = []
+    private var binanceStableTriangulars: [Triangular] = []
     
-    private var currentStandartTriangulars: [Triangular] = []
-    private var currentStableTriangulars: [Triangular] = []
+    private var bybitTradeableSymbols: [TradeableSymbol] = []
+    private var bybitStandartTriangulars: [Triangular] = []
+    private var bybitStableTriangulars: [Triangular] = []
     
     private var lastStandartTriangularsStatusText: String = ""
     private var lastStableTriangularsStatusText: String = ""
@@ -77,15 +75,22 @@ final class ArbitrageCalculatorService {
         return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
     }
     
-    private var triangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("triangulars")
+    private var binanceStandartTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("binance_standart_triangulars")
     }
-    private var stableTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("stable_triangulars")
+    private var binanceStableTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("binance_stable_triangulars")
     }
     
-    private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTC/UAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
-    private let stables: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
+    private var bybitStandartTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
+    }
+    private var bybitStableTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
+    }
+    
+    private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
+    private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
     // MARK: - Init
     
@@ -104,11 +109,20 @@ final class ArbitrageCalculatorService {
             
             if self.isFirstUpdateCycle {
                 do {
-                    let standartTriangularsJsonData = try Data(contentsOf: self.triangularsStorageURL)
-                    self.currentStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+                    // Binance Data Read
+                    let binanceStandartTriangularsJsonData = try Data(contentsOf: self.binanceStandartTriangularsStorageURL)
+                    self.binanceStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStandartTriangularsJsonData)
                     
-                    let stableTriangularsJsonData = try Data(contentsOf: self.stableTriangularsStorageURL)
-                    self.currentStableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
+                    let binanceStableTriangularsJsonData = try Data(contentsOf: self.binanceStableTriangularsStorageURL)
+                    self.binanceStableTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStableTriangularsJsonData)
+                    
+                    // Bybit Data read
+                    
+                    let bybitStandartTriangularsJsonData = try Data(contentsOf: self.bybitStandartTriangularsStorageURL)
+                    self.bybitStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStandartTriangularsJsonData)
+                    
+                    let bybitStableTriangularsJsonData = try Data(contentsOf: self.bybitStableTriangularsStorageURL)
+                    self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                 }
@@ -117,80 +131,64 @@ final class ArbitrageCalculatorService {
                 BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
                     guard let self = self, let symbols = symbols else { return }
                     
-                    self.tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                    self.binanceTradeableSymbols = symbols
+                        .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                        .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseAsset, quoteAsset: $0.quoteAsset) }
                     
-                    let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.tradeableSymbols)
-                    self.currentStandartTriangulars = standartTriangularsInfo.triangulars
+                    let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.binanceTradeableSymbols)
+                    self.binanceStandartTriangulars = standartTriangularsInfo.triangulars
                     self.lastStandartTriangularsStatusText = standartTriangularsInfo.calculationDescription
                     
                     do {
-                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.currentStandartTriangulars)
-                        try standartTriangularsEndcodedData.write(to: self.triangularsStorageURL)
+                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.binanceStandartTriangulars)
+                        try standartTriangularsEndcodedData.write(to: self.binanceStandartTriangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                     }
                     
-                    let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.tradeableSymbols)
-                    self.currentStableTriangulars = stableTriangularsInfo.triangulars
+                    let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.binanceTradeableSymbols)
+                    self.binanceStableTriangulars = stableTriangularsInfo.triangulars
                     self.lastStableTriangularsStatusText = stableTriangularsInfo.calculationDescription
                     
                     do {
-                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.currentStandartTriangulars)
-                        try standartTriangularsEndcodedData.write(to: self.triangularsStorageURL)
-                        
-                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.currentStableTriangulars)
-                        try stableTriangularsEndcodedData.write(to: self.stableTriangularsStorageURL)
+                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.binanceStableTriangulars)
+                        try stableTriangularsEndcodedData.write(to: self.binanceStableTriangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                    }
+                }
+                
+                Task {
+                    do {
+                        self.bybitTradeableSymbols = try await ByBitAPIService()
+                            .getSymbols()
+                            .map { TradeableSymbol(symbol: $0.name, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
+                        
+                        let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.bybitTradeableSymbols)
+                        self.bybitStandartTriangulars = standartTriangularsInfo.triangulars
+                        
+                        let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangularsInfo.triangulars)
+                        try standartTriangularsEndcodedData.write(to: self.bybitStandartTriangularsStorageURL)
+                        
+                        let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.bybitTradeableSymbols)
+                        self.bybitStableTriangulars = stableTriangularsInfo.triangulars
+                        
+                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.bybitStableTriangulars)
+                        try stableTriangularsEndcodedData.write(to: self.bybitStableTriangularsStorageURL)
+                    } catch {
+                        print(error.localizedDescription)
                     }
                 }
             }
         }
     }
     
-//    func handlePrices(app: Vapor.Application) {
-//        let url = "wss://stream.binance.com:9443/ws/btcusdt@ticker"
-//
-//        _ = WebSocket.connect(
-//            to: url,
-//            configuration: WebSocketClient.Configuration(tlsConfiguration: nil, maxFrameSize: 1 << 20),
-//            on: app.eventLoopGroup.next()
-//        ) { [weak self] ws in
-//            ws.onText { [weak self] ws, text in
-//                if text == "ping" {
-//                    ws.send("pong")
-//                }
-//                do {
-//                    let tickers = try JSONDecoder().decode(SocketBookTicker.self, from: Data(text.utf8))
-////                    tickers.forEach { ticker in
-////                        self?.latestBookTickers[ticker.s] = BookTicker(from: ticker)
-////                    }
-//                    self?.priceChangeHandlerDelegate?.priceDidChange()
-//                    print(Date().readableDescription, tickers)
-//                } catch (let decodeError) {
-//                    self?.logger.info(Logger.Message(stringLiteral: decodeError.localizedDescription))
-//                }
-//            }
-//
-//            ws.onClose.whenComplete { result in
-//                switch result {
-//                case .success:
-//                    print("Closed", ws.closeCode as Any, result)
-//                case .failure(let error):
-//                    print("Failed to close connection \(error)")
-//                }
-//            }
-//
-//            ws.onPing { ws in
-//                ws.send(raw: Data(), opcode: .pong)
-//                print("onPing")
-//            }
-//        }
-//    }
-    
     // MARK: Getting Surface Results
     
-    func getSurfaceResults(for mode: Mode, completion: @escaping ([SurfaceResult]?, String) -> Void) {
+    func getSurfaceResults(
+        for mode: Mode,
+        completion: @escaping ([SurfaceResult]?, String) -> Void
+    ) {
         var allSurfaceResults: [SurfaceResult] = []
         let startTime = CFAbsoluteTimeGetCurrent()
         
@@ -198,26 +196,27 @@ final class ArbitrageCalculatorService {
         let statusText: String
         switch mode {
         case .standart:
-            currentStandartTriangulars.forEach { triangular in
+            binanceStandartTriangulars.forEach { triangular in
                 if let surfaceResult = calculateSurfaceRate(mode: .standart, triangular: triangular) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.currentStandartTriangulars.count) triangulars at \(tradeableSymbols.count) symbols in \(duration) seconds"
+            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.binanceStandartTriangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         case .stable:
-            self.currentStableTriangulars.forEach { triangular in
+            binanceStableTriangulars.forEach { triangular in
                 if let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: triangular) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.currentStableTriangulars.count) triangulars at \(tradeableSymbols.count) symbols in \(duration) seconds"
+            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.binanceStableTriangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         }
         
         let valuableSurfaceResults = allSurfaceResults
             .sorted(by: { $0.profitPercent > $1.profitPercent })
             .prefix(10)
+        
         completion(Array(valuableSurfaceResults), statusText)
     }
 }
@@ -228,7 +227,7 @@ private extension ArbitrageCalculatorService {
     
     func getTriangularsInfo(
         for mode: Mode,
-        from tradeableSymbols: [BinanceAPIService.Symbol]
+        from tradeableSymbols: [TradeableSymbol]
     ) -> (triangulars: [Triangular], calculationDescription: String) {
         var removeDuplicates: Set<[String]> = Set()
         var triangulars: Set<Triangular> = Set()
@@ -298,8 +297,8 @@ private extension ArbitrageCalculatorService {
                 let aBase: String = pairA.baseAsset
                 let aQuote: String = pairA.quoteAsset
                 
-                if (stables.contains(aBase) && stables.contains(aQuote) == false) ||
-                    (stables.contains(aBase) == false && stables.contains(aQuote)) {
+                if (stableAssets.contains(aBase) && stableAssets.contains(aQuote) == false) ||
+                    (stableAssets.contains(aBase) == false && stableAssets.contains(aQuote)) {
                     // Get Pair B - Find B pair where one coin matched
                     for pairB in tradeableSymbols {
                         let bBase: String = pairB.baseAsset
@@ -322,7 +321,7 @@ private extension ArbitrageCalculatorService {
                                     // Determining Triangular Match
                                     // The End should be stable
                                     // TODO: - the end should be any Stable
-                                    if (cBaseCount == 2 && stables.contains(cQuote)) || (stables.contains(cBase) && cQuoteCount == 2) {
+                                    if (cBaseCount == 2 && stableAssets.contains(cQuote)) || (stableAssets.contains(cBase) && cQuoteCount == 2) {
                                         let combineAll = [pairA.symbol, pairB.symbol, pairC.symbol]
                                         let uniqueItem = combineAll.sorted()
                                         
@@ -433,7 +432,7 @@ private extension ArbitrageCalculatorService {
             switch mode {
             case .standart: break
             case .stable:
-                if stables.contains(swap0) {
+                if stableAssets.contains(swap0) {
                     break
                 } else {
                     return nil
