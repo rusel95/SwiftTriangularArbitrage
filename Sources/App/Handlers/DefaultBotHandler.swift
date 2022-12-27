@@ -164,7 +164,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.standartTriangularOpportunitiesDict,
-                profitPercent: -0.2
+                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
             )
             self.alertUsers(
                 for: .standart,
@@ -182,7 +182,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.stableTriangularOpportunitiesDict,
-                profitPercent: -0.2
+                profitPercent: ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent
             )
             self.alertUsers(
                 for: .stable,
@@ -202,7 +202,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.bybitStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.bybitStandartTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+                profitPercent: -0.2
             )
             self.alertUsers(
                 for: .standart,
@@ -220,7 +220,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.bybitStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.bybitStableTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+                profitPercent: -0.2
             )
             self.alertUsers(
                 for: .stable,
