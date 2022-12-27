@@ -19,6 +19,9 @@ final class DefaultBotHandlers {
     
     private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
+    
+    private var bybitStandartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
+    private var bybitStableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
     private let arbitrageCalculatorService = ArbitrageCalculatorService()
     private let autoTradingService: AutoTradingService
@@ -53,7 +56,10 @@ final class DefaultBotHandlers {
     
     func startStandartTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculatorService.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
+            self?.arbitrageCalculatorService.getSurfaceResults(
+                for: .standart,
+                stockExchange: .binance
+            ) { [weak self] surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
                 
                 let text = surfaceResults
@@ -97,7 +103,10 @@ final class DefaultBotHandlers {
     
     func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
         Jobs.add(interval: .seconds(BotMode.stableTriangularArbritraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculatorService.getSurfaceResults(for: .stable) { surfaceResults, statusText in
+            self?.arbitrageCalculatorService.getSurfaceResults(
+                for: .stable,
+                stockExchange: .binance
+            ) { surfaceResults, statusText in
                 guard let self = self, let surfaceResults = surfaceResults else { return }
 
                 let text = surfaceResults
@@ -145,27 +154,79 @@ final class DefaultBotHandlers {
 
 extension DefaultBotHandlers: PriceChangeDelegate {
     
-    func priceDidChange() {
-        arbitrageCalculatorService.getSurfaceResults(for: .standart) { [weak self] surfaceResults, statusText in
+    func binancePricesDidChange() {
+        arbitrageCalculatorService.getSurfaceResults(
+            for: .standart,
+            stockExchange: .binance
+        ) { [weak self] surfaceResults, statusText in
             guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.standartTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+                profitPercent: -0.2
             )
-            self.alertUsers(for: .standart, with: self.standartTriangularOpportunitiesDict)
+            self.alertUsers(
+                for: .standart,
+                stockExchange: .binance,
+                with: self.standartTriangularOpportunitiesDict
+            )
         }
         
-        arbitrageCalculatorService.getSurfaceResults(for: .stable) { [weak self] surfaceResults, statusText in
+        arbitrageCalculatorService.getSurfaceResults(
+            for: .stable,
+            stockExchange: .binance
+        ) { [weak self] surfaceResults, statusText in
             guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.stableTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent
+                profitPercent: -0.2
             )
-            self.alertUsers(for: .stable, with: self.stableTriangularOpportunitiesDict)
+            self.alertUsers(
+                for: .stable,
+                stockExchange: .binance,
+                with: self.stableTriangularOpportunitiesDict
+            )
+        }
+    }
+    
+    func bybitPricesDidChange() {
+        arbitrageCalculatorService.getSurfaceResults(
+            for: .standart,
+            stockExchange: .bybit
+        ) { [weak self] surfaceResults, statusText in
+            guard let self = self, let surfaceResults = surfaceResults else { return }
+            
+            self.bybitStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                from: surfaceResults,
+                currentOpportunities: self.bybitStandartTriangularOpportunitiesDict,
+                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+            )
+            self.alertUsers(
+                for: .standart,
+                stockExchange: .bybit,
+                with: self.bybitStandartTriangularOpportunitiesDict
+            )
+        }
+        
+        arbitrageCalculatorService.getSurfaceResults(
+            for: .stable,
+            stockExchange: .bybit
+        ) { [weak self] surfaceResults, statusText in
+            guard let self = self, let surfaceResults = surfaceResults else { return }
+            
+            self.bybitStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
+                from: surfaceResults,
+                currentOpportunities: self.bybitStableTriangularOpportunitiesDict,
+                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+            )
+            self.alertUsers(
+                for: .stable,
+                stockExchange: .bybit,
+                with: self.bybitStableTriangularOpportunitiesDict
+            )
         }
     }
     
@@ -331,55 +392,71 @@ private extension DefaultBotHandlers {
     
     func alertUsers(
         for mode: ArbitrageCalculatorService.Mode,
+        stockExchange: StockExchange,
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
         // NOTE: - sending all Alerts to specific people separatly
         UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-            // TODO: - make a separate mode for autotrading - currently trading only for admin
-            guard userInfo.userId == 204251205 else { return }
-            
-            triangularOpportunitiesDict.forEach { _, opportunity in
-                guard opportunity.autotradeCicle == .pending else { return }
+            switch stockExchange {
+            case .binance:
+                // TODO: - make a separate mode for autotrading - currently trading only for admin
+                guard userInfo.userId == 204251205 else { return }
                 
-                Task {
-                    do {
-                        let tradedTriangularOpportunity = try await autoTradingService.handle(
-                            opportunity: opportunity,
-                            for: userInfo
-                        )
-                        let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                        if let updateMessageId = opportunity.updateMessageId {
-                            let editParams: TGEditMessageTextParams = .init(
-                                chatId: .chat(userInfo.chatId),
-                                messageId: updateMessageId,
-                                inlineMessageId: nil,
-                                text: text
+                triangularOpportunitiesDict.forEach { _, opportunity in
+                    guard opportunity.autotradeCicle == .pending else { return }
+                    
+                    Task {
+                        do {
+                            let tradedTriangularOpportunity = try await autoTradingService.handle(
+                                opportunity: opportunity,
+                                for: userInfo
                             )
-                            self.printQueue.addOperation { [weak self] in
-                                guard let self = self else { return }
-                                
-                                do {
-                                    _ = try self.bot.editMessageText(params: editParams)
-                                    print(self.printQueue.operationCount)
-                                    Thread.sleep(forTimeInterval: self.printBreakTime)
-                                } catch (let botError) {
-                                    self.logger.report(error: botError)
+                            let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
+                            if let updateMessageId = opportunity.updateMessageId {
+                                let editParams: TGEditMessageTextParams = .init(
+                                    chatId: .chat(userInfo.chatId),
+                                    messageId: updateMessageId,
+                                    inlineMessageId: nil,
+                                    text: text
+                                )
+                                self.printQueue.addOperation { [weak self] in
+                                    guard let self = self else { return }
+                                    
+                                    do {
+                                        _ = try self.bot.editMessageText(params: editParams)
+                                        print(self.printQueue.operationCount)
+                                        Thread.sleep(forTimeInterval: self.printBreakTime)
+                                    } catch (let botError) {
+                                        self.logger.report(error: botError)
+                                    }
+                                }
+                            } else {
+                                self.printQueue.addOperation { [weak self] in
+                                    guard let self = self else { return }
+                                    
+                                    do {
+                                        let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                                        sendMessageFuture.whenComplete { result in
+                                            do {
+                                                let triangularOpportunityMessageId = try result.get().messageId
+                                                opportunity.updateMessageId = triangularOpportunityMessageId
+                                            } catch (let botError) {
+                                                self.logger.report(error: botError)
+                                            }
+                                        }
+                                        print(self.printQueue.operationCount)
+                                        Thread.sleep(forTimeInterval: self.printBreakTime)
+                                    } catch (let botError) {
+                                        self.logger.report(error: botError)
+                                    }
                                 }
                             }
-                        } else {
+                        } catch {
                             self.printQueue.addOperation { [weak self] in
                                 guard let self = self else { return }
                                 
                                 do {
-                                    let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                    sendMessageFuture.whenComplete { result in
-                                        do {
-                                            let triangularOpportunityMessageId = try result.get().messageId
-                                            opportunity.updateMessageId = triangularOpportunityMessageId
-                                        } catch (let botError) {
-                                            self.logger.report(error: botError)
-                                        }
-                                    }
+                                    let _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
                                     print(self.printQueue.operationCount)
                                     Thread.sleep(forTimeInterval: self.printBreakTime)
                                 } catch (let botError) {
@@ -387,17 +464,20 @@ private extension DefaultBotHandlers {
                                 }
                             }
                         }
-                    } catch {
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do {
-                                let _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
-                                print(self.printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
+                    }
+                }
+            case .bybit:
+                triangularOpportunitiesDict.forEach { _, opportunity in
+                    printQueue.addOperation { [weak self] in
+                        guard let self = self else { return }
+                        
+                        do {
+                            let text = "!!!!!! Bybit: \(opportunity.description)"
+                            _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
+                            print(self.printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: self.printBreakTime)
+                        } catch (let botError) {
+                            self.logger.report(error: botError)
                         }
                     }
                 }

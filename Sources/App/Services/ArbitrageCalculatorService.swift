@@ -11,9 +11,14 @@ import Jobs
 import Logging
 import Vapor
 
+enum StockExchange {
+    case binance, bybit
+}
+
 protocol PriceChangeDelegate: AnyObject {
     
-    func priceDidChange()
+    func binancePricesDidChange()
+    func bybitPricesDidChange()
     
 }
 
@@ -38,7 +43,7 @@ final class ArbitrageCalculatorService {
             switch self {
             case .standart:
 #if DEBUG
-                return -0.05
+                return 0.0
 #else
                 return 0.3
 #endif
@@ -57,6 +62,8 @@ final class ArbitrageCalculatorService {
     var priceChangeHandlerDelegate: PriceChangeDelegate?
     
     var latestBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    
+    var latestByBitBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
     private var binanceTradeableSymbols: [TradeableSymbol] = []
     private var binanceStandartTriangulars: [Triangular] = []
@@ -90,7 +97,7 @@ final class ArbitrageCalculatorService {
     }
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
-    private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
+    private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "UAH", "EUR", "USD")
     
     // MARK: - Init
     
@@ -100,11 +107,26 @@ final class ArbitrageCalculatorService {
                 guard let tickers = tickers else { return }
                 
                 self?.latestBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
-                self?.priceChangeHandlerDelegate?.priceDidChange()
+                self?.priceChangeHandlerDelegate?.binancePricesDidChange()
+            }
+            
+            Task {
+                do {
+                    let tickers = try await ByBitAPIService.shared.getTickers()
+                        .map { BookTicker(symbol: $0.symbol,
+                                          bidPrice: $0.bidPrice,
+                                          bidQty: "0",
+                                          askPrice: $0.askPrice,
+                                          askQty: "0") }
+                    self.latestByBitBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+                    self.priceChangeHandlerDelegate?.bybitPricesDidChange()
+                } catch {
+                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                }
             }
         }
         
-        Jobs.add(interval: .seconds(3600)) { [weak self] in
+        Jobs.add(interval: .seconds(7200)) { [weak self] in
             guard let self = self else { return }
             
             if self.isFirstUpdateCycle {
@@ -187,6 +209,7 @@ final class ArbitrageCalculatorService {
     
     func getSurfaceResults(
         for mode: Mode,
+        stockExchange: StockExchange,
         completion: @escaping ([SurfaceResult]?, String) -> Void
     ) {
         var allSurfaceResults: [SurfaceResult] = []
@@ -194,27 +217,42 @@ final class ArbitrageCalculatorService {
         
         let duration: String
         let statusText: String
+        let triangulars: [Triangular]
+        
+        switch (stockExchange, mode) {
+        case (.binance, .standart):
+            triangulars = binanceStandartTriangulars
+        case (.binance, .stable):
+            triangulars = binanceStableTriangulars
+        case (.bybit, .standart):
+            triangulars = bybitStandartTriangulars
+        case (.bybit, .stable):
+            triangulars = bybitStableTriangulars
+            
+        }
+        
         switch mode {
         case .standart:
-            binanceStandartTriangulars.forEach { triangular in
-                if let surfaceResult = calculateSurfaceRate(mode: .standart, triangular: triangular) {
+            triangulars.forEach { triangular in
+                if let surfaceResult = calculateSurfaceRate(mode: .standart, stockExchange: stockExchange, triangular: triangular) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(self.binanceStandartTriangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
+            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(triangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         case .stable:
-            binanceStableTriangulars.forEach { triangular in
-                if let surfaceResult = self.calculateSurfaceRate(mode: .stable, triangular: triangular) {
+            triangulars.forEach { triangular in
+                if let surfaceResult = self.calculateSurfaceRate(mode: .stable, stockExchange: stockExchange, triangular: triangular) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(self.binanceStableTriangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
+            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(triangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         }
         
         let valuableSurfaceResults = allSurfaceResults
             .sorted(by: { $0.profitPercent > $1.profitPercent })
+        // TODO: - find out how this affects result
             .prefix(10)
         
         completion(Array(valuableSurfaceResults), statusText)
@@ -357,7 +395,11 @@ private extension ArbitrageCalculatorService {
 
 private extension ArbitrageCalculatorService {
     
-    func calculateSurfaceRate(mode: Mode, triangular: Triangular) -> SurfaceResult? {
+    func calculateSurfaceRate(
+        mode: Mode,
+        stockExchange: StockExchange,
+        triangular: Triangular
+    ) -> SurfaceResult? {
         let startingAmount: Double = 1.0
         
         var contract1 = ""
@@ -386,13 +428,13 @@ private extension ArbitrageCalculatorService {
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
 
-        guard let pairABookTicker = latestBookTickers[triangular.pairA],
+        guard let pairABookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairA] : latestByBitBookTickers[triangular.pairA],
               let aAsk = Double(pairABookTicker.askPrice),
               let aBid = Double(pairABookTicker.bidPrice),
-              let pairBBookTicker = latestBookTickers[triangular.pairB],
+              let pairBBookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairB] : latestByBitBookTickers[triangular.pairB],
               let bAsk = Double(pairBBookTicker.askPrice),
               let bBid = Double(pairBBookTicker.bidPrice),
-              let pairCBookTicker = latestBookTickers[triangular.pairC],
+              let pairCBookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairC] : latestByBitBookTickers[triangular.pairC],
               let cAsk = Double(pairCBookTicker.askPrice),
               let cBid = Double(pairCBookTicker.bidPrice) else {
             logger.critical("No prices for \(triangular)")
