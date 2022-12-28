@@ -200,7 +200,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             for: .standart,
             stockExchange: .bybit
         ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+            guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.bybitStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
@@ -218,7 +218,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             for: .stable,
             stockExchange: .bybit
         ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+            guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.bybitStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
@@ -238,7 +238,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             for: .standart,
             stockExchange: .huobi
         ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+            guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.huobiStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
@@ -256,7 +256,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             for: .stable,
             stockExchange: .huobi
         ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+            guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.huobiStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,

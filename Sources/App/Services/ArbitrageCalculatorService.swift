@@ -62,9 +62,9 @@ final class ArbitrageCalculatorService {
     
     var priceChangeHandlerDelegate: PriceChangeDelegate?
     
-    var latestBinanceBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    var latestByBitBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    var latestHuobiBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    private(set) var latestBinanceBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    private(set) var latestByBitBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    private(set) var latestHuobiBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
     private var binanceTradeableSymbols: [TradeableSymbol] = []
     private var binanceStandartTriangulars: [Triangular] = []
@@ -110,6 +110,7 @@ final class ArbitrageCalculatorService {
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
+    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
     // MARK: - Init
     
@@ -357,6 +358,9 @@ private extension ArbitrageCalculatorService {
                 let aBase: String = pairA.baseAsset
                 let aQuote: String = pairA.quoteAsset
                 
+                guard forbiddenAssetsToTrade.contains(aBase) == false, forbiddenAssetsToTrade.contains(aQuote) == false else {
+                    break
+                }
                 // Get Pair B - Find B pair where one coint matched
                 for pairB in tradeableSymbols {
                     let bBase: String = pairB.baseAsset
