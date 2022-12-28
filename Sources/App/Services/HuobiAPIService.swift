@@ -22,9 +22,9 @@ final class HuobiAPIService {
 
     struct SymbolInfo: Codable {
         let baseCurrency: String
-        let quoteCurrency: QuoteCurrency
+        let quoteCurrency: String
         let pricePrecision, amountPrecision: Int
-        let symbolPartition: SymbolPartition
+//        let symbolPartition: SymbolPartition
         let symbol: String
         let state: State
         let valuePrecision: Int
@@ -48,7 +48,7 @@ final class HuobiAPIService {
             case quoteCurrency = "quote-currency"
             case pricePrecision = "price-precision"
             case amountPrecision = "amount-precision"
-            case symbolPartition = "symbol-partition"
+//            case symbolPartition = "symbol-partition"
             case symbol, state
             case valuePrecision = "value-precision"
             case minOrderAmt = "min-order-amt"
@@ -83,24 +83,6 @@ final class HuobiAPIService {
     enum APITrading: String, Codable {
         case disabled = "disabled"
         case enabled = "enabled"
-    }
-
-    enum QuoteCurrency: String, Codable {
-        case brl = "brl"
-        case btc = "btc"
-        case eth = "eth"
-        case eur = "eur"
-        case euroc = "euroc"
-        case gbp = "gbp"
-        case ht = "ht"
-        case husd = "husd"
-        case quoteCurrencyTry = "try"
-        case rub = "rub"
-        case uah = "uah"
-        case usdc = "usdc"
-        case usdd = "usdd"
-        case usdt = "usdt"
-        case ustc = "ustc"
     }
 
     enum State: String, Codable {
@@ -150,15 +132,13 @@ final class HuobiAPIService {
 
     struct Ticker: Codable {
         let symbol: String
-        let datumOpen, high, low, close: Double
+        let open, high, low, close: Double
         let amount, vol: Double
         let count: Int
         let bid, bidSize, ask, askSize: Double
 
         enum CodingKeys: String, CodingKey {
-            case symbol
-            case datumOpen = "open"
-            case high, low, close, amount, vol, count, bid, bidSize, ask, askSize
+            case symbol, open, high, low, close, amount, vol, count, bid, bidSize, ask, askSize
         }
     }
 
@@ -171,14 +151,14 @@ final class HuobiAPIService {
     // MARK: - METHODS
     
     func getSymbolsInfo() async throws -> [SymbolInfo] {
-        let url: URL = URL(string: "https://api.huobi.pro/market/tickers")!
+        let url: URL = URL(string: "https://api.huobi.pro/v1/common/symbols")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode(SymbolsReponse.self, from: data)
         return response.data
     }
     
     func getTickers() async throws -> [Ticker] {
-        let url: URL = URL(string: "https://api.huobi.pro/v1/common/symbols")!
+        let url: URL = URL(string: "https://api.huobi.pro/market/tickers")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode(TickersResponse.self, from: data)
         return response.data

@@ -99,7 +99,7 @@ final class AutoTradingService {
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                    opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 10))% diff)\n")
+                    opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
                 }

@@ -11,14 +11,15 @@ import Jobs
 import Logging
 import Vapor
 
-enum StockExchange {
-    case binance, bybit
+enum StockExchange: String {
+    case binance, bybit, huobi
 }
 
 protocol PriceChangeDelegate: AnyObject {
     
     func binancePricesDidChange()
     func bybitPricesDidChange()
+    func huobiPricesDidChange()
     
 }
 
@@ -61,9 +62,9 @@ final class ArbitrageCalculatorService {
     
     var priceChangeHandlerDelegate: PriceChangeDelegate?
     
-    var latestBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    
+    var latestBinanceBookTickers = ThreadSafeDictionary<String, BookTicker>()
     var latestByBitBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    var latestHuobiBookTickers = ThreadSafeDictionary<String, BookTicker>()
     
     private var binanceTradeableSymbols: [TradeableSymbol] = []
     private var binanceStandartTriangulars: [Triangular] = []
@@ -72,6 +73,10 @@ final class ArbitrageCalculatorService {
     private var bybitTradeableSymbols: [TradeableSymbol] = []
     private var bybitStandartTriangulars: [Triangular] = []
     private var bybitStableTriangulars: [Triangular] = []
+    
+    private var huobiTradeableSymbols: [TradeableSymbol] = []
+    private var huobiStandartTriangulars: [Triangular] = []
+    private var huobiStableTriangulars: [Triangular] = []
     
     private var lastStandartTriangularsStatusText: String = ""
     private var lastStableTriangularsStatusText: String = ""
@@ -96,6 +101,13 @@ final class ArbitrageCalculatorService {
         documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
     }
     
+    private var huobiStandartTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
+    }
+    private var huobiStableTriangularsStorageURL: URL {
+        documentsDirectory.appendingPathComponent("huobi_stable_triangulars")
+    }
+    
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     
@@ -106,7 +118,7 @@ final class ArbitrageCalculatorService {
             BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
                 guard let tickers = tickers else { return }
                 
-                self?.latestBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+                self?.latestBinanceBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
                 self?.priceChangeHandlerDelegate?.binancePricesDidChange()
             }
             
@@ -120,6 +132,21 @@ final class ArbitrageCalculatorService {
                                           askQty: "0") }
                     self.latestByBitBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
                     self.priceChangeHandlerDelegate?.bybitPricesDidChange()
+                } catch {
+                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
+                }
+            }
+            
+            Task {
+                do {
+                    let tickers = try await HuobiAPIService.shared.getTickers()
+                        .map { BookTicker(symbol: $0.symbol,
+                                          bidPrice: String($0.bid),
+                                          bidQty: String($0.bidSize),
+                                          askPrice: String($0.ask),
+                                          askQty: String($0.askSize)) }
+                    self.latestHuobiBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+                    self.priceChangeHandlerDelegate?.huobiPricesDidChange()
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                 }
@@ -145,6 +172,14 @@ final class ArbitrageCalculatorService {
                     
                     let bybitStableTriangularsJsonData = try Data(contentsOf: self.bybitStableTriangularsStorageURL)
                     self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
+                    
+                    // Huobi Data read
+                    
+                    let huobiStandartTriangularsJsonData = try Data(contentsOf: self.huobiStandartTriangularsStorageURL)
+                    self.huobiStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStandartTriangularsJsonData)
+                    
+                    let huobiStableTriangularsJsonData = try Data(contentsOf: self.huobiStableTriangularsStorageURL)
+                    self.huobiStableTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStableTriangularsJsonData)
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
                 }
@@ -201,6 +236,27 @@ final class ArbitrageCalculatorService {
                         print(error.localizedDescription)
                     }
                 }
+                
+                Task {
+                    do {
+                        self.huobiTradeableSymbols = try await HuobiAPIService.shared
+                            .getSymbolsInfo()
+                            .filter { $0.state == .online }
+                            .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
+
+                        self.huobiStandartTriangulars = self.getTriangularsInfo(for: .standart, from: self.huobiTradeableSymbols).triangulars
+
+                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.huobiStandartTriangulars)
+                        try standartTriangularsEndcodedData.write(to: self.huobiStandartTriangularsStorageURL)
+
+                        self.huobiStableTriangulars = self.getTriangularsInfo(for: .stable, from: self.huobiTradeableSymbols).triangulars
+
+                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.huobiStableTriangulars)
+                        try stableTriangularsEndcodedData.write(to: self.huobiStableTriangularsStorageURL)
+                    } catch {
+                        print(error.localizedDescription)
+                    }
+                }
             }
         }
     }
@@ -218,23 +274,38 @@ final class ArbitrageCalculatorService {
         let duration: String
         let statusText: String
         let triangulars: [Triangular]
+        let bookTickersDict: ThreadSafeDictionary<String, BookTicker>
         
         switch (stockExchange, mode) {
         case (.binance, .standart):
             triangulars = binanceStandartTriangulars
+            bookTickersDict = latestBinanceBookTickers
         case (.binance, .stable):
             triangulars = binanceStableTriangulars
+            bookTickersDict = latestBinanceBookTickers
         case (.bybit, .standart):
             triangulars = bybitStandartTriangulars
+            bookTickersDict = latestByBitBookTickers
         case (.bybit, .stable):
             triangulars = bybitStableTriangulars
-            
+            bookTickersDict = latestByBitBookTickers
+        case (.huobi, .standart):
+            triangulars = huobiStandartTriangulars
+            bookTickersDict = latestHuobiBookTickers
+        case (.huobi, .stable):
+            triangulars = huobiStableTriangulars
+            bookTickersDict = latestHuobiBookTickers
         }
         
         switch mode {
         case .standart:
             triangulars.forEach { triangular in
-                if let surfaceResult = calculateSurfaceRate(mode: .standart, stockExchange: stockExchange, triangular: triangular) {
+                if let surfaceResult = calculateSurfaceRate(
+                    bookTickersDict: bookTickersDict,
+                    mode: .standart,
+                    stockExchange: stockExchange,
+                    triangular: triangular
+                ) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
@@ -242,7 +313,12 @@ final class ArbitrageCalculatorService {
             statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(triangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         case .stable:
             triangulars.forEach { triangular in
-                if let surfaceResult = self.calculateSurfaceRate(mode: .stable, stockExchange: stockExchange, triangular: triangular) {
+                if let surfaceResult = calculateSurfaceRate(
+                    bookTickersDict: bookTickersDict,
+                    mode: .stable,
+                    stockExchange: stockExchange,
+                    triangular: triangular
+                ) {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
@@ -396,6 +472,7 @@ private extension ArbitrageCalculatorService {
 private extension ArbitrageCalculatorService {
     
     func calculateSurfaceRate(
+        bookTickersDict: ThreadSafeDictionary<String, BookTicker>,
         mode: Mode,
         stockExchange: StockExchange,
         triangular: Triangular
@@ -428,13 +505,13 @@ private extension ArbitrageCalculatorService {
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
 
-        guard let pairABookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairA] : latestByBitBookTickers[triangular.pairA],
+        guard let pairABookTicker = bookTickersDict[triangular.pairA],
               let aAsk = Double(pairABookTicker.askPrice),
               let aBid = Double(pairABookTicker.bidPrice),
-              let pairBBookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairB] : latestByBitBookTickers[triangular.pairB],
+              let pairBBookTicker = bookTickersDict[triangular.pairB],
               let bAsk = Double(pairBBookTicker.askPrice),
               let bBid = Double(pairBBookTicker.bidPrice),
-              let pairCBookTicker = stockExchange == .binance ? latestBookTickers[triangular.pairC] : latestByBitBookTickers[triangular.pairC],
+              let pairCBookTicker = bookTickersDict[triangular.pairC],
               let cAsk = Double(pairCBookTicker.askPrice),
               let cBid = Double(pairCBookTicker.bidPrice) else {
             logger.critical("No prices for \(triangular)")
