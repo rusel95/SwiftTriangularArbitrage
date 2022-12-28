@@ -162,7 +162,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             for: .standart,
             stockExchange: .binance
         ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
+            guard let self = self, let surfaceResults = surfaceResults else { return }
             
             self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,

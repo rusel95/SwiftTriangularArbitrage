@@ -501,9 +501,9 @@ private extension ArbitrageCalculatorService {
         let pairB = triangular.pairB
         let pairC = triangular.pairC
         
-        let pairAComissionMultipler = getCommissionMultipler(symbol: pairA)
-        let pairBComissionMultipler = getCommissionMultipler(symbol: pairB)
-        let pairCComissionMultipler = getCommissionMultipler(symbol: pairC)
+        let pairAComissionMultipler = getCommissionMultipler(symbol: pairA, stockExchange: stockExchange)
+        let pairBComissionMultipler = getCommissionMultipler(symbol: pairB, stockExchange: stockExchange)
+        let pairCComissionMultipler = getCommissionMultipler(symbol: pairC, stockExchange: stockExchange)
 
         guard let pairABookTicker = bookTickersDict[triangular.pairA],
               let aAsk = Double(pairABookTicker.askPrice),
@@ -834,8 +834,16 @@ private extension ArbitrageCalculatorService {
         return nil
     }
     
-    func getCommissionMultipler(symbol: String) -> Double {
-        let comissionPercent = symbolsWithoutComissions.contains(symbol) ? 0 : 0.075
+    func getCommissionMultipler(symbol: String, stockExchange: StockExchange) -> Double {
+        let comissionPercent: Double
+        switch stockExchange {
+        case .binance:
+            comissionPercent = symbolsWithoutComissions.contains(symbol) ? 0 : 0.075
+        case .bybit:
+            comissionPercent = 0.0
+        case .huobi:
+            comissionPercent = 0.2
+        }
         return 1.0 - comissionPercent / 100.0
     }
     
