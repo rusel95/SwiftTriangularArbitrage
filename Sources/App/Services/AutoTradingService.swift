@@ -21,7 +21,7 @@ final class AutoTradingService {
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
     private var tradeableSymbolsDict = ThreadSafeDictionary<String, BinanceAPIService.Symbol>()
-    private var approximateBookTickers = ThreadSafeDictionary<String, BookTicker>()
+    private var bookTickersDict: [String: BookTicker] = [:]
     
     private let minimumQuantityMultipler: Double = 1.5
     private let minimumQuantityStableEquivalent: Double
@@ -42,28 +42,18 @@ final class AutoTradingService {
                 self.tradeableSymbolsDict = ThreadSafeDictionary(dict: tradeableSymbols.toDictionary(with: { $0.symbol }))
             }
         }
-        
-        Jobs.add(interval: .seconds(600)) {
-            // TODO: - move to cache
-            Task {
-                do {
-                    let tickers = try await BinanceAPIService.shared.getAllBookTickers()
-                        
-                    self.approximateBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
-                } catch {
-                    print(error.localizedDescription)
-                }
-            }
-        }
-    
     }
     
     // MARK: - Depth Check
     
-    func handle(opportunity: TriangularOpportunity, for userInfo: UserInfo) async throws -> TriangularOpportunity {
+    func handle(
+        opportunity: TriangularOpportunity,
+        bookTickersDict: [String: BookTicker],
+        for userInfo: UserInfo
+    ) async throws -> TriangularOpportunity {
+        self.bookTickersDict = bookTickersDict
         switch opportunity.autotradeCicle {
         case .pending:
-            
             opportunity.autotradeCicle = .depthCheck
             // NOTE: - remove handling only first - handle all of opportunities
             guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0),
@@ -160,7 +150,7 @@ final class AutoTradingService {
             throw TradingError.customError(description: "\nError: No min notional")
         }
         
-        guard let approximateTickerPrice = approximateBookTickers[opportunity.firstSurfaceResult.contract1]?.buyPrice else {
+        guard let approximateTickerPrice = bookTickersDict[opportunity.firstSurfaceResult.contract1]?.buyPrice else {
             throw TradingError.customError(description: "No approximate ticker price")
         }
         
@@ -514,9 +504,9 @@ private extension AutoTradingService {
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
         guard stablesSet.contains(asset) == false else { return assetQuantity }
         
-        if let assetToStableSymbol = approximateBookTickers["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = approximateBookTickers["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
             throw TradingError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")

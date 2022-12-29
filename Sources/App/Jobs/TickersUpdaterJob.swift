@@ -65,7 +65,12 @@ struct TickersUpdaterJob: ScheduledJob {
             profitPercent: Mode.standart.interestingProfitabilityPercent
         )
         try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
-        alertUsers(for: .standart, stockExchange: .binance, with: newStandartTriangularOpportunitiesDict)
+        alertUsers(
+            for: .standart,
+            stockExchange: .binance,
+            bookTickersDict: latestBookTickersDict,
+            with: newStandartTriangularOpportunitiesDict
+        )
         
         // TODO: - handle Stables
     }
@@ -179,7 +184,7 @@ private extension TickersUpdaterJob {
                 )
             }
             .sorted(by: { $0.profitPercent > $1.profitPercent })
-        // TODO: - find out how this affects result
+            // TODO: - find out how this affects result
             .prefix(10)
         
         return Array(valuableSurfaceResults)
@@ -214,6 +219,8 @@ private extension TickersUpdaterJob {
     func alertUsers(
         for mode: Mode,
         stockExchange: StockExchange,
+        tradeableSymbolsDict: [String : BinanceAPIService.Symbol] = [:],
+        bookTickersDict: [String: BookTicker] = [:],
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {
         // NOTE: - sending all Alerts to specific people separatly
@@ -229,6 +236,7 @@ private extension TickersUpdaterJob {
                     
                     let tradedTriangularOpportunity = try await autoTradingService.handle(
                         opportunity: opportunity,
+                        bookTickersDict: bookTickersDict,
                         for: adminUserInfo
                     )
                     let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
@@ -252,17 +260,8 @@ private extension TickersUpdaterJob {
                     } else {
                         printQueue.addOperation {
                             do {
-                                let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
-                                sendMessageFuture.whenComplete { result in
-                                    do {
-                                        let triangularOpportunityMessageId = try result.get().messageId
-                                        opportunity.updateMessageId = triangularOpportunityMessageId
-                                        return
-                                    } catch (let botError) {
-                                        logger.report(error: botError)
-                                        return
-                                    }
-                                }
+                                let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
+                                opportunity.updateMessageId = tgMessage.messageId
                                 print(printQueue.operationCount)
                                 Thread.sleep(forTimeInterval: printBreakTime)
                             } catch (let botError) {
@@ -294,15 +293,8 @@ private extension TickersUpdaterJob {
                 } else {
                     printQueue.addOperation {
                         do {
-                            let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
-                            sendMessageFuture.whenComplete { result in
-                                do {
-                                    let triangularOpportunityMessageId = try result.get().messageId
-                                    opportunity.updateMessageId = triangularOpportunityMessageId
-                                } catch (let botError) {
-                                    logger.report(error: botError)
-                                }
-                            }
+                            let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
+                            opportunity.updateMessageId = tgMessage.messageId
                             print(printQueue.operationCount)
                             Thread.sleep(forTimeInterval: printBreakTime)
                         } catch (let botError) {
