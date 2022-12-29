@@ -83,13 +83,6 @@ final class ArbitrageCalculatorService {
     private var logger = Logger(label: "logger.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private var binanceStandartTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("binance_standart_triangulars")
-    }
-    private var binanceStableTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("binance_stable_triangulars")
-    }
-    
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
@@ -135,69 +128,35 @@ final class ArbitrageCalculatorService {
                 }
             }
         }
-        
-        Jobs.add(interval: .seconds(7200)) { [weak self] in
-            guard let self = self else { return }
             
-            if self.isFirstUpdateCycle {
-                do {
-                    // Binance Data Read
-                    let binanceStandartTriangularsJsonData = try Data(contentsOf: self.binanceStandartTriangularsStorageURL)
-                    self.binanceStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStandartTriangularsJsonData)
-                    
-                    let binanceStableTriangularsJsonData = try Data(contentsOf: self.binanceStableTriangularsStorageURL)
-                    self.binanceStableTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStableTriangularsJsonData)
-                    
-                    // Bybit Data read
-                    
-                    let bybitStandartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
-                    self.bybitStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStandartTriangularsJsonData)
-                    
-                    let bybitStableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
-                    self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
-                    
-                    // Huobi Data read
-                    
-                    let huobiStandartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
-                    self.huobiStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStandartTriangularsJsonData)
-                    
-                    let huobiStableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
-                    self.huobiStableTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStableTriangularsJsonData)
-                } catch {
-                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                }
-                self.isFirstUpdateCycle = false
-            } else {
-                BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
-                    guard let self = self, let symbols = symbols else { return }
-                    
-                    self.binanceTradeableSymbols = symbols
-                        .filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                        .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseAsset, quoteAsset: $0.quoteAsset) }
-                    
-                    let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.binanceTradeableSymbols)
-                    self.binanceStandartTriangulars = standartTriangularsInfo.triangulars
-                    self.lastStandartTriangularsStatusText = standartTriangularsInfo.calculationDescription
-                    
-                    do {
-                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.binanceStandartTriangulars)
-                        try standartTriangularsEndcodedData.write(to: self.binanceStandartTriangularsStorageURL)
-                    } catch {
-                        self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                    }
-                    
-                    let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.binanceTradeableSymbols)
-                    self.binanceStableTriangulars = stableTriangularsInfo.triangulars
-                    self.lastStableTriangularsStatusText = stableTriangularsInfo.calculationDescription
-                    
-                    do {
-                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.binanceStableTriangulars)
-                        try stableTriangularsEndcodedData.write(to: self.binanceStableTriangularsStorageURL)
-                    } catch {
-                        self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                    }
-                }
+        if self.isFirstUpdateCycle {
+            do {
+                // Binance Data Read
+                let binanceStandartTriangularsJsonData = try Data(contentsOf: URL.binanceStandartTriangularsStorageURL)
+                self.binanceStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStandartTriangularsJsonData)
+                
+                let binanceStableTriangularsJsonData = try Data(contentsOf: URL.binanceStableTriangularsStorageURL)
+                self.binanceStableTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStableTriangularsJsonData)
+                
+                // Bybit Data read
+                
+                let bybitStandartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
+                self.bybitStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStandartTriangularsJsonData)
+                
+                let bybitStableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
+                self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
+                
+                // Huobi Data read
+                
+                let huobiStandartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
+                self.huobiStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStandartTriangularsJsonData)
+                
+                let huobiStableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
+                self.huobiStableTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStableTriangularsJsonData)
+            } catch {
+                self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
             }
+            self.isFirstUpdateCycle = false
         }
     }
     

@@ -34,13 +34,12 @@ final class AutoTradingService {
         
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
         
-        Jobs.add(interval: .seconds(7200)) { [weak self] in
-            BinanceAPIService.shared.getExchangeInfo { [weak self] symbols in
-                guard let symbols = symbols else { return }
-                
-                let tradeableSymbols = symbols.filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                
-                self?.tradeableSymbolsDict = ThreadSafeDictionary(dict: tradeableSymbols.toDictionary(with: { $0.symbol }))
+        Jobs.add(interval: .seconds(7200)) {
+            Task {
+                let tradeableSymbols = try await BinanceAPIService.shared.getExchangeInfo()
+                    .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                    
+                self.tradeableSymbolsDict = ThreadSafeDictionary(dict: tradeableSymbols.toDictionary(with: { $0.symbol }))
             }
         }
         

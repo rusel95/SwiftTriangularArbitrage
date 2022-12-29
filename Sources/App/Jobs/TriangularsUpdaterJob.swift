@@ -59,12 +59,31 @@ struct TriangularsUpdaterJob: ScheduledJob {
         return context.eventLoop.performWithTask {
             switch stockExchange {
             case .binance:
-                break
+                try await handleBinanceStockExchange()
             case .bybit:
                 try await handleBybitStockExchange()
             case .huobi:
                 try await handleHuobiStockExchange()
             }
+        }
+    }
+    
+    private func handleBinanceStockExchange() async throws {
+        do {
+            let tradeableSymbols = try await BinanceAPIService()
+                .getExchangeInfo()
+                .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseAsset, quoteAsset: $0.quoteAsset) }
+
+            let binanceStandartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(binanceStandartTriangulars)
+            try standartTriangularsEndcodedData.write(to: URL.binanceStandartTriangularsStorageURL)
+
+            let binanceStableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(binanceStableTriangulars)
+            try stableTriangularsEndcodedData.write(to: URL.binanceStableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
         }
     }
     

@@ -29,6 +29,13 @@ extension URL {
         URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
     }
     
+    static var binanceStandartTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("binance_standart_triangulars")
+    }
+    static var binanceStableTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("binance_stable_triangulars")
+    }
+    
     static var bybitStandartTriangularsStorageURL: URL {
         URL.documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
     }
