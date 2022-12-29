@@ -143,7 +143,6 @@ final class DefaultBotHandlers {
                             } catch (let botError) {
                                 self.logger.report(error: botError)
                             }
-                            
                         }
                     }
                 }

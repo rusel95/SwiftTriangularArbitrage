@@ -83,29 +83,18 @@ final class ArbitrageCalculatorService {
     private var logger = Logger(label: "logger.artitrage.triangular")
     private var isFirstUpdateCycle: Bool = true
     
-    private var documentsDirectory: URL {
-        return URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
-    }
-    
     private var binanceStandartTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("binance_standart_triangulars")
+        URL.documentsDirectory.appendingPathComponent("binance_standart_triangulars")
     }
     private var binanceStableTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("binance_stable_triangulars")
+        URL.documentsDirectory.appendingPathComponent("binance_stable_triangulars")
     }
     
     private var bybitStandartTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
+        URL.documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
     }
     private var bybitStableTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
-    }
-    
-    private var huobiStandartTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
-    }
-    private var huobiStableTriangularsStorageURL: URL {
-        documentsDirectory.appendingPathComponent("huobi_stable_triangulars")
+        URL.documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
     }
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
@@ -176,10 +165,10 @@ final class ArbitrageCalculatorService {
                     
                     // Huobi Data read
                     
-                    let huobiStandartTriangularsJsonData = try Data(contentsOf: self.huobiStandartTriangularsStorageURL)
+                    let huobiStandartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
                     self.huobiStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStandartTriangularsJsonData)
                     
-                    let huobiStableTriangularsJsonData = try Data(contentsOf: self.huobiStableTriangularsStorageURL)
+                    let huobiStableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
                     self.huobiStableTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStableTriangularsJsonData)
                 } catch {
                     self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
@@ -233,27 +222,6 @@ final class ArbitrageCalculatorService {
                         
                         let stableTriangularsEndcodedData = try JSONEncoder().encode(self.bybitStableTriangulars)
                         try stableTriangularsEndcodedData.write(to: self.bybitStableTriangularsStorageURL)
-                    } catch {
-                        print(error.localizedDescription)
-                    }
-                }
-                
-                Task {
-                    do {
-                        self.huobiTradeableSymbols = try await HuobiAPIService.shared
-                            .getSymbolsInfo()
-                            .filter { $0.state == .online }
-                            .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
-
-                        self.huobiStandartTriangulars = self.getTriangularsInfo(for: .standart, from: self.huobiTradeableSymbols).triangulars
-
-                        let standartTriangularsEndcodedData = try JSONEncoder().encode(self.huobiStandartTriangulars)
-                        try standartTriangularsEndcodedData.write(to: self.huobiStandartTriangularsStorageURL)
-
-                        self.huobiStableTriangulars = self.getTriangularsInfo(for: .stable, from: self.huobiTradeableSymbols).triangulars
-
-                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.huobiStableTriangulars)
-                        try stableTriangularsEndcodedData.write(to: self.huobiStableTriangularsStorageURL)
                     } catch {
                         print(error.localizedDescription)
                     }

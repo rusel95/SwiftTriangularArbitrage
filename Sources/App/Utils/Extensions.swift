@@ -23,10 +23,27 @@ extension Numeric {
     
 }
 
+extension URL {
+    
+    static var documentsDirectory: URL {
+        URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
+    }
+    
+    static var huobiStandartTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
+    }
+    
+    static var huobiStableTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("huobi_stable_triangulars")
+    }
+    
+}
+
+
 extension Date {
                     
     static func - (lhs: Date, rhs: Date) -> TimeInterval {
-        return lhs.timeIntervalSinceReferenceDate - rhs.timeIntervalSinceReferenceDate
+        lhs.timeIntervalSinceReferenceDate - rhs.timeIntervalSinceReferenceDate
     }
     
     var readableDescription: String {
@@ -71,7 +88,7 @@ extension Array {
 extension Array where Element: FloatingPoint {
     
     func averageIncr() -> Element {
-        return enumerated().reduce(Element(0)) { $0 + ( $1.1 - $0 ) / Element($1.0 + 1) }
+        enumerated().reduce(Element(0)) { $0 + ( $1.1 - $0 ) / Element($1.0 + 1) }
     }
     
 }
