@@ -18,6 +18,7 @@ final class TickersUpdaterJob: ScheduledJob {
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let logger = Logger(label: "logger.artitrage.triangular")
     
+    // TODO: - move to cache - nothing VAR should be at JOB
     private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     
@@ -151,35 +152,15 @@ private extension TickersUpdaterJob {
         triangulars: [Triangular],
         bookTickersDict: [String: BookTicker]
     ) -> [SurfaceResult] {
-        var allSurfaceResults: [SurfaceResult] = []
-        
-        switch mode {
-        case .standart:
-            triangulars.forEach { triangular in
-                if let surfaceResult = calculateSurfaceRate(
+        let valuableSurfaceResults = triangulars
+            .compactMap { triangular in
+                calculateSurfaceRate(
                     bookTickersDict: bookTickersDict,
-                    mode: .standart,
+                    mode: mode,
                     stockExchange: stockExchange,
                     triangular: triangular
-                ) {
-                    allSurfaceResults.append(surfaceResult)
-                }
+                )
             }
-            
-        case .stable:
-            triangulars.forEach { triangular in
-                if let surfaceResult = calculateSurfaceRate(
-                    bookTickersDict: bookTickersDict,
-                    mode: .stable,
-                    stockExchange: stockExchange,
-                    triangular: triangular
-                ) {
-                    allSurfaceResults.append(surfaceResult)
-                }
-            }
-        }
-        
-        let valuableSurfaceResults = allSurfaceResults
             .sorted(by: { $0.profitPercent > $1.profitPercent })
         // TODO: - find out how this affects result
             .prefix(10)
@@ -689,7 +670,7 @@ private extension TickersUpdaterJob {
         case .bybit:
             comissionPercent = 0.0
         case .huobi:
-            comissionPercent = 0.2
+            comissionPercent = 0.15
         }
         return 1.0 - comissionPercent / 100.0
     }

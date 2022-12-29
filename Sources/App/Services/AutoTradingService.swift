@@ -44,13 +44,14 @@ final class AutoTradingService {
         }
         
         Jobs.add(interval: .seconds(600)) {
+            // TODO: - move to cache
             Task {
                 do {
                     let tickers = try await BinanceAPIService.shared.getAllBookTickers()
                         
                     self.approximateBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
                 } catch {
-                    
+                    print(error.localizedDescription)
                 }
             }
         }
@@ -90,7 +91,7 @@ final class AutoTradingService {
                 )
                 let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
                 guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                    opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
                 }
@@ -102,7 +103,7 @@ final class AutoTradingService {
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
                 guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                    opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
                 }
@@ -114,7 +115,7 @@ final class AutoTradingService {
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
                 guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
-                    opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 4))% diff)\n")
+                    opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
                 }
