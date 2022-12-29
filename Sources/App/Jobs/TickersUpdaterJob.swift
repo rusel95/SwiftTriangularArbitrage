@@ -8,6 +8,7 @@
 import Queues
 import Vapor
 import telegram_vapor_bot
+import CoreFoundation
 
 final class TickersUpdaterJob: ScheduledJob {
     
