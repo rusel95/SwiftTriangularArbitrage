@@ -21,6 +21,9 @@ public func configure(_ app: Application) throws {
     let binanceTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTickersUpdaterJob).everySecond()
     
+    let bybitTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
+    app.queues.schedule(bybitTickersUpdaterJob).everySecond()
+    
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
     

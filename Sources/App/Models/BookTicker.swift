@@ -1,5 +1,5 @@
 //
-//  Ticker.swift
+//  BookTicker.swift
 //  
 //
 //  Created by Ruslan on 17.11.2022.

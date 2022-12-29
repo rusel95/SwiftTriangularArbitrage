@@ -59,44 +59,6 @@ final class DefaultBotHandlers {
 
 extension DefaultBotHandlers: PriceChangeDelegate {
     
-    func bybitPricesDidChange() {
-        arbitrageCalculatorService.getSurfaceResults(
-            for: .standart,
-            stockExchange: .bybit
-        ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults else { return }
-            
-            self.bybitStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                from: surfaceResults,
-                currentOpportunities: self.bybitStandartTriangularOpportunitiesDict,
-                profitPercent: -0.2
-            )
-            self.alertUsers(
-                for: .standart,
-                stockExchange: .bybit,
-                with: self.bybitStandartTriangularOpportunitiesDict
-            )
-        }
-        
-        arbitrageCalculatorService.getSurfaceResults(
-            for: .stable,
-            stockExchange: .bybit
-        ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults else { return }
-            
-            self.bybitStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                from: surfaceResults,
-                currentOpportunities: self.bybitStableTriangularOpportunitiesDict,
-                profitPercent: -0.2
-            )
-            self.alertUsers(
-                for: .stable,
-                stockExchange: .bybit,
-                with: self.bybitStableTriangularOpportunitiesDict
-            )
-        }
-    }
-    
     func huobiPricesDidChange() {
         arbitrageCalculatorService.getSurfaceResults(
             for: .standart,

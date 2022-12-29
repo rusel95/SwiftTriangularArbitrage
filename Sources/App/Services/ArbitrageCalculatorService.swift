@@ -17,7 +17,6 @@ enum StockExchange: String {
 
 protocol PriceChangeDelegate: AnyObject {
     
-    func bybitPricesDidChange()
     func huobiPricesDidChange()
     
 }
@@ -57,21 +56,6 @@ final class ArbitrageCalculatorService {
     
     init() {
         Jobs.add(interval: .seconds(1)) {
-            Task {
-                do {
-                    let tickers = try await ByBitAPIService.shared.getTickers()
-                        .map { BookTicker(symbol: $0.symbol,
-                                          bidPrice: $0.bidPrice,
-                                          bidQty: "0",
-                                          askPrice: $0.askPrice,
-                                          askQty: "0") }
-                    self.latestByBitBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
-                    self.priceChangeHandlerDelegate?.bybitPricesDidChange()
-                } catch {
-                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                }
-            }
-            
             Task {
                 do {
                     let tickers = try await HuobiAPIService.shared.getTickers()

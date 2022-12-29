@@ -38,7 +38,7 @@ final class TickersUpdaterJob: ScheduledJob {
             case .binance:
                 try await self.handleBinanceStockExchange()
             case .bybit:
-                break
+                try await self.handleByBitStockExchange()
             case .huobi:
                 break
             }
@@ -47,24 +47,64 @@ final class TickersUpdaterJob: ScheduledJob {
     
     private func handleBinanceStockExchange() async throws {
         let tickers = try await BinanceAPIService.shared.getAllBookTickers()
-        let latestBinanceBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
         let triangularsJsonData = try Data(contentsOf: URL.binanceStandartTriangularsStorageURL)
         let triangulars = try JSONDecoder().decode([Triangular].self, from: triangularsJsonData)
-        let surfaceResults = getSurfaceResults(mode: .standart,
-                                               triangulars: triangulars,
-                                               bookTickersDict: latestBinanceBookTickers)
+        let standartSurfaceResults = getSurfaceResults(
+            mode: .standart,
+            triangulars: triangulars,
+            bookTickersDict: latestBookTickersDict
+        )
         self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: surfaceResults,
+            from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: Mode.standart.interestingProfitabilityPercent
         )
-        alertUsers(for: .standart, stockExchange: .binance, with: standartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .binance, with: self.standartTriangularOpportunitiesDict)
+    }
+    
+    private func handleByBitStockExchange() async throws {
+        let tickers = try await ByBitAPIService.shared.getTickers()
+            .map { BookTicker(symbol: $0.symbol,
+                              bidPrice: $0.bidPrice,
+                              bidQty: "0",
+                              askPrice: $0.askPrice,
+                              askQty: "0") }
+        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
+        
+        let standartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
+        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+        let standartSurfaceResults = getSurfaceResults(
+            mode: .standart,
+            triangulars: standartTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: standartSurfaceResults,
+            currentOpportunities: standartTriangularOpportunitiesDict,
+            profitPercent: -0.2
+        )
+        alertUsers(for: .standart, stockExchange: .bybit, with: self.standartTriangularOpportunitiesDict)
+        
+        let stableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
+        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
+        let stableSurfaceResults = getSurfaceResults(
+            mode: .stable,
+            triangulars: stableTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        self.stableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: stableSurfaceResults,
+            currentOpportunities: stableTriangularOpportunitiesDict,
+            profitPercent: -0.2
+        )
+        alertUsers(for: .stable, stockExchange: .bybit, with: self.stableTriangularOpportunitiesDict)
     }
     
     private func getSurfaceResults(
         mode: Mode,
         triangulars: [Triangular],
-        bookTickersDict: ThreadSafeDictionary<String, BookTicker>
+        bookTickersDict: [String: BookTicker]
     ) -> [SurfaceResult] {
         var allSurfaceResults: [SurfaceResult] = []
         
@@ -240,7 +280,7 @@ final class TickersUpdaterJob: ScheduledJob {
 private extension TickersUpdaterJob {
     
     func calculateSurfaceRate(
-        bookTickersDict: ThreadSafeDictionary<String, BookTicker>,
+        bookTickersDict: [String: BookTicker],
         mode: Mode,
         stockExchange: StockExchange,
         triangular: Triangular
