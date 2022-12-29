@@ -26,7 +26,6 @@ final class DefaultBotHandlers {
     private var huobiStandartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var huobiStableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
-    private let arbitrageCalculatorService = ArbitrageCalculatorService()
     private let autoTradingService: AutoTradingService
     private let bot: TGBotPrtcl
     
@@ -39,9 +38,7 @@ final class DefaultBotHandlers {
         self.bot = bot
         self.autoTradingService = AutoTradingService(app: app)
         
-        arbitrageCalculatorService.priceChangeHandlerDelegate = self
         printQueue.maxConcurrentOperationCount = 1
-        
     }
     
     func addHandlers(app: Vapor.Application) {
@@ -53,50 +50,6 @@ final class DefaultBotHandlers {
         commandTestHandler(app: app, bot: bot)
     }
 
-}
-
-// MARK: - PriceChangeHandler
-
-extension DefaultBotHandlers: PriceChangeDelegate {
-    
-    func huobiPricesDidChange() {
-        arbitrageCalculatorService.getSurfaceResults(
-            for: .standart,
-            stockExchange: .huobi
-        ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults else { return }
-            
-            self.huobiStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                from: surfaceResults,
-                currentOpportunities: self.huobiStandartTriangularOpportunitiesDict,
-                profitPercent: Mode.standart.interestingProfitabilityPercent
-            )
-            self.alertUsers(
-                for: .standart,
-                stockExchange: .huobi,
-                with: self.huobiStandartTriangularOpportunitiesDict
-            )
-        }
-        
-        arbitrageCalculatorService.getSurfaceResults(
-            for: .stable,
-            stockExchange: .huobi
-        ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults else { return }
-            
-            self.huobiStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                from: surfaceResults,
-                currentOpportunities: self.huobiStableTriangularOpportunitiesDict,
-                profitPercent: Mode.stable.interestingProfitabilityPercent
-            )
-            self.alertUsers(
-                for: .standart,
-                stockExchange: .huobi,
-                with: self.huobiStableTriangularOpportunitiesDict
-            )
-        }
-    }
-    
 }
 
 // MARK: - HANDLERS

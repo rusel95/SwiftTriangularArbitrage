@@ -44,10 +44,14 @@ final class AutoTradingService {
         }
         
         Jobs.add(interval: .seconds(600)) {
-            BinanceAPIService.shared.getAllBookTickers { [weak self] tickers in
-                guard let tickers = tickers else { return }
-                
-                self?.approximateBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+            Task {
+                do {
+                    let tickers = try await BinanceAPIService.shared.getAllBookTickers()
+                        
+                    self.approximateBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+                } catch {
+                    
+                }
             }
         }
     

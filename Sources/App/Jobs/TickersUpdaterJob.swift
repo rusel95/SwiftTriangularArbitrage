@@ -40,7 +40,7 @@ final class TickersUpdaterJob: ScheduledJob {
             case .bybit:
                 try await self.handleByBitStockExchange()
             case .huobi:
-                break
+                try await self.handleHuobiStockExchange()
             }
         }
     }
@@ -101,7 +101,52 @@ final class TickersUpdaterJob: ScheduledJob {
         alertUsers(for: .stable, stockExchange: .bybit, with: self.stableTriangularOpportunitiesDict)
     }
     
-    private func getSurfaceResults(
+    private func handleHuobiStockExchange() async throws {
+        let tickers = try await HuobiAPIService.shared.getTickers()
+            .map { BookTicker(symbol: $0.symbol,
+                              bidPrice: String($0.bid),
+                              bidQty: String($0.bidSize),
+                              askPrice: String($0.ask),
+                              askQty: String($0.askSize)) }
+        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
+        
+        let standartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
+        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+        let standartSurfaceResults = getSurfaceResults(
+            mode: .standart,
+            triangulars: standartTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: standartSurfaceResults,
+            currentOpportunities: standartTriangularOpportunitiesDict,
+            profitPercent: 0.1
+        )
+        alertUsers(for: .standart, stockExchange: .huobi, with: self.standartTriangularOpportunitiesDict)
+        
+        let stableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
+        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
+        let stableSurfaceResults = getSurfaceResults(
+            mode: .stable,
+            triangulars: stableTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        self.stableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: stableSurfaceResults,
+            currentOpportunities: stableTriangularOpportunitiesDict,
+            profitPercent: 0.1
+        )
+        alertUsers(for: .stable, stockExchange: .huobi, with: self.stableTriangularOpportunitiesDict)
+    }
+    
+    
+}
+
+// MARK: - Helpers
+
+private extension TickersUpdaterJob {
+    
+    func getSurfaceResults(
         mode: Mode,
         triangulars: [Triangular],
         bookTickersDict: [String: BookTicker]
@@ -142,7 +187,7 @@ final class TickersUpdaterJob: ScheduledJob {
         return Array(valuableSurfaceResults)
     }
     
-    private func getActualTriangularOpportunitiesDict(
+    func getActualTriangularOpportunitiesDict(
         from surfaceResults: [SurfaceResult],
         currentOpportunities: [String: TriangularOpportunity],
         profitPercent: Double
@@ -272,12 +317,6 @@ final class TickersUpdaterJob: ScheduledJob {
             }
         }
     }
-    
-}
-
-// MARK: - Helpers
-
-private extension TickersUpdaterJob {
     
     func calculateSurfaceRate(
         bookTickersDict: [String: BookTicker],
