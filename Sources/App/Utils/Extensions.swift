@@ -29,6 +29,14 @@ extension URL {
         URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
     }
     
+    static var bybitStandartTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
+    }
+    
+    static var bybitStableTriangularsStorageURL: URL {
+        URL.documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
+    }
+    
     static var huobiStandartTriangularsStorageURL: URL {
         URL.documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
     }

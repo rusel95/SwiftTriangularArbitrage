@@ -10,7 +10,7 @@ import Vapor
 import telegram_vapor_bot
 
 struct TriangularsUpdaterJob: ScheduledJob {
-
+    
     enum Mode {
         case standart
         case stable
@@ -48,35 +48,77 @@ struct TriangularsUpdaterJob: ScheduledJob {
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
     private let bot: TGBotPrtcl
+    private let stockExchange: StockExchange
     
-    init(bot: TGBotPrtcl) {
+    init(bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.bot = bot
+        self.stockExchange = stockEchange
     }
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            do {
-                let huobiTradeableSymbols = try await HuobiAPIService.shared
-                    .getSymbolsInfo()
-                    .filter { $0.state == .online }
-                    .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
-                
-                let huobiStandartTriangulars = getTriangularsInfo(for: .standart, from: huobiTradeableSymbols).triangulars
-                
-                let standartTriangularsEndcodedData = try JSONEncoder().encode(huobiStandartTriangulars)
-                try standartTriangularsEndcodedData.write(to: URL.huobiStandartTriangularsStorageURL)
-                
-                let huobiStableTriangulars = getTriangularsInfo(for: .stable, from: huobiTradeableSymbols).triangulars
-                
-                let stableTriangularsEndcodedData = try JSONEncoder().encode(huobiStableTriangulars)
-                try stableTriangularsEndcodedData.write(to: URL.huobiStableTriangularsStorageURL)
-            } catch {
-                print(error.localizedDescription)
+            switch stockExchange {
+            case .binance:
+                break
+            case .bybit:
+                try await handleBybitStockExchange()
+            case .huobi:
+                try await handleHuobiStockExchange()
             }
         }
     }
     
-    private func getTriangularsInfo(
+    private func handleBybitStockExchange() async throws {
+        do {
+            let bybitTradeableSymbols = try await ByBitAPIService()
+                .getSymbols()
+                .map { TradeableSymbol(symbol: $0.name, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
+            
+            let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: bybitTradeableSymbols)
+            let bybitStandartTriangulars = standartTriangularsInfo.triangulars
+            
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(bybitStandartTriangulars)
+            try standartTriangularsEndcodedData.write(to: URL.bybitStandartTriangularsStorageURL)
+            
+            let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: bybitTradeableSymbols)
+            let bybitStableTriangulars = stableTriangularsInfo.triangulars
+            
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(bybitStableTriangulars)
+            try stableTriangularsEndcodedData.write(to: URL.bybitStableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func handleHuobiStockExchange() async throws {
+        do {
+            let huobiTradeableSymbols = try await HuobiAPIService.shared
+                .getSymbolsInfo()
+                .filter { $0.state == .online }
+                .map { TradeableSymbol(symbol: $0.symbol,
+                                       baseAsset: $0.baseCurrency,
+                                       quoteAsset: $0.quoteCurrency) }
+            
+            let huobiStandartTriangulars = getTriangularsInfo(for: .standart, from: huobiTradeableSymbols).triangulars
+            
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(huobiStandartTriangulars)
+            try standartTriangularsEndcodedData.write(to: URL.huobiStandartTriangularsStorageURL)
+            
+            let huobiStableTriangulars = getTriangularsInfo(for: .stable, from: huobiTradeableSymbols).triangulars
+            
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(huobiStableTriangulars)
+            try stableTriangularsEndcodedData.write(to: URL.huobiStableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+}
+
+// MARK: - Helpers
+private extension TriangularsUpdaterJob {
+    
+    func getTriangularsInfo(
         for mode: Mode,
         from tradeableSymbols: [TradeableSymbol]
     ) -> (triangulars: [Triangular], calculationDescription: String) {

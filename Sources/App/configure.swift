@@ -18,8 +18,11 @@ public func configure(_ app: Application) throws {
     
     try app.queues.use(.redis(url: "redis://127.0.0.1:6379"))
     
-    let recipientJob = TriangularsUpdaterJob(bot: TGBot.shared)
-    app.queues.schedule(recipientJob).hourly().at(0)
+    let bybitTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .bybit)
+    app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(5)
+    
+    let huobiTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .huobi)
+    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(0)
     
     try app.queues.startScheduledJobs()
     

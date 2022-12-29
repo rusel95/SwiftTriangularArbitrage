@@ -90,13 +90,6 @@ final class ArbitrageCalculatorService {
         URL.documentsDirectory.appendingPathComponent("binance_stable_triangulars")
     }
     
-    private var bybitStandartTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
-    }
-    private var bybitStableTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
-    }
-    
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
@@ -157,10 +150,10 @@ final class ArbitrageCalculatorService {
                     
                     // Bybit Data read
                     
-                    let bybitStandartTriangularsJsonData = try Data(contentsOf: self.bybitStandartTriangularsStorageURL)
+                    let bybitStandartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
                     self.bybitStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStandartTriangularsJsonData)
                     
-                    let bybitStableTriangularsJsonData = try Data(contentsOf: self.bybitStableTriangularsStorageURL)
+                    let bybitStableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
                     self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
                     
                     // Huobi Data read
@@ -202,28 +195,6 @@ final class ArbitrageCalculatorService {
                         try stableTriangularsEndcodedData.write(to: self.binanceStableTriangularsStorageURL)
                     } catch {
                         self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                    }
-                }
-                
-                Task {
-                    do {
-                        self.bybitTradeableSymbols = try await ByBitAPIService()
-                            .getSymbols()
-                            .map { TradeableSymbol(symbol: $0.name, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
-                        
-                        let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: self.bybitTradeableSymbols)
-                        self.bybitStandartTriangulars = standartTriangularsInfo.triangulars
-                        
-                        let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangularsInfo.triangulars)
-                        try standartTriangularsEndcodedData.write(to: self.bybitStandartTriangularsStorageURL)
-                        
-                        let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: self.bybitTradeableSymbols)
-                        self.bybitStableTriangulars = stableTriangularsInfo.triangulars
-                        
-                        let stableTriangularsEndcodedData = try JSONEncoder().encode(self.bybitStableTriangulars)
-                        try stableTriangularsEndcodedData.write(to: self.bybitStableTriangularsStorageURL)
-                    } catch {
-                        print(error.localizedDescription)
                     }
                 }
             }
