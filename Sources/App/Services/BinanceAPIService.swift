@@ -11,7 +11,7 @@ import FoundationNetworking
 #endif
 import Logging
 
-enum OrderSide: String {
+enum OrderSide: String, Codable {
     case quoteToBase = "BUY"
     case baseToQuote = "SELL"
     case unknown = "UNKNOWN"

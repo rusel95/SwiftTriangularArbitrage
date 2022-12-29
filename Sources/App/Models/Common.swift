@@ -27,7 +27,7 @@ enum Mode {
         switch self {
         case .standart:
 #if DEBUG
-            return 0.1
+            return 0.0
 #else
             return 0.3
 #endif

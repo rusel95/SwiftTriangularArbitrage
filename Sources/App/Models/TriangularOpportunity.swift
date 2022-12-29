@@ -7,9 +7,9 @@
 
 import Foundation
 
-final class TriangularOpportunity: CustomStringConvertible, Hashable {
+final class TriangularOpportunity: Codable, CustomStringConvertible, Hashable {
     
-    enum AutoTradeCicle: Equatable {
+    enum AutoTradeCicle: Codable, Equatable {
         case forbidden
         case pending
         case depthCheck

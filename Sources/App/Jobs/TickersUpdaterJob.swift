@@ -9,7 +9,9 @@ import Queues
 import Vapor
 import telegram_vapor_bot
 
-final class TickersUpdaterJob: ScheduledJob {
+struct TickersUpdaterJob: ScheduledJob {
+    
+    typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
     
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
@@ -18,15 +20,13 @@ final class TickersUpdaterJob: ScheduledJob {
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let logger = Logger(label: "logger.artitrage.triangular")
     
-    // TODO: - move to cache - nothing VAR should be at JOB
-    private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
-    private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
-    
     private let autoTradingService: AutoTradingService
     private let printQueue = OperationQueue()
     private let printBreakTime: TimeInterval = 3.0
+    private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
+        self.app = app
         self.autoTradingService = AutoTradingService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
@@ -35,13 +35,13 @@ final class TickersUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            switch self.stockExchange {
+            switch stockExchange {
             case .binance:
-                try await self.handleBinanceStockExchange()
+                try await handleBinanceStockExchange()
             case .bybit:
-                try await self.handleByBitStockExchange()
+                try await handleByBitStockExchange()
             case .huobi:
-                try await self.handleHuobiStockExchange()
+                try await handleHuobiStockExchange()
             }
         }
     }
@@ -56,12 +56,18 @@ final class TickersUpdaterJob: ScheduledJob {
             triangulars: triangulars,
             bookTickersDict: latestBookTickersDict
         )
-        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+        
+        let standartDictKey = "BinanceStandartTriangularOpportunitiesDict"
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: Mode.standart.interestingProfitabilityPercent
         )
-        alertUsers(for: .standart, stockExchange: .binance, with: self.standartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .binance, with: newStandartTriangularOpportunitiesDict)
+        
+        // TODO: - handle Stables
     }
     
     private func handleByBitStockExchange() async throws {
@@ -80,12 +86,15 @@ final class TickersUpdaterJob: ScheduledJob {
             triangulars: standartTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+        let standartDictKey = "ByBitStandartTriangularOpportunitiesDict"
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: -0.2
         )
-        alertUsers(for: .standart, stockExchange: .bybit, with: self.standartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .bybit, with: newStandartTriangularOpportunitiesDict)
         
         let stableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -94,12 +103,15 @@ final class TickersUpdaterJob: ScheduledJob {
             triangulars: stableTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        self.stableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+        let stableDictKey = "ByBitStableTriangularOpportunitiesDict"
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(stableDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: stableSurfaceResults,
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: -0.2
         )
-        alertUsers(for: .stable, stockExchange: .bybit, with: self.stableTriangularOpportunitiesDict)
+        try await app.caches.memory.set(stableDictKey, to: newStableTriangularOpportunitiesDict)
+        alertUsers(for: .stable, stockExchange: .bybit, with: newStableTriangularOpportunitiesDict)
     }
     
     private func handleHuobiStockExchange() async throws {
@@ -118,12 +130,15 @@ final class TickersUpdaterJob: ScheduledJob {
             triangulars: standartTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+        let standartDictKey = "HuobiStandartTriangularOpportunitiesDict"
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: 0.1
+            profitPercent: 0.0
         )
-        alertUsers(for: .standart, stockExchange: .huobi, with: self.standartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .huobi, with: newStandartTriangularOpportunitiesDict)
         
         let stableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -132,14 +147,16 @@ final class TickersUpdaterJob: ScheduledJob {
             triangulars: stableTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        self.stableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+        let stableDictKey = "HuobiStableTriangularOpportunitiesDict"
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(stableDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: stableSurfaceResults,
             currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: 0.1
+            profitPercent: 0.0
         )
-        alertUsers(for: .stable, stockExchange: .huobi, with: self.stableTriangularOpportunitiesDict)
+        try await app.caches.memory.set(stableDictKey, to: newStableTriangularOpportunitiesDict)
+        alertUsers(for: .stable, stockExchange: .huobi, with: newStableTriangularOpportunitiesDict)
     }
-    
     
 }
 
@@ -222,36 +239,34 @@ private extension TickersUpdaterJob {
                             inlineMessageId: nil,
                             text: text
                         )
-                        self.printQueue.addOperation {
+                        printQueue.addOperation {
                             do {
-                                _ = try self.bot.editMessageText(params: editParams)
-                                print(self.printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
+                                _ = try bot.editMessageText(params: editParams)
+                                print(printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: printBreakTime)
                                 return
                             } catch (let botError) {
-                                self.logger.report(error: botError)
+                                logger.report(error: botError)
                             }
                         }
                     } else {
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
+                        printQueue.addOperation {
                             do {
-                                let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
+                                let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
                                 sendMessageFuture.whenComplete { result in
                                     do {
                                         let triangularOpportunityMessageId = try result.get().messageId
                                         opportunity.updateMessageId = triangularOpportunityMessageId
                                         return
                                     } catch (let botError) {
-                                        self.logger.report(error: botError)
+                                        logger.report(error: botError)
                                         return
                                     }
                                 }
-                                print(self.printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
+                                print(printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: printBreakTime)
                             } catch (let botError) {
-                                self.logger.report(error: botError)
+                                logger.report(error: botError)
                             }
                         }
                     }
@@ -267,31 +282,31 @@ private extension TickersUpdaterJob {
                         inlineMessageId: nil,
                         text: text
                     )
-                    self.printQueue.addOperation {
+                    printQueue.addOperation {
                         do {
-                            _ = try self.bot.editMessageText(params: editParams)
-                            print(self.printQueue.operationCount)
-                            Thread.sleep(forTimeInterval: self.printBreakTime)
+                            _ = try bot.editMessageText(params: editParams)
+                            print(printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: printBreakTime)
                         } catch (let botError) {
-                            self.logger.report(error: botError)
+                            logger.report(error: botError)
                         }
                     }
                 } else {
-                    self.printQueue.addOperation {
+                    printQueue.addOperation {
                         do {
-                            let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
+                            let sendMessageFuture = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
                             sendMessageFuture.whenComplete { result in
                                 do {
                                     let triangularOpportunityMessageId = try result.get().messageId
                                     opportunity.updateMessageId = triangularOpportunityMessageId
                                 } catch (let botError) {
-                                    self.logger.report(error: botError)
+                                    logger.report(error: botError)
                                 }
                             }
-                            print(self.printQueue.operationCount)
-                            Thread.sleep(forTimeInterval: self.printBreakTime)
+                            print(printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: printBreakTime)
                         } catch (let botError) {
-                            self.logger.report(error: botError)
+                            logger.report(error: botError)
                         }
                     }
                 }

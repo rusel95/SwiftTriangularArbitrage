@@ -7,9 +7,9 @@
 
 import Foundation
 
-struct SurfaceResult: CustomStringConvertible, Hashable {
+struct SurfaceResult: Codable, CustomStringConvertible, Hashable {
     
-    enum Direction: String {
+    enum Direction: String, Codable {
         case forward
         case reverse
     }
