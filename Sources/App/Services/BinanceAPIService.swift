@@ -59,6 +59,75 @@ final class BinanceAPIService {
         
     }
     
+    enum OrderType: String {
+        case limit = "LIMIT"
+        case market = "MARKET"
+        case stopLoss = "STOP_LOSS"
+        case stopLossLimit = "STOP_LOSS_LIMIT"
+        case takeProfit = "TAKE_PROFIT"
+        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
+        case limitMaker = "LIMIT_MAKER"
+    }
+    
+    enum OrderStatus: String {
+        case new = "NEW"                            // The order has been accepted by the engine.
+        case partiallyFilled = "PARTIALLY_FILLED"   // A part of the order has been filled.
+        case filled = "FILLED"                      // The order has been completed.
+        case canceled = "CANCELED"                  // The order has been canceled by the user.
+        case pendingCancel = "PENDING_CANCEL"       // Currently unused
+        case rejected = "REJECTED"                  // The order was not accepted by the engine and not processed.
+        case expired = "EXPIRED"                    // The order was canceled according to the order type's rules (e.g. LIMIT FOK orders with no fill, LIMIT IOC or MARKET orders that partially fill) or by the exchange, (e.g. orders canceled during liquidation, orders canceled during maintenance)
+    }
+    
+    enum OrderResponseType: String {
+        case ack = "ACK"
+        case result = "RESULT"
+        case full = "FULL"
+    }
+    
+    struct NewOrderResponse: Codable {
+        
+        let symbol: String
+        let orderID, orderListID: Int
+        let clientOrderID: String
+        let transactTime: Int
+        let price, origQty, executedQty, cummulativeQuoteQty: String
+        let status, timeInForce, type, side: String
+        let fills: [Fill]
+        
+        enum CodingKeys: String, CodingKey {
+            case symbol
+            case orderID = "orderId"
+            case orderListID = "orderListId"
+            case clientOrderID = "clientOrderId"
+            case transactTime, price, origQty, executedQty, cummulativeQuoteQty, status, timeInForce, type, side, fills
+        }
+        
+        var averageExecutedPrice: Double {
+            (Double(cummulativeQuoteQty) ?? 0.0) / (Double(executedQty) ?? 1.0)
+        }
+        
+    }
+    
+    struct Fill: Codable, CustomStringConvertible {
+        let price, qty, commission, commissionAsset: String
+        let tradeId: Int
+        
+        var description: String {
+            "price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), qty: \((Double(qty) ?? 0.0).string(maxFractionDigits: 8)), comm: \((Double(commission) ?? 0.0).string(maxFractionDigits: 8)), commAsset: \(commissionAsset)"
+        }
+    }
+    
+    struct ResponseError: Codable, CustomStringConvertible {
+        
+        var description: String {
+            "code: \(code), message: \(msg)"
+        }
+        
+        let code: Decimal
+        let msg: String
+    }
+    
     // MARK: - Welcome
     struct ExchangeInfoResponse: Codable {
         //        let timezone: String
@@ -148,69 +217,6 @@ final class BinanceAPIService {
     
     // MARK: - METHODS
     
-    func getBookTickers(
-        symbols: [String],
-        completion: @escaping(_ tickers: [BookTicker]?) -> Void
-    ) {
-        let symbolsListDescription = symbols.map { String($0) }.joined(separator: ",")
-        let url: URL = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker?symbols=[\(symbolsListDescription)]")!
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "Get"
-        
-        URLSession.shared.dataTask(with: request) { [weak self] (data, response, error) in
-            if let error = error {
-                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-                completion(nil)
-                return
-            }
-            
-            guard let data = data else {
-                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Spot \(url.debugDescription)"))
-                completion(nil)
-                return
-            }
-            
-            do {
-                let tickers = try JSONDecoder().decode([BookTicker].self, from: data)
-                completion(tickers)
-            } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                completion(nil)
-            }
-        }.resume()
-    }
-    
-    func getAllBookTickers(completion: @escaping(_ tickers: [BookTicker]?) -> Void) {
-        let session = URLSession.shared
-        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker")!
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "Get"
-        
-        session.dataTask(with: request) { [weak self] (data, response, error) in
-            if let error = error {
-                self?.logger.warning(Logger.Message(stringLiteral: error.localizedDescription))
-                completion(nil)
-                return
-            }
-            
-            guard let data = data else {
-                self?.logger.warning(Logger.Message(stringLiteral: "NO DATA for Binance Tickers \(url.debugDescription)"))
-                completion(nil)
-                return
-            }
-            
-            do {
-                let ticker = try JSONDecoder().decode([BookTicker].self, from: data)
-                completion(ticker)
-            } catch (let decodingError) {
-                self?.logger.error(Logger.Message(stringLiteral: decodingError.localizedDescription))
-                completion(nil)
-            }
-        }.resume()
-    }
-    
     func getExchangeInfo() async throws -> [Symbol] {
         let url = URL(string: "https://api.binance.com/api/v3/exchangeInfo")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
@@ -218,83 +224,16 @@ final class BinanceAPIService {
         return response.symbols
     }
     
-    // MARK: - Depth
+    func getAllBookTickers() async throws -> [BookTicker] {
+        let url = URL(string: "https://api.binance.com/api/v3/ticker/bookTicker")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        return try JSONDecoder().decode([BookTicker].self, from: data)
+    }
     
     func getOrderbookDepth(symbol: String, limit: UInt) async throws -> OrderbookDepth {
         let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         return try JSONDecoder().decode(OrderbookDepth.self, from: data)
-    }
-    
-    // MARK: - NewOrder
-    
-    enum OrderType: String {
-        case limit = "LIMIT"
-        case market = "MARKET"
-        case stopLoss = "STOP_LOSS"
-        case stopLossLimit = "STOP_LOSS_LIMIT"
-        case takeProfit = "TAKE_PROFIT"
-        case takeProfitLimit = "TAKE_PROFIT_LIMIT"
-        case limitMaker = "LIMIT_MAKER"
-    }
-    
-    enum OrderStatus: String {
-        case new = "NEW"                            // The order has been accepted by the engine.
-        case partiallyFilled = "PARTIALLY_FILLED"   // A part of the order has been filled.
-        case filled = "FILLED"                      // The order has been completed.
-        case canceled = "CANCELED"                  // The order has been canceled by the user.
-        case pendingCancel = "PENDING_CANCEL"       // Currently unused
-        case rejected = "REJECTED"                  // The order was not accepted by the engine and not processed.
-        case expired = "EXPIRED"                    // The order was canceled according to the order type's rules (e.g. LIMIT FOK orders with no fill, LIMIT IOC or MARKET orders that partially fill) or by the exchange, (e.g. orders canceled during liquidation, orders canceled during maintenance)
-    }
-    
-    enum OrderResponseType: String {
-        case ack = "ACK"
-        case result = "RESULT"
-        case full = "FULL"
-    }
-    
-    struct NewOrderResponse: Codable {
-        
-        let symbol: String
-        let orderID, orderListID: Int
-        let clientOrderID: String
-        let transactTime: Int
-        let price, origQty, executedQty, cummulativeQuoteQty: String
-        let status, timeInForce, type, side: String
-        let fills: [Fill]
-        
-        enum CodingKeys: String, CodingKey {
-            case symbol
-            case orderID = "orderId"
-            case orderListID = "orderListId"
-            case clientOrderID = "clientOrderId"
-            case transactTime, price, origQty, executedQty, cummulativeQuoteQty, status, timeInForce, type, side, fills
-        }
-        
-        var averageExecutedPrice: Double {
-            (Double(cummulativeQuoteQty) ?? 0.0) / (Double(executedQty) ?? 1.0)
-        }
-        
-    }
-    
-    struct Fill: Codable, CustomStringConvertible {
-        let price, qty, commission, commissionAsset: String
-        let tradeId: Int
-        
-        var description: String {
-            "price: \((Double(price) ?? 0.0).string(maxFractionDigits: 8)), qty: \((Double(qty) ?? 0.0).string(maxFractionDigits: 8)), comm: \((Double(commission) ?? 0.0).string(maxFractionDigits: 8)), commAsset: \(commissionAsset)"
-        }
-    }
-    
-    struct ResponseError: Codable, CustomStringConvertible {
-        
-        var description: String {
-            "code: \(code), message: \(msg)"
-        }
-        
-        let code: Decimal
-        let msg: String
     }
     
     func newOrder(
@@ -327,8 +266,5 @@ final class BinanceAPIService {
         
         return try JSONDecoder().decode(NewOrderResponse.self, from: data)
     }
-    
-    // MARK: - Orderbook
-    
-    
+
 }

@@ -51,103 +51,6 @@ final class DefaultBotHandlers {
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
-        
-        startStandartTriangularArbitragingMonitoring(bot: bot)
-        startStableTriangularArbitragingMonitoring(bot: bot)
-    }
-
-    
-    func startStandartTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(BotMode.standartTriangularArtibraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculatorService.getSurfaceResults(
-                for: .standart,
-                stockExchange: .binance
-            ) { [weak self] surfaceResults, statusText in
-                guard let self = self, let surfaceResults = surfaceResults else { return }
-                
-                let text = surfaceResults
-                    .map { $0.description }
-                    .joined(separator: "\n")
-                    .appending(statusText)
-                    .appending("\nUp to date as of: \(Date().readableDescription)")
-                
-                // NOTE: - sending all info to specific people separatly
-                UsersInfoProvider.shared.getUsersInfo(selectedMode: .standartTriangularArtibraging).forEach { userInfo in
-                    if let standartTriangularArbitragingMessageId = userInfo.standartTriangularArbitragingMessageId {
-                        let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                        messageId: standartTriangularArbitragingMessageId,
-                                                                        inlineMessageId: nil,
-                                                                        text: text)
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do {
-                                _ = try self.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    } else {
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            do {
-                                _ = try bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    func startStableTriangularArbitragingMonitoring(bot: TGBotPrtcl) {
-        Jobs.add(interval: .seconds(BotMode.stableTriangularArbritraging.jobInterval)) { [weak self] in
-            self?.arbitrageCalculatorService.getSurfaceResults(
-                for: .stable,
-                stockExchange: .binance
-            ) { surfaceResults, statusText in
-                guard let self = self, let surfaceResults = surfaceResults else { return }
-
-                let text = surfaceResults
-                    .map { $0.description }
-                    .joined(separator: "\n")
-                    .appending(statusText)
-                    .appending("\nUp to date as of: \(Date().readableDescription)")
-                
-                UsersInfoProvider.shared.getUsersInfo(selectedMode: .stableTriangularArbritraging).forEach { userInfo in
-                    if let triangularArbitragingMessageId = userInfo.stableTriangularArbitragingMessageId {
-                        let editParams: TGEditMessageTextParams = .init(chatId: .chat(userInfo.chatId),
-                                                                        messageId: triangularArbitragingMessageId,
-                                                                        inlineMessageId: nil,
-                                                                        text: text)
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do {
-                                _ = try self.bot.editMessageText(params: editParams)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    } else {
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do { _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
 }
@@ -155,44 +58,6 @@ final class DefaultBotHandlers {
 // MARK: - PriceChangeHandler
 
 extension DefaultBotHandlers: PriceChangeDelegate {
-    
-    func binancePricesDidChange() {
-        arbitrageCalculatorService.getSurfaceResults(
-            for: .standart,
-            stockExchange: .binance
-        ) { [weak self] surfaceResults, statusText in
-            guard let self = self, let surfaceResults = surfaceResults else { return }
-            
-            self.standartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-                from: surfaceResults,
-                currentOpportunities: self.standartTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
-            )
-            self.alertUsers(
-                for: .standart,
-                stockExchange: .binance,
-                with: self.standartTriangularOpportunitiesDict
-            )
-        }
-        
-//        arbitrageCalculatorService.getSurfaceResults(
-//            for: .stable,
-//            stockExchange: .binance
-//        ) { [weak self] surfaceResults, statusText in
-//            guard let self = self, let surfaceResults = surfaceResults, surfaceResults.isEmpty == false else { return }
-//            
-//            self.stableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
-//                from: surfaceResults,
-//                currentOpportunities: self.stableTriangularOpportunitiesDict,
-//                profitPercent: ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent
-//            )
-//            self.alertUsers(
-//                for: .stable,
-//                stockExchange: .binance,
-//                with: self.stableTriangularOpportunitiesDict
-//            )
-//        }
-    }
     
     func bybitPricesDidChange() {
         arbitrageCalculatorService.getSurfaceResults(
@@ -242,7 +107,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.huobiStandartTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.huobiStandartTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent
+                profitPercent: Mode.standart.interestingProfitabilityPercent
             )
             self.alertUsers(
                 for: .standart,
@@ -260,7 +125,7 @@ extension DefaultBotHandlers: PriceChangeDelegate {
             self.huobiStableTriangularOpportunitiesDict = self.getActualTriangularOpportunities(
                 from: surfaceResults,
                 currentOpportunities: self.huobiStableTriangularOpportunitiesDict,
-                profitPercent: ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent
+                profitPercent: Mode.stable.interestingProfitabilityPercent
             )
             self.alertUsers(
                 for: .standart,
@@ -290,7 +155,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(Mode.stable.interestingProfitabilityPercent)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -354,8 +219,8 @@ private extension DefaultBotHandlers {
             do {
                 let text = """
                     Starting alerting about:
-                    [Standart] opportunities with >= \(ArbitrageCalculatorService.Mode.standart.interestingProfitabilityPercent)% profitability
-                    [Stable] opportunities with >= \(ArbitrageCalculatorService.Mode.stable.interestingProfitabilityPercent)% profitability
+                    [Standart] opportunities with >= \(Mode.standart.interestingProfitabilityPercent)% profitability
+                    [Stable] opportunities with >= \(Mode.stable.interestingProfitabilityPercent)% profitability
                     """
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
@@ -431,7 +296,7 @@ private extension DefaultBotHandlers {
     }
     
     func alertUsers(
-        for mode: ArbitrageCalculatorService.Mode,
+        for mode: Mode,
         stockExchange: StockExchange,
         with triangularOpportunitiesDict: [String: TriangularOpportunity]
     ) {

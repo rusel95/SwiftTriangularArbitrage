@@ -11,44 +11,12 @@ import telegram_vapor_bot
 
 struct TriangularsUpdaterJob: ScheduledJob {
     
-    enum Mode {
-        case standart
-        case stable
-        
-        var description: String {
-            switch self {
-            case .standart:
-                return "[Standart]"
-            case .stable:
-                return "[Stable]"
-            }
-        }
-        
-        var interestingProfitabilityPercent: Double {
-            switch self {
-            case .standart:
-#if DEBUG
-                return 0.2
-#else
-                return 0.3
-#endif
-            case .stable:
-#if DEBUG
-                return 0.0
-#else
-                return 0.2
-#endif
-            }
-        }
-    }
-    
-    typealias Payload = StockExchange
-    
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
+    
     
     init(bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.bot = bot

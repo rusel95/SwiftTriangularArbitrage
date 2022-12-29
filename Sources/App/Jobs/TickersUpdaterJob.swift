@@ -1,159 +1,72 @@
 //
-//  ArbitrageCalculator.swift
+//  File.swift
 //  
 //
-//  Created by Ruslan on 30.08.2022.
+//  Created by Ruslan on 29.12.2022.
 //
 
-import Foundation
-import CoreFoundation
-import Jobs
-import Logging
+import Queues
 import Vapor
+import telegram_vapor_bot
 
-enum StockExchange: String {
-    case binance, bybit, huobi
-}
-
-protocol PriceChangeDelegate: AnyObject {
+final class TickersUpdaterJob: ScheduledJob {
     
-    func bybitPricesDidChange()
-    func huobiPricesDidChange()
-    
-}
-
-final class ArbitrageCalculatorService {
-    
-    // MARK: - Properties
-    
-    var priceChangeHandlerDelegate: PriceChangeDelegate?
-    
-    private(set) var latestBinanceBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    private(set) var latestByBitBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    private(set) var latestHuobiBookTickers = ThreadSafeDictionary<String, BookTicker>()
-    
-    private var binanceTradeableSymbols: [TradeableSymbol] = []
-    private var binanceStandartTriangulars: [Triangular] = []
-    private var binanceStableTriangulars: [Triangular] = []
-    
-    private var bybitTradeableSymbols: [TradeableSymbol] = []
-    private var bybitStandartTriangulars: [Triangular] = []
-    private var bybitStableTriangulars: [Triangular] = []
-    
-    private var huobiTradeableSymbols: [TradeableSymbol] = []
-    private var huobiStandartTriangulars: [Triangular] = []
-    private var huobiStableTriangulars: [Triangular] = []
-    
-    private var lastStandartTriangularsStatusText: String = ""
-    private var lastStableTriangularsStatusText: String = ""
-    private var logger = Logger(label: "logger.artitrage.triangular")
-    private var isFirstUpdateCycle: Bool = true
+    private let bot: TGBotPrtcl
+    private let stockExchange: StockExchange
     
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
-    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
+    private let logger = Logger(label: "logger.artitrage.triangular")
     
-    // MARK: - Init
+    private var standartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
+    private var stableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     
-    init() {
-        Jobs.add(interval: .seconds(1)) {
-            Task {
-                do {
-                    let tickers = try await ByBitAPIService.shared.getTickers()
-                        .map { BookTicker(symbol: $0.symbol,
-                                          bidPrice: $0.bidPrice,
-                                          bidQty: "0",
-                                          askPrice: $0.askPrice,
-                                          askQty: "0") }
-                    self.latestByBitBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
-                    self.priceChangeHandlerDelegate?.bybitPricesDidChange()
-                } catch {
-                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                }
+    private let autoTradingService: AutoTradingService
+    private let printQueue = OperationQueue()
+    private let printBreakTime: TimeInterval = 3.0
+    
+    init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
+        self.autoTradingService = AutoTradingService(app: app)
+        self.bot = bot
+        self.stockExchange = stockEchange
+        printQueue.maxConcurrentOperationCount = 1
+    }
+    
+    func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
+        return context.eventLoop.performWithTask {
+            switch self.stockExchange {
+            case .binance:
+                try await self.handleBinanceStockExchange()
+            case .bybit:
+                break
+            case .huobi:
+                break
             }
-            
-            Task {
-                do {
-                    let tickers = try await HuobiAPIService.shared.getTickers()
-                        .map { BookTicker(symbol: $0.symbol,
-                                          bidPrice: String($0.bid),
-                                          bidQty: String($0.bidSize),
-                                          askPrice: String($0.ask),
-                                          askQty: String($0.askSize)) }
-                    self.latestHuobiBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
-                    self.priceChangeHandlerDelegate?.huobiPricesDidChange()
-                } catch {
-                    self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-                }
-            }
-        }
-            
-        if self.isFirstUpdateCycle {
-            do {
-                // Binance Data Read
-                let binanceStandartTriangularsJsonData = try Data(contentsOf: URL.binanceStandartTriangularsStorageURL)
-                self.binanceStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStandartTriangularsJsonData)
-                
-                let binanceStableTriangularsJsonData = try Data(contentsOf: URL.binanceStableTriangularsStorageURL)
-                self.binanceStableTriangulars = try JSONDecoder().decode([Triangular].self, from: binanceStableTriangularsJsonData)
-                
-                // Bybit Data read
-                
-                let bybitStandartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
-                self.bybitStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStandartTriangularsJsonData)
-                
-                let bybitStableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
-                self.bybitStableTriangulars = try JSONDecoder().decode([Triangular].self, from: bybitStableTriangularsJsonData)
-                
-                // Huobi Data read
-                
-                let huobiStandartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
-                self.huobiStandartTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStandartTriangularsJsonData)
-                
-                let huobiStableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
-                self.huobiStableTriangulars = try JSONDecoder().decode([Triangular].self, from: huobiStableTriangularsJsonData)
-            } catch {
-                self.logger.critical(Logger.Message(stringLiteral: error.localizedDescription))
-            }
-            self.isFirstUpdateCycle = false
         }
     }
     
-    // MARK: Getting Surface Results
+    private func handleBinanceStockExchange() async throws {
+        let tickers = try await BinanceAPIService.shared.getAllBookTickers()
+        let latestBinanceBookTickers = ThreadSafeDictionary(dict: tickers.toDictionary(with: { $0.symbol }))
+        let triangularsJsonData = try Data(contentsOf: URL.binanceStandartTriangularsStorageURL)
+        let triangulars = try JSONDecoder().decode([Triangular].self, from: triangularsJsonData)
+        let surfaceResults = getSurfaceResults(mode: .standart,
+                                               triangulars: triangulars,
+                                               bookTickersDict: latestBinanceBookTickers)
+        self.standartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: surfaceResults,
+            currentOpportunities: standartTriangularOpportunitiesDict,
+            profitPercent: Mode.standart.interestingProfitabilityPercent
+        )
+        alertUsers(for: .standart, stockExchange: .binance, with: standartTriangularOpportunitiesDict)
+    }
     
-    func getSurfaceResults(
-        for mode: Mode,
-        stockExchange: StockExchange,
-        completion: @escaping ([SurfaceResult]?, String) -> Void
-    ) {
+    private func getSurfaceResults(
+        mode: Mode,
+        triangulars: [Triangular],
+        bookTickersDict: ThreadSafeDictionary<String, BookTicker>
+    ) -> [SurfaceResult] {
         var allSurfaceResults: [SurfaceResult] = []
-        let startTime = CFAbsoluteTimeGetCurrent()
-        
-        let duration: String
-        let statusText: String
-        let triangulars: [Triangular]
-        let bookTickersDict: ThreadSafeDictionary<String, BookTicker>
-        
-        switch (stockExchange, mode) {
-        case (.binance, .standart):
-            triangulars = binanceStandartTriangulars
-            bookTickersDict = latestBinanceBookTickers
-        case (.binance, .stable):
-            triangulars = binanceStableTriangulars
-            bookTickersDict = latestBinanceBookTickers
-        case (.bybit, .standart):
-            triangulars = bybitStandartTriangulars
-            bookTickersDict = latestByBitBookTickers
-        case (.bybit, .stable):
-            triangulars = bybitStableTriangulars
-            bookTickersDict = latestByBitBookTickers
-        case (.huobi, .standart):
-            triangulars = huobiStandartTriangulars
-            bookTickersDict = latestHuobiBookTickers
-        case (.huobi, .stable):
-            triangulars = huobiStableTriangulars
-            bookTickersDict = latestHuobiBookTickers
-        }
         
         switch mode {
         case .standart:
@@ -167,8 +80,7 @@ final class ArbitrageCalculatorService {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
-            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStandartTriangularsStatusText)\n[Standart] Calculated Profits for \(triangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
+            
         case .stable:
             triangulars.forEach { triangular in
                 if let surfaceResult = calculateSurfaceRate(
@@ -180,8 +92,6 @@ final class ArbitrageCalculatorService {
                     allSurfaceResults.append(surfaceResult)
                 }
             }
-            duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            statusText = "\n\(lastStableTriangularsStatusText)\n[Stable] Calculated Profits for \(triangulars.count) triangulars at \(binanceTradeableSymbols.count) symbols in \(duration) seconds"
         }
         
         let valuableSurfaceResults = allSurfaceResults
@@ -189,13 +99,145 @@ final class ArbitrageCalculatorService {
         // TODO: - find out how this affects result
             .prefix(10)
         
-        completion(Array(valuableSurfaceResults), statusText)
+        return Array(valuableSurfaceResults)
     }
+    
+    private func getActualTriangularOpportunitiesDict(
+        from surfaceResults: [SurfaceResult],
+        currentOpportunities: [String: TriangularOpportunity],
+        profitPercent: Double
+    ) -> [String: TriangularOpportunity] {
+        var updatedOpportunities: [String: TriangularOpportunity] = currentOpportunities
+        
+        let extraResults = surfaceResults
+            .filter { $0.profitPercent >= profitPercent && $0.profitPercent < 100 }
+            .sorted(by: { $0.profitPercent > $1.profitPercent })
+        
+        // Add/Update
+        extraResults.forEach { surfaceResult in
+            if let currentOpportunity = updatedOpportunities[surfaceResult.contractsDescription] {
+                currentOpportunity.surfaceResults.append(surfaceResult)
+            } else {
+                updatedOpportunities[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, firstSurfaceResult: surfaceResult, updateMessageId: nil)
+            }
+        }
+        
+        // Remove opportunities, which became old
+        return updatedOpportunities.filter {
+            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 30
+        }
+    }
+    
+    func alertUsers(
+        for mode: Mode,
+        stockExchange: StockExchange,
+        with triangularOpportunitiesDict: [String: TriangularOpportunity]
+    ) {
+        // NOTE: - sending all Alerts to specific people separatly
+        // TODO: - make a separate mode for autotrading - currently trading only for admin
+        guard let adminUserInfo = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
+            .first(where: { $0.userId == 204251205 }) else { return }
+        
+        switch stockExchange {
+        case .binance:
+            triangularOpportunitiesDict.forEach { _, opportunity in
+                Task {
+                    guard opportunity.autotradeCicle == .pending else { return }
+                    
+                    let tradedTriangularOpportunity = try await autoTradingService.handle(
+                        opportunity: opportunity,
+                        for: adminUserInfo
+                    )
+                    let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
+                    if let updateMessageId = opportunity.updateMessageId {
+                        let editParams: TGEditMessageTextParams = .init(
+                            chatId: .chat(adminUserInfo.chatId),
+                            messageId: updateMessageId,
+                            inlineMessageId: nil,
+                            text: text
+                        )
+                        self.printQueue.addOperation {
+                            do {
+                                _ = try self.bot.editMessageText(params: editParams)
+                                print(self.printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
+                                return
+                            } catch (let botError) {
+                                self.logger.report(error: botError)
+                            }
+                        }
+                    } else {
+                        self.printQueue.addOperation { [weak self] in
+                            guard let self = self else { return }
+                            
+                            do {
+                                let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
+                                sendMessageFuture.whenComplete { result in
+                                    do {
+                                        let triangularOpportunityMessageId = try result.get().messageId
+                                        opportunity.updateMessageId = triangularOpportunityMessageId
+                                        return
+                                    } catch (let botError) {
+                                        self.logger.report(error: botError)
+                                        return
+                                    }
+                                }
+                                print(self.printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: self.printBreakTime)
+                            } catch (let botError) {
+                                self.logger.report(error: botError)
+                            }
+                        }
+                    }
+                }
+            }
+        case .bybit, .huobi:
+            triangularOpportunitiesDict.forEach { _, opportunity in
+                let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
+                if let updateMessageId = opportunity.updateMessageId {
+                    let editParams: TGEditMessageTextParams = .init(
+                        chatId: .chat(adminUserInfo.chatId),
+                        messageId: updateMessageId,
+                        inlineMessageId: nil,
+                        text: text
+                    )
+                    self.printQueue.addOperation {
+                        do {
+                            _ = try self.bot.editMessageText(params: editParams)
+                            print(self.printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: self.printBreakTime)
+                        } catch (let botError) {
+                            self.logger.report(error: botError)
+                        }
+                    }
+                } else {
+                    self.printQueue.addOperation {
+                        do {
+                            let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text))
+                            sendMessageFuture.whenComplete { result in
+                                do {
+                                    let triangularOpportunityMessageId = try result.get().messageId
+                                    opportunity.updateMessageId = triangularOpportunityMessageId
+                                } catch (let botError) {
+                                    self.logger.report(error: botError)
+                                }
+                            }
+                            print(self.printQueue.operationCount)
+                            Thread.sleep(forTimeInterval: self.printBreakTime)
+                        } catch (let botError) {
+                            self.logger.report(error: botError)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
 }
 
-// MARK: - Calculate Triangular's Surface Rate
+// MARK: - Helpers
 
-private extension ArbitrageCalculatorService {
+private extension TickersUpdaterJob {
     
     func calculateSurfaceRate(
         bookTickersDict: ThreadSafeDictionary<String, BookTicker>,
@@ -230,7 +272,7 @@ private extension ArbitrageCalculatorService {
         let pairAComissionMultipler = getCommissionMultipler(symbol: pairA, stockExchange: stockExchange)
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB, stockExchange: stockExchange)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC, stockExchange: stockExchange)
-
+        
         guard let pairABookTicker = bookTickersDict[triangular.pairA],
               let aAsk = Double(pairABookTicker.askPrice),
               let aBid = Double(pairABookTicker.bidPrice),
@@ -243,7 +285,7 @@ private extension ArbitrageCalculatorService {
             logger.critical("No prices for \(triangular)")
             return nil
         }
-
+        
         // Set direction and loop through
         let directionsList: [SurfaceResult.Direction] = [.forward, .reverse]
         for direction in directionsList {

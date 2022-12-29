@@ -18,6 +18,9 @@ public func configure(_ app: Application) throws {
     
     try app.queues.use(.redis(url: "redis://127.0.0.1:6379"))
     
+    let binanceTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
+    app.queues.schedule(binanceTickersUpdaterJob).everySecond()
+    
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
     
