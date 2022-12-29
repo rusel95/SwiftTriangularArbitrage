@@ -29,16 +29,11 @@ final class DefaultBotHandlers {
     private let autoTradingService: AutoTradingService
     private let bot: TGBotPrtcl
     
-    private let printQueue = OperationQueue()
-    private let printBreakTime: TimeInterval = 3.0
-    
     // MARK: - METHODS
     
     init(bot: TGBotPrtcl, app: Application) {
         self.bot = bot
         self.autoTradingService = AutoTradingService(app: app)
-        
-        printQueue.maxConcurrentOperationCount = 1
     }
     
     func addHandlers(app: Vapor.Application) {
@@ -128,8 +123,8 @@ private extension DefaultBotHandlers {
     // MARK: /start_alerting
     
     func commandStartAlertingHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: [BotMode.alerting.command]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id, let user = update.message?.from else { return }
+        let handler = TGCommandHandler(commands: [BotMode.alerting.command]) { update, bot in
+            guard let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
             do {
                 let text = """
@@ -140,7 +135,7 @@ private extension DefaultBotHandlers {
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             } catch (let botError) {
-                self.logger.report(error: botError)
+                print(botError.localizedDescription)
             }
         }
         bot.connection.dispatcher.add(handler)
@@ -161,8 +156,8 @@ private extension DefaultBotHandlers {
     // MARK: /status
     
     func commandTestHandler(app: Vapor.Application, bot: TGBotPrtcl) {
-        let handler = TGCommandHandler(commands: ["/status"]) { [weak self] update, bot in
-            guard let self = self, let chatId = update.message?.chat.id else { return }
+        let handler = TGCommandHandler(commands: ["/status"]) { update, bot in
+            guard let chatId = update.message?.chat.id else { return }
             
             let usersDescription = UsersInfoProvider.shared.getAllUsersInfo()
                 .map { $0.description }
@@ -172,165 +167,10 @@ private extension DefaultBotHandlers {
             do {
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
             } catch (let botError) {
-                self.logger.report(error: botError)
+                print(botError.localizedDescription)
             }
         }
         bot.connection.dispatcher.add(handler)
-    }
-    
-}
-
-// MARK: - Helpers
-
-private extension DefaultBotHandlers {
-    
-    func getActualTriangularOpportunities(
-        from surfaceResults: [SurfaceResult],
-        currentOpportunities: [String: TriangularOpportunity],
-        profitPercent: Double
-    ) -> [String: TriangularOpportunity] {
-        var updatedOpportunities: [String: TriangularOpportunity] = currentOpportunities
-        
-        let extraResults = surfaceResults
-            .filter { $0.profitPercent >= profitPercent && $0.profitPercent < 100 }
-            .sorted(by: { $0.profitPercent > $1.profitPercent })
-        
-        // Add/Update
-        extraResults.forEach { surfaceResult in
-            if let currentOpportunity = updatedOpportunities[surfaceResult.contractsDescription] {
-                currentOpportunity.surfaceResults.append(surfaceResult)
-            } else {
-                updatedOpportunities[surfaceResult.contractsDescription] = TriangularOpportunity(contractsDescription: surfaceResult.contractsDescription, firstSurfaceResult: surfaceResult, updateMessageId: nil)
-            }
-        }
-        
-        // Remove opportunities, which became old
-        return updatedOpportunities.filter {
-            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 30
-        }
-    }
-    
-    func alertUsers(
-        for mode: Mode,
-        stockExchange: StockExchange,
-        with triangularOpportunitiesDict: [String: TriangularOpportunity]
-    ) {
-        // NOTE: - sending all Alerts to specific people separatly
-        UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting).forEach { userInfo in
-            switch stockExchange {
-            case .binance:
-                // TODO: - make a separate mode for autotrading - currently trading only for admin
-                guard userInfo.userId == 204251205 else { return }
-                
-                triangularOpportunitiesDict.forEach { _, opportunity in
-                    guard opportunity.autotradeCicle == .pending else { return }
-                    
-                    Task {
-                        do {
-                            let tradedTriangularOpportunity = try await autoTradingService.handle(
-                                opportunity: opportunity,
-                                for: userInfo
-                            )
-                            let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                            if let updateMessageId = opportunity.updateMessageId {
-                                let editParams: TGEditMessageTextParams = .init(
-                                    chatId: .chat(userInfo.chatId),
-                                    messageId: updateMessageId,
-                                    inlineMessageId: nil,
-                                    text: text
-                                )
-                                self.printQueue.addOperation { [weak self] in
-                                    guard let self = self else { return }
-                                    
-                                    do {
-                                        _ = try self.bot.editMessageText(params: editParams)
-                                        print(self.printQueue.operationCount)
-                                        Thread.sleep(forTimeInterval: self.printBreakTime)
-                                    } catch (let botError) {
-                                        self.logger.report(error: botError)
-                                    }
-                                }
-                            } else {
-                                self.printQueue.addOperation { [weak self] in
-                                    guard let self = self else { return }
-                                    
-                                    do {
-                                        let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                        sendMessageFuture.whenComplete { result in
-                                            do {
-                                                let triangularOpportunityMessageId = try result.get().messageId
-                                                opportunity.updateMessageId = triangularOpportunityMessageId
-                                            } catch (let botError) {
-                                                self.logger.report(error: botError)
-                                            }
-                                        }
-                                        print(self.printQueue.operationCount)
-                                        Thread.sleep(forTimeInterval: self.printBreakTime)
-                                    } catch (let botError) {
-                                        self.logger.report(error: botError)
-                                    }
-                                }
-                            }
-                        } catch {
-                            self.printQueue.addOperation { [weak self] in
-                                guard let self = self else { return }
-                                
-                                do {
-                                    let _ = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: error.localizedDescription))
-                                    print(self.printQueue.operationCount)
-                                    Thread.sleep(forTimeInterval: self.printBreakTime)
-                                } catch (let botError) {
-                                    self.logger.report(error: botError)
-                                }
-                            }
-                        }
-                    }
-                }
-            case .bybit, .huobi:
-                triangularOpportunitiesDict.forEach { _, opportunity in
-                    let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
-                    if let updateMessageId = opportunity.updateMessageId {
-                        let editParams: TGEditMessageTextParams = .init(
-                            chatId: .chat(userInfo.chatId),
-                            messageId: updateMessageId,
-                            inlineMessageId: nil,
-                            text: text
-                        )
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do {
-                                _ = try self.bot.editMessageText(params: editParams)
-                                print(self.printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    } else {
-                        self.printQueue.addOperation { [weak self] in
-                            guard let self = self else { return }
-                            
-                            do {
-                                let sendMessageFuture = try self.bot.sendMessage(params: .init(chatId: .chat(userInfo.chatId), text: text))
-                                sendMessageFuture.whenComplete { result in
-                                    do {
-                                        let triangularOpportunityMessageId = try result.get().messageId
-                                        opportunity.updateMessageId = triangularOpportunityMessageId
-                                    } catch (let botError) {
-                                        self.logger.report(error: botError)
-                                    }
-                                }
-                                print(self.printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: self.printBreakTime)
-                            } catch (let botError) {
-                                self.logger.report(error: botError)
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     
 }
