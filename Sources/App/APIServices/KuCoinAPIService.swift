@@ -47,13 +47,17 @@ final class KuCoinAPIService {
     }
     
     struct TickersResponse: Codable {
+        let code: String
+        let data: TickersData
+    }
+
+    struct TickersData: Codable {
         let time: UInt
         let ticker: [Ticker]
     }
-
+    
     struct Ticker: Codable {
         let symbol: String
-        let symbolName: String  // Name of trading pairs, it would change after renaming
         let buy: String         // bestAsk
         let sell: String        // bestBid
     }
@@ -75,7 +79,7 @@ final class KuCoinAPIService {
         let url: URL = URL(string: "https://api.kucoin.com/api/v1/market/allTickers")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode(TickersResponse.self, from: data)
-        return response.ticker.map {
+        return response.data.ticker.map {
             BookTicker(
                 symbol: $0.symbol,
                 bidPrice: $0.sell,

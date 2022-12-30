@@ -90,7 +90,11 @@ enum StockExchange: String {
         case .exmo:
             return -0.1
         case .kucoin:
-            return -0.2
+#if DEBUG
+            return -0.1
+#else
+            return 0.0
+#endif
         }
     }
     
