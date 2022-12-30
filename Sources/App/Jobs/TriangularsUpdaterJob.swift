@@ -10,8 +10,6 @@ import Vapor
 import telegram_vapor_bot
 import CoreFoundation
 
-let binanceTradeableSymbolsDictKey = "binanceTradeableSymbolsDictKey"
-
 struct TriangularsUpdaterJob: ScheduledJob {
     
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
@@ -47,7 +45,7 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 .filter { $0.status == .trading && $0.isSpotTradingAllowed }
 
             let tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
-            try await app.caches.memory.set(binanceTradeableSymbolsDictKey, to: tradeableSymbolsDict)
+            try await app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: tradeableSymbolsDict)
             let tradeableSymbolsEndcodedData = try JSONEncoder().encode(tradeableSymbolsDict)
             try tradeableSymbolsEndcodedData.write(to: URL.binanceTradeableDict)
             

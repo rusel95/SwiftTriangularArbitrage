@@ -37,7 +37,7 @@ final class AutoTradingService {
         do {
             let jsonData = try Data(contentsOf: URL.binanceTradeableDict)
             let tradeableSymbolsDict = try JSONDecoder().decode([String: BinanceAPIService.Symbol].self, from: jsonData)
-            let _ = app.caches.memory.set(binanceTradeableSymbolsDictKey, to: tradeableSymbolsDict)
+            let _ = app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: tradeableSymbolsDict)
         } catch {
             print(error.localizedDescription)
         }
@@ -136,7 +136,7 @@ final class AutoTradingService {
     // MARK: - First Trade
     
     private func getFirstTradeQuantity(for opportunity: TriangularOpportunity) async throws -> Double {
-        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(Constants.Binance.tradeableSymbolsDictKey,
                                                                          as: [String: BinanceAPIService.Symbol].self),
             let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
             throw TradingError.customError(description: "\nError: No contract1 at tradeable symbols")
@@ -240,7 +240,7 @@ final class AutoTradingService {
     ) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(Constants.Binance.tradeableSymbolsDictKey,
                                                                          as: [String: BinanceAPIService.Symbol].self),
               let secondSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract2],
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
@@ -338,7 +338,7 @@ final class AutoTradingService {
     ) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(Constants.Binance.tradeableSymbolsDictKey,
                                                                          as: [String: BinanceAPIService.Symbol].self),
               let thirdSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract3],
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
