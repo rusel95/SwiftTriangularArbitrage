@@ -150,8 +150,6 @@ final class HuobiAPIService {
     
     static let shared = HuobiAPIService()
     
-    private var logger = Logger(label: "api.huobi")
-    
     // MARK: - METHODS
     
     func getSymbolsInfo() async throws -> [Symbol] {

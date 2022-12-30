@@ -205,8 +205,6 @@ final class BinanceAPIService {
     
     static let shared = BinanceAPIService()
     
-    private var logger = Logger(label: "api.binance")
-    
     private lazy var apiKeyString: String = {
         String.readToken(from: "binanceAPIKey")
     }()
