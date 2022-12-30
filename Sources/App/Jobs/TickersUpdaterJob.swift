@@ -88,10 +88,10 @@ struct TickersUpdaterJob: ScheduledJob {
     private func handleByBitStockExchange() async throws {
         let tickers = try await ByBitAPIService.shared.getTickers()
             .map { BookTicker(symbol: $0.symbol,
-                              bidPrice: $0.bidPrice,
-                              bidQty: "0",
                               askPrice: $0.askPrice,
-                              askQty: "0") }
+                              askQty: "0",
+                              bidPrice: $0.bidPrice,
+                              bidQty: "0") }
         let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
         
         let standartTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.standartTriangularsStorageURL)
@@ -131,11 +131,15 @@ struct TickersUpdaterJob: ScheduledJob {
     
     private func handleHuobiStockExchange() async throws {
         let tickers = try await HuobiAPIService.shared.getTickers()
-            .map { BookTicker(symbol: $0.symbol,
-                              bidPrice: String($0.bid),
-                              bidQty: String($0.bidSize),
-                              askPrice: String($0.ask),
-                              askQty: String($0.askSize)) }
+            .map {
+                BookTicker(
+                    symbol: $0.symbol,
+                    askPrice: String($0.ask),
+                    askQty: String($0.askSize),
+                    bidPrice: String($0.bid),
+                    bidQty: String($0.bidSize)
+                )
+            }
         let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
         
         let standartTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.standartTriangularsStorageURL)
@@ -240,7 +244,7 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.kucoin.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.exmo.standartTriangularOpportunityDictKey,
+        try await app.caches.memory.set(StockExchange.kucoin.standartTriangularOpportunityDictKey,
                                         to: newStandartTriangularOpportunitiesDict)
         alertUsers(for: .standart, stockExchange: .kucoin, with: newStandartTriangularOpportunitiesDict)
         

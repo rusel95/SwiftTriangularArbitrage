@@ -82,10 +82,10 @@ final class KuCoinAPIService {
         return response.data.ticker.map {
             BookTicker(
                 symbol: $0.symbol,
-                bidPrice: $0.sell,
-                bidQty: "0",
-                askPrice: $0.buy,
-                askQty: "0"
+                askPrice: $0.sell,
+                askQty: "0",
+                bidPrice: $0.buy,
+                bidQty: "0"
             )
         }
     }

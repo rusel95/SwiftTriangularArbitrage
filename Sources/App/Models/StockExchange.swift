@@ -11,6 +11,33 @@ enum StockExchange: String {
     
     case binance, bybit, huobi, exmo, kucoin
     
+    var interestingProfit: Double {
+        switch self {
+        case .binance:
+#if DEBUG
+            return 0.1
+#else
+            return 0.3
+#endif
+        case .bybit:
+            return -0.2
+        case .huobi:
+#if DEBUG
+            return 0.1
+#else
+            return 0.2
+#endif
+        case .exmo:
+            return -0.1
+        case .kucoin:
+#if DEBUG
+            return 0.1
+#else
+            return 0.1
+#endif
+        }
+    }
+    
     var standartTriangularOpportunityDictKey: String {
         switch self {
         case .binance:
@@ -68,33 +95,6 @@ enum StockExchange: String {
             return URL.documentsDirectory.appendingPathComponent("exmo_stable_triangulars")
         case .kucoin:
             return URL.documentsDirectory.appendingPathComponent("kucoin_stable_triangulars")
-        }
-    }
-    
-    var interestingProfit: Double {
-        switch self {
-        case .binance:
-#if DEBUG
-            return 0.1
-#else
-            return 0.3
-#endif
-        case .bybit:
-            return -0.2
-        case .huobi:
-#if DEBUG
-            return 0.1
-#else
-            return 0.2
-#endif
-        case .exmo:
-            return -0.1
-        case .kucoin:
-#if DEBUG
-            return -0.1
-#else
-            return 0.0
-#endif
         }
     }
     

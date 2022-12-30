@@ -10,10 +10,10 @@ import Foundation
 struct BookTicker: Codable {
     
     let symbol: String
-    let bidPrice: String
-    let bidQty: String
     let askPrice: String
     let askQty: String
+    let bidPrice: String
+    let bidQty: String
     
     var sellPrice: Double? {
         Double(bidPrice)

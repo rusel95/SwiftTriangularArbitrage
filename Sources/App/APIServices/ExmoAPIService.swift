@@ -85,10 +85,10 @@ final class ExmoAPIService {
         return response.map {
             BookTicker(
                 symbol: $0.key,
-                bidPrice: $0.value.buyPrice,
-                bidQty: "0",
                 askPrice: $0.value.sellPrice,
-                askQty: "0"
+                askQty: "0",
+                bidPrice: $0.value.buyPrice,
+                bidQty: "0"
             )
         }
     }
