@@ -71,4 +71,27 @@ enum StockExchange: String {
         }
     }
     
+    var interestingProfit: Double {
+        switch self {
+        case .binance:
+#if DEBUG
+            return 0.1
+#else
+            return 0.3
+#endif
+        case .bybit:
+            return -0.2
+        case .huobi:
+#if DEBUG
+            return 0.1
+#else
+            return 0.2
+#endif
+        case .exmo:
+            return -0.1
+        case .kucoin:
+            return -0.2
+        }
+    }
+    
 }

@@ -43,7 +43,7 @@ public func configure(_ app: Application) throws {
     app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(45)
     
     let kucoinTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
-    app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(15)
+    app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(49)
     
     try app.queues.startScheduledJobs()
     

@@ -123,7 +123,9 @@ struct TriangularsUpdaterJob: ScheduledJob {
     
     private func handleKuCoinStockExchange() async throws {
         do {
-            let tradeableSymbols = try await KucoinAPIService.shared.getSymbols()
+            let tradeableSymbols = try await KuCoinAPIService.shared
+                .getSymbols()
+                .filter { $0.enableTrading }
             
             let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
             

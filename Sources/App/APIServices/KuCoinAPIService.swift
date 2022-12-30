@@ -1,5 +1,5 @@
 //
-//  KucoinAPIService.swift
+//  KuCoinAPIService.swift
 //  
 //
 //  Created by Ruslan on 30.12.2022.
@@ -11,7 +11,7 @@ import FoundationNetworking
 #endif
 import Logging
 
-final class KucoinAPIService {
+final class KuCoinAPIService {
     
     // MARK: - STRUCTS
     
@@ -60,7 +60,7 @@ final class KucoinAPIService {
 
     // MARK: - PROPERTIES
     
-    static let shared = ExmoAPIService()
+    static let shared = KuCoinAPIService()
     
     // MARK: - METHODS
     

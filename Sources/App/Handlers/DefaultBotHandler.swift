@@ -63,7 +63,7 @@ private extension DefaultBotHandlers {
                 
             /standart_triangular_arbitraging - classic triangular arbitrage opportinitites on Binance;
             /stable_triangular_arbitraging - stable coin on the start and end of arbitrage;
-            /start_alerting - mode for alerting about extra opportunities (>= \(Mode.stable.interestingProfitabilityPercent)% of profit)
+            /start_alerting - mode for alerting about extra opportunities (>= \(StockExchange.binance.interestingProfit)% of profit)
             /stop - all modes are suspended;
             Hope to be useful
             
@@ -125,11 +125,7 @@ private extension DefaultBotHandlers {
             guard let chatId = update.message?.chat.id, let user = update.message?.from else { return }
             
             do {
-                let text = """
-                    Starting alerting about:
-                    [Standart] opportunities with >= \(Mode.standart.interestingProfitabilityPercent)% profitability
-                    [Stable] opportunities with >= \(Mode.stable.interestingProfitabilityPercent)% profitability
-                    """
+                let text = "Starting alerting about opportunities with >= \(StockExchange.binance.interestingProfit)% profitability"
                 _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 UsersInfoProvider.shared.handleModeSelected(chatId: chatId, user: user, mode: .alerting)
             } catch (let botError) {
