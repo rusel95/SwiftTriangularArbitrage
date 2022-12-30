@@ -190,7 +190,7 @@ struct TickersUpdaterJob: ScheduledJob {
         let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: -0.1
+            profitPercent: 0.0
         )
         try await app.caches.memory.set(StockExchange.exmo.standartTriangularOpportunityDictKey,
                                         to: newStandartTriangularOpportunitiesDict)
@@ -210,7 +210,7 @@ struct TickersUpdaterJob: ScheduledJob {
         let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: stableSurfaceResults,
             currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: -0.1
+            profitPercent: 0.0
         )
         try await app.caches.memory.set(StockExchange.exmo.stableTriangularOpportunityDictKey,
                                         to: newStableTriangularOpportunitiesDict)
@@ -733,7 +733,7 @@ private extension TickersUpdaterJob {
         case .huobi:
             comissionPercent = 0.15
         case .exmo:
-            comissionPercent = 0.0
+            comissionPercent = 0.3
         }
         return 1.0 - comissionPercent / 100.0
     }
