@@ -11,6 +11,10 @@ struct Constants {
     
     struct Binance {
         static let tradeableSymbolsDictKey = "binanceTradeableSymbolsDictKey"
+        
+        static var tradeableDictURL: URL {
+            URL.documentsDirectory.appendingPathComponent("binance_tradeable_dict")
+        }
     }
     
 }

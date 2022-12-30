@@ -64,7 +64,7 @@ final class ExmoAPIService {
     // MARK: - METHODS
     
     func getSymbols() async throws -> [Symbol] {
-        let url: URL = URL(string: "https://api.kuna.io/v3/markets")!
+        let url: URL = URL(string: "https://api.exmo.com/v1.1/pair_settings")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode([String: SymbolInfo].self, from: data)
         return response.map {

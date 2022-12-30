@@ -5,10 +5,6 @@
 //  Created by Ruslan on 29.12.2022.
 //
 
-enum StockExchange: String {
-    case binance, bybit, huobi
-}
-
 enum Mode {
     
     case standart

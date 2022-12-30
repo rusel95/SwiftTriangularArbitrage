@@ -30,9 +30,7 @@ struct TickersUpdaterJob: ScheduledJob {
         switch stockEchange {
         case .binance:
             self.autoTradingService = AutoTradingService(app: app)
-        case .bybit:
-            self.autoTradingService = nil
-        case .huobi:
+        default:
             self.autoTradingService = nil
         }
         
@@ -50,6 +48,8 @@ struct TickersUpdaterJob: ScheduledJob {
                 try await handleByBitStockExchange()
             case .huobi:
                 try await handleHuobiStockExchange()
+            case .exmo:
+                break
             }
         }
     }
@@ -57,7 +57,7 @@ struct TickersUpdaterJob: ScheduledJob {
     private func handleBinanceStockExchange() async throws {
         let tickers = try await BinanceAPIService.shared.getAllBookTickers()
         let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
-        let triangularsJsonData = try Data(contentsOf: URL.binanceStandartTriangularsStorageURL)
+        let triangularsJsonData = try Data(contentsOf: StockExchange.binance.standartTriangularsStorageURL)
         let triangulars = try JSONDecoder().decode([Triangular].self, from: triangularsJsonData)
         let standartSurfaceResults = getSurfaceResults(
             mode: .standart,
@@ -92,7 +92,7 @@ struct TickersUpdaterJob: ScheduledJob {
                               askQty: "0") }
         let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
         
-        let standartTriangularsJsonData = try Data(contentsOf: URL.bybitStandartTriangularsStorageURL)
+        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.standartTriangularsStorageURL)
         let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
         let standartSurfaceResults = getSurfaceResults(
             mode: .standart,
@@ -109,7 +109,7 @@ struct TickersUpdaterJob: ScheduledJob {
         try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
         alertUsers(for: .standart, stockExchange: .bybit, with: newStandartTriangularOpportunitiesDict)
         
-        let stableTriangularsJsonData = try Data(contentsOf: URL.bybitStableTriangularsStorageURL)
+        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
         let stableSurfaceResults = getSurfaceResults(
             mode: .stable,
@@ -136,7 +136,7 @@ struct TickersUpdaterJob: ScheduledJob {
                               askQty: String($0.askSize)) }
         let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
         
-        let standartTriangularsJsonData = try Data(contentsOf: URL.huobiStandartTriangularsStorageURL)
+        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.standartTriangularsStorageURL)
         let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
         let standartSurfaceResults = getSurfaceResults(
             mode: .standart,
@@ -153,7 +153,7 @@ struct TickersUpdaterJob: ScheduledJob {
         try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
         alertUsers(for: .standart, stockExchange: .huobi, with: newStandartTriangularOpportunitiesDict)
         
-        let stableTriangularsJsonData = try Data(contentsOf: URL.huobiStableTriangularsStorageURL)
+        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
         let stableSurfaceResults = getSurfaceResults(
             mode: .stable,
@@ -279,7 +279,7 @@ private extension TickersUpdaterJob {
                     }
                 }
             }
-        case .bybit, .huobi:
+        default:
             triangularOpportunitiesDict.forEach { _, opportunity in
                 let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
                 if let updateMessageId = opportunity.updateMessageId {
@@ -686,6 +686,8 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.0
         case .huobi:
             comissionPercent = 0.15
+        case .exmo:
+            comissionPercent = 0.0
         }
         return 1.0 - comissionPercent / 100.0
     }

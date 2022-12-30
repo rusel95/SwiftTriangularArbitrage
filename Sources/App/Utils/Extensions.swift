@@ -29,33 +29,6 @@ extension URL {
         URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
     }
     
-    static var binanceTradeableDict: URL {
-        URL.documentsDirectory.appendingPathComponent("binance_tradeable_dict")
-    }
-    
-    static var binanceStandartTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("binance_standart_triangulars")
-    }
-    static var binanceStableTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("binance_stable_triangulars")
-    }
-    
-    static var bybitStandartTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("bybit_standart_triangulars")
-    }
-    
-    static var bybitStableTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("bybit_stable_triangulars")
-    }
-    
-    static var huobiStandartTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
-    }
-    
-    static var huobiStableTriangularsStorageURL: URL {
-        URL.documentsDirectory.appendingPathComponent("huobi_stable_triangulars")
-    }
-    
 }
 
 

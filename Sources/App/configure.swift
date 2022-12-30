@@ -36,6 +36,9 @@ public func configure(_ app: Application) throws {
     let huobiTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
     app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(50)
     
+    let exmoTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
+    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(34)
+    
     try app.queues.startScheduledJobs()
     
     let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)

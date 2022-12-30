@@ -35,7 +35,7 @@ final class AutoTradingService {
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
         
         do {
-            let jsonData = try Data(contentsOf: URL.binanceTradeableDict)
+            let jsonData = try Data(contentsOf: Constants.Binance.tradeableDictURL)
             let tradeableSymbolsDict = try JSONDecoder().decode([String: BinanceAPIService.Symbol].self, from: jsonData)
             let _ = app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: tradeableSymbolsDict)
         } catch {

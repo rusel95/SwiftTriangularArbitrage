@@ -34,6 +34,8 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 try await handleBybitStockExchange()
             case .huobi:
                 try await handleHuobiStockExchange()
+            case .exmo:
+                try await handleExmoStockExchange()
             }
         }
     }
@@ -47,15 +49,15 @@ struct TriangularsUpdaterJob: ScheduledJob {
             let tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
             try await app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: tradeableSymbolsDict)
             let tradeableSymbolsEndcodedData = try JSONEncoder().encode(tradeableSymbolsDict)
-            try tradeableSymbolsEndcodedData.write(to: URL.binanceTradeableDict)
+            try tradeableSymbolsEndcodedData.write(to: Constants.Binance.tradeableDictURL)
             
             let binanceStandartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
             let standartTriangularsEndcodedData = try JSONEncoder().encode(binanceStandartTriangulars)
-            try standartTriangularsEndcodedData.write(to: URL.binanceStandartTriangularsStorageURL)
+            try standartTriangularsEndcodedData.write(to: StockExchange.binance.standartTriangularsStorageURL)
 
             let binanceStableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
             let stableTriangularsEndcodedData = try JSONEncoder().encode(binanceStableTriangulars)
-            try stableTriangularsEndcodedData.write(to: URL.binanceStableTriangularsStorageURL)
+            try stableTriangularsEndcodedData.write(to: StockExchange.binance.stableTriangularsStorageURL)
         } catch {
             print(error.localizedDescription)
         }
@@ -69,13 +71,13 @@ struct TriangularsUpdaterJob: ScheduledJob {
             let bybitStandartTriangulars = standartTriangularsInfo.triangulars
             
             let standartTriangularsEndcodedData = try JSONEncoder().encode(bybitStandartTriangulars)
-            try standartTriangularsEndcodedData.write(to: URL.bybitStandartTriangularsStorageURL)
+            try standartTriangularsEndcodedData.write(to: StockExchange.bybit.standartTriangularsStorageURL)
             
             let stableTriangularsInfo = self.getTriangularsInfo(for: .stable, from: bybitTradeableSymbols)
             let bybitStableTriangulars = stableTriangularsInfo.triangulars
             
             let stableTriangularsEndcodedData = try JSONEncoder().encode(bybitStableTriangulars)
-            try stableTriangularsEndcodedData.write(to: URL.bybitStableTriangularsStorageURL)
+            try stableTriangularsEndcodedData.write(to: StockExchange.bybit.stableTriangularsStorageURL)
         } catch {
             print(error.localizedDescription)
         }
@@ -90,12 +92,30 @@ struct TriangularsUpdaterJob: ScheduledJob {
             let huobiStandartTriangulars = getTriangularsInfo(for: .standart, from: huobiTradeableSymbols).triangulars
             
             let standartTriangularsEndcodedData = try JSONEncoder().encode(huobiStandartTriangulars)
-            try standartTriangularsEndcodedData.write(to: URL.huobiStandartTriangularsStorageURL)
+            try standartTriangularsEndcodedData.write(to: StockExchange.huobi.standartTriangularsStorageURL)
             
             let huobiStableTriangulars = getTriangularsInfo(for: .stable, from: huobiTradeableSymbols).triangulars
             
             let stableTriangularsEndcodedData = try JSONEncoder().encode(huobiStableTriangulars)
-            try stableTriangularsEndcodedData.write(to: URL.huobiStableTriangularsStorageURL)
+            try stableTriangularsEndcodedData.write(to: StockExchange.huobi.stableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func handleExmoStockExchange() async throws {
+        do {
+            let tradeableSymbols = try await ExmoAPIService.shared.getSymbols()
+            
+            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
+            
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
+            try standartTriangularsEndcodedData.write(to: StockExchange.exmo.standartTriangularsStorageURL)
+            
+            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
+            
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+            try stableTriangularsEndcodedData.write(to: StockExchange.exmo.stableTriangularsStorageURL)
         } catch {
             print(error.localizedDescription)
         }
