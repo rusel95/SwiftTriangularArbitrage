@@ -50,6 +50,8 @@ struct TickersUpdaterJob: ScheduledJob {
                 try await handleHuobiStockExchange()
             case .exmo:
                 try await handleExmoStockExchange()
+            case .kucoin:
+                break
             }
         }
     }
@@ -732,6 +734,8 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.0
         case .huobi:
             comissionPercent = 0.15
+        case .kucoin:
+            comissionPercent = 0.1
         case .exmo:
             comissionPercent = 0.3
         }

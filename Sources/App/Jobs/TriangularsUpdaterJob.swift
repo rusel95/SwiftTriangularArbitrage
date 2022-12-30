@@ -36,6 +36,8 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 try await handleHuobiStockExchange()
             case .exmo:
                 try await handleExmoStockExchange()
+            case .kucoin:
+                try await handleKuCoinStockExchange()
             }
         }
     }
@@ -114,6 +116,24 @@ struct TriangularsUpdaterJob: ScheduledJob {
             
             let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
             try stableTriangularsEndcodedData.write(to: StockExchange.exmo.stableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func handleKuCoinStockExchange() async throws {
+        do {
+            let tradeableSymbols = try await KucoinAPIService.shared.getSymbols()
+            
+            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
+            
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
+            try standartTriangularsEndcodedData.write(to: StockExchange.kucoin.standartTriangularsStorageURL)
+            
+            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
+            
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+            try stableTriangularsEndcodedData.write(to: StockExchange.kucoin.stableTriangularsStorageURL)
         } catch {
             print(error.localizedDescription)
         }

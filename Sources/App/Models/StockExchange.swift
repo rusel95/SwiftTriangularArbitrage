@@ -9,7 +9,7 @@ import Foundation
 
 enum StockExchange: String {
     
-    case binance, bybit, huobi, exmo
+    case binance, bybit, huobi, exmo, kucoin
     
     var standartTriangularOpportunityDictKey: String {
         switch self {
@@ -21,6 +21,8 @@ enum StockExchange: String {
             return "HuobiStandartTriangularOpportunitiesDict"
         case .exmo:
             return "ExmoStandartTriangularOpportunitiesDict"
+        case .kucoin:
+            return "KuCoinStandartTriangularOpportunitiesDict"
         }
     }
     
@@ -34,6 +36,8 @@ enum StockExchange: String {
             return "HuobiStableTriangularOpportunitiesDict"
         case .exmo:
             return "ExmoStableTriangularOpportunitiesDict"
+        case .kucoin:
+            return "KuCoinStableTriangularOpportunitiesDict"
         }
     }
     
@@ -47,6 +51,8 @@ enum StockExchange: String {
             return URL.documentsDirectory.appendingPathComponent("huobi_standart_triangulars")
         case .exmo:
             return URL.documentsDirectory.appendingPathComponent("exmo_standart_triangulars")
+        case .kucoin:
+            return URL.documentsDirectory.appendingPathComponent("kucoin_standart_triangulars")
         }
     }
     
@@ -60,6 +66,8 @@ enum StockExchange: String {
             return URL.documentsDirectory.appendingPathComponent("huobi_stable_triangulars")
         case .exmo:
             return URL.documentsDirectory.appendingPathComponent("exmo_stable_triangulars")
+        case .kucoin:
+            return URL.documentsDirectory.appendingPathComponent("kucoin_stable_triangulars")
         }
     }
     
