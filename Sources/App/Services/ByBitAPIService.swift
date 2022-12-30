@@ -70,7 +70,8 @@ final class ByBitAPIService {
     }
 
     // MARK: - Result
-    struct Symbol: Codable {
+    struct Symbol: TradeableSymbol {
+        
         let name, alias, status, baseCurrency: String
         let quoteCurrency: String
         let priceScale: Int
@@ -79,6 +80,10 @@ final class ByBitAPIService {
         let leverageFilter: LeverageFilter
         let priceFilter: PriceFilter
         let lotSizeFilter: LotSizeFilter
+        
+        var symbol: String { name }
+        var baseAsset: String { baseCurrency }
+        var quoteAsset: String { quoteCurrency }
 
         enum CodingKeys: String, CodingKey {
             case name, alias, status

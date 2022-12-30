@@ -7,10 +7,10 @@
 
 import Foundation
 
-struct TradeableSymbol: Codable {
+protocol TradeableSymbol: Codable {
     
-    let symbol: String
-    let baseAsset: String
-    let quoteAsset: String
+    var symbol: String { get }
+    var baseAsset: String { get }
+    var quoteAsset: String { get }
     
 }

@@ -18,9 +18,7 @@ final class AutoTradingService {
     
     private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
-    private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB")
     
-    private var tradeableSymbolsDict = ThreadSafeDictionary<String, BinanceAPIService.Symbol>()
     private var bookTickersDict: [String: BookTicker] = [:]
     
     private let minimumQuantityMultipler: Double = 1.5
@@ -28,19 +26,20 @@ final class AutoTradingService {
     private let maximalDifferencePercent = 0.2
     
     private let emailService: EmailAPIService
+    private let app: Application
     
     init(app: Application) {
+        self.app = app
         self.emailService = EmailAPIService(app: app)
         
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
         
-        Jobs.add(interval: .seconds(7200)) {
-            Task {
-                let tradeableSymbols = try await BinanceAPIService.shared.getExchangeInfo()
-                    .filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                    
-                self.tradeableSymbolsDict = ThreadSafeDictionary(dict: tradeableSymbols.toDictionary(with: { $0.symbol }))
-            }
+        do {
+            let jsonData = try Data(contentsOf: URL.binanceTradeableDict)
+            let tradeableSymbolsDict = try JSONDecoder().decode([String: BinanceAPIService.Symbol].self, from: jsonData)
+            let _ = app.caches.memory.set(binanceTradeableSymbolsDictKey, to: tradeableSymbolsDict)
+        } catch {
+            print(error.localizedDescription)
         }
     }
     
@@ -56,10 +55,7 @@ final class AutoTradingService {
         case .pending:
             opportunity.autotradeCicle = .depthCheck
             // NOTE: - remove handling only first - handle all of opportunities
-            guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0),
-                  forbiddenAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0) == false,
-                  forbiddenAssetsToTrade.contains(opportunity.firstSurfaceResult.swap1) == false,
-                  forbiddenAssetsToTrade.contains(opportunity.firstSurfaceResult.swap2) == false else {
+            guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0) else {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append("\nNot tradeable opportunity\n")
                 return opportunity
@@ -139,8 +135,10 @@ final class AutoTradingService {
     
     // MARK: - First Trade
     
-    private func getFirstTradeQuantity(for opportunity: TriangularOpportunity) throws -> Double {
-        guard let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
+    private func getFirstTradeQuantity(for opportunity: TriangularOpportunity) async throws -> Double {
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+                                                                         as: [String: BinanceAPIService.Symbol].self),
+            let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
             throw TradingError.customError(description: "\nError: No contract1 at tradeable symbols")
         }
         
@@ -187,7 +185,7 @@ final class AutoTradingService {
     private func handleFirstTrade(for opportunity: TriangularOpportunity) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        let trade1Quantity = try getFirstTradeQuantity(for: opportunity)
+        let trade1Quantity = try await getFirstTradeQuantity(for: opportunity)
         opportunity.autotradeCicle = .trading
         
         let firstOrderResponse = try await BinanceAPIService.shared.newOrder(
@@ -242,7 +240,9 @@ final class AutoTradingService {
     ) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        guard let secondSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract2],
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+                                                                         as: [String: BinanceAPIService.Symbol].self),
+              let secondSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract2],
               let lotSizeMinQtyString = secondSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let tickSizeString = secondSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
@@ -338,7 +338,9 @@ final class AutoTradingService {
     ) async throws -> TriangularOpportunity {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        guard let thirdSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract3],
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(binanceTradeableSymbolsDictKey,
+                                                                         as: [String: BinanceAPIService.Symbol].self),
+              let thirdSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract3],
               let lotSizeMinQtyString = thirdSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString),
               let tickSizeString = thirdSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,

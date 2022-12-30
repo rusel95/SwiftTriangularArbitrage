@@ -144,13 +144,13 @@ final class BinanceAPIService {
     }
     
     // MARK: - Symbol
-    struct Symbol: Codable {
+    struct Symbol: TradeableSymbol {
         let symbol: String
         let status: Status
         let baseAsset: String
-        let baseAssetPrecision: Int
+//        let baseAssetPrecision: Int
         let quoteAsset: String
-        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
+//        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
         //        let orderTypes: [OrderType]
         //        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
         //        let cancelReplaceAllowed: String
@@ -188,14 +188,14 @@ final class BinanceAPIService {
         case trailingDelta = "TRAILING_DELTA"
     }
     
-    enum Permission: String, Codable {
-        case leveraged = "LEVERAGED"
-        case margin = "MARGIN"
-        case spot = "SPOT"
-        case trdGrp003 = "TRD_GRP_003"
-        case trdGrp004 = "TRD_GRP_004"
-    }
-    
+//    enum Permission: String, Codable {
+//        case leveraged = "LEVERAGED"
+//        case margin = "MARGIN"
+//        case spot = "SPOT"
+//        case trdGrp003 = "TRD_GRP_003"
+//        case trdGrp004 = "TRD_GRP_004"
+//    }
+//    
     enum Status: String, Codable {
         case statusBREAK = "BREAK"
         case trading = "TRADING"

@@ -27,18 +27,18 @@ public func configure(_ app: Application) throws {
     let huobiTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
     app.queues.schedule(huobiTickersUpdaterJob).everySecond()
     
-    let binanceTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .binance)
-    app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
+    let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
+    app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(1)
     
-    let bybitTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .bybit)
+    let bybitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
     app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(30)
     
-    let huobiTriangularUpdaterJob = TriangularsUpdaterJob(bot: TGBot.shared, stockEchange: .huobi)
+    let huobiTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
     app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(50)
     
     try app.queues.startScheduledJobs()
     
-    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared, app: app)
+    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
     defaultBotHandlers.addHandlers(app: app)
     
     try routes(app)

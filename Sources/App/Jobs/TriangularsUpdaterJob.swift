@@ -10,16 +10,19 @@ import Vapor
 import telegram_vapor_bot
 import CoreFoundation
 
+let binanceTradeableSymbolsDictKey = "binanceTradeableSymbolsDictKey"
+
 struct TriangularsUpdaterJob: ScheduledJob {
     
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
+    private let app: Application
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
     
-    
-    init(bot: TGBotPrtcl, stockEchange: StockExchange) {
+    init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
+        self.app = app
         self.bot = bot
         self.stockExchange = stockEchange
     }
@@ -42,8 +45,12 @@ struct TriangularsUpdaterJob: ScheduledJob {
             let tradeableSymbols = try await BinanceAPIService()
                 .getExchangeInfo()
                 .filter { $0.status == .trading && $0.isSpotTradingAllowed }
-                .map { TradeableSymbol(symbol: $0.symbol, baseAsset: $0.baseAsset, quoteAsset: $0.quoteAsset) }
 
+            let tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
+            try await app.caches.memory.set(binanceTradeableSymbolsDictKey, to: tradeableSymbolsDict)
+            let tradeableSymbolsEndcodedData = try JSONEncoder().encode(tradeableSymbolsDict)
+            try tradeableSymbolsEndcodedData.write(to: URL.binanceTradeableDict)
+            
             let binanceStandartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
             let standartTriangularsEndcodedData = try JSONEncoder().encode(binanceStandartTriangulars)
             try standartTriangularsEndcodedData.write(to: URL.binanceStandartTriangularsStorageURL)
@@ -58,9 +65,7 @@ struct TriangularsUpdaterJob: ScheduledJob {
     
     private func handleBybitStockExchange() async throws {
         do {
-            let bybitTradeableSymbols = try await ByBitAPIService()
-                .getSymbols()
-                .map { TradeableSymbol(symbol: $0.name, baseAsset: $0.baseCurrency, quoteAsset: $0.quoteCurrency) }
+            let bybitTradeableSymbols = try await ByBitAPIService().getSymbols()
             
             let standartTriangularsInfo = self.getTriangularsInfo(for: .standart, from: bybitTradeableSymbols)
             let bybitStandartTriangulars = standartTriangularsInfo.triangulars
@@ -83,9 +88,6 @@ struct TriangularsUpdaterJob: ScheduledJob {
             let huobiTradeableSymbols = try await HuobiAPIService.shared
                 .getSymbolsInfo()
                 .filter { $0.state == .online }
-                .map { TradeableSymbol(symbol: $0.symbol,
-                                       baseAsset: $0.baseCurrency,
-                                       quoteAsset: $0.quoteCurrency) }
             
             let huobiStandartTriangulars = getTriangularsInfo(for: .standart, from: huobiTradeableSymbols).triangulars
             

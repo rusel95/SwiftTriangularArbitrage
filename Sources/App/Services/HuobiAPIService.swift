@@ -17,10 +17,11 @@ final class HuobiAPIService {
     
     struct SymbolsReponse: Codable {
         let status: String
-        let data: [SymbolInfo]
+        let data: [Symbol]
     }
 
-    struct SymbolInfo: Codable {
+    struct Symbol: TradeableSymbol {
+        
         let baseCurrency: String
         let quoteCurrency: String
         let pricePrecision, amountPrecision: Int
@@ -43,6 +44,9 @@ final class HuobiAPIService {
         let rebalThreshold: Int?
         let initNav: Double?
 
+        var baseAsset: String { baseCurrency }
+        var quoteAsset: String { quoteCurrency }
+        
         enum CodingKeys: String, CodingKey {
             case baseCurrency = "base-currency"
             case quoteCurrency = "quote-currency"
@@ -150,7 +154,7 @@ final class HuobiAPIService {
     
     // MARK: - METHODS
     
-    func getSymbolsInfo() async throws -> [SymbolInfo] {
+    func getSymbolsInfo() async throws -> [Symbol] {
         let url: URL = URL(string: "https://api.huobi.pro/v1/common/symbols")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode(SymbolsReponse.self, from: data)

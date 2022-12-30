@@ -20,14 +20,22 @@ struct TickersUpdaterJob: ScheduledJob {
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let logger = Logger(label: "logger.artitrage.triangular")
     
-    private let autoTradingService: AutoTradingService
+    private let autoTradingService: AutoTradingService?
     private let printQueue = OperationQueue()
     private let printBreakTime: TimeInterval = 3.0
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.app = app
-        self.autoTradingService = AutoTradingService(app: app)
+        switch stockEchange {
+        case .binance:
+            self.autoTradingService = AutoTradingService(app: app)
+        case .bybit:
+            self.autoTradingService = nil
+        case .huobi:
+            self.autoTradingService = nil
+        }
+        
         self.bot = bot
         self.stockExchange = stockEchange
         printQueue.maxConcurrentOperationCount = 1
@@ -232,7 +240,7 @@ private extension TickersUpdaterJob {
         case .binance:
             triangularOpportunitiesDict.forEach { _, opportunity in
                 Task {
-                    guard opportunity.autotradeCicle == .pending else { return }
+                    guard opportunity.autotradeCicle == .pending, let autoTradingService = autoTradingService else { return }
                     
                     let tradedTriangularOpportunity = try await autoTradingService.handle(
                         opportunity: opportunity,

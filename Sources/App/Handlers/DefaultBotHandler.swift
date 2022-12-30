@@ -26,14 +26,12 @@ final class DefaultBotHandlers {
     private var huobiStandartTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
     private var huobiStableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
-    private let autoTradingService: AutoTradingService
     private let bot: TGBotPrtcl
     
     // MARK: - METHODS
     
-    init(bot: TGBotPrtcl, app: Application) {
+    init(bot: TGBotPrtcl) {
         self.bot = bot
-        self.autoTradingService = AutoTradingService(app: app)
     }
     
     func addHandlers(app: Vapor.Application) {

@@ -29,6 +29,10 @@ extension URL {
         URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)")
     }
     
+    static var binanceTradeableDict: URL {
+        URL.documentsDirectory.appendingPathComponent("binance_tradeable_dict")
+    }
+    
     static var binanceStandartTriangularsStorageURL: URL {
         URL.documentsDirectory.appendingPathComponent("binance_standart_triangulars")
     }
