@@ -49,7 +49,7 @@ struct TickersUpdaterJob: ScheduledJob {
             case .huobi:
                 try await handleHuobiStockExchange()
             case .exmo:
-                break
+                try await handleExmoStockExchange()
             }
         }
     }
@@ -169,6 +169,52 @@ struct TickersUpdaterJob: ScheduledJob {
         )
         try await app.caches.memory.set(stableDictKey, to: newStableTriangularOpportunitiesDict)
         alertUsers(for: .stable, stockExchange: .huobi, with: newStableTriangularOpportunitiesDict)
+    }
+    
+    private func handleExmoStockExchange() async throws {
+        let latestBookTickersDict = try await ExmoAPIService.shared
+            .getBookTickers()
+            .toDictionary(with: { $0.symbol })
+        
+        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.exmo.standartTriangularsStorageURL)
+        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+        let standartSurfaceResults = getSurfaceResults(
+            mode: .standart,
+            triangulars: standartTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.exmo.standartTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
+        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: standartSurfaceResults,
+            currentOpportunities: standartTriangularOpportunitiesDict,
+            profitPercent: -0.1
+        )
+        try await app.caches.memory.set(StockExchange.exmo.standartTriangularOpportunityDictKey,
+                                        to: newStandartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .exmo, with: newStandartTriangularOpportunitiesDict)
+        
+        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.exmo.stableTriangularsStorageURL)
+        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
+        let stableSurfaceResults = getSurfaceResults(
+            mode: .stable,
+            triangulars: stableTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.exmo.stableTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
+        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: stableSurfaceResults,
+            currentOpportunities: stableTriangularOpportunitiesDict,
+            profitPercent: -0.1
+        )
+        try await app.caches.memory.set(StockExchange.exmo.stableTriangularOpportunityDictKey,
+                                        to: newStableTriangularOpportunitiesDict)
+        alertUsers(for: .stable, stockExchange: .exmo, with: newStableTriangularOpportunitiesDict)
     }
     
 }

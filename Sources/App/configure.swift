@@ -27,17 +27,20 @@ public func configure(_ app: Application) throws {
     let huobiTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
     app.queues.schedule(huobiTickersUpdaterJob).everySecond()
     
+    let exmoTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
+    app.queues.schedule(exmoTickersUpdaterJob).everySecond()
+    
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(1)
     
     let bybitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
-    app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(30)
+    app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(10)
     
     let huobiTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
-    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(50)
+    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(30)
     
     let exmoTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
-    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(34)
+    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(45)
     
     try app.queues.startScheduledJobs()
     

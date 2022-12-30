@@ -11,6 +11,32 @@ enum StockExchange: String {
     
     case binance, bybit, huobi, exmo
     
+    var standartTriangularOpportunityDictKey: String {
+        switch self {
+        case .binance:
+            return "BinanceStandartTriangularOpportunitiesDict"
+        case .bybit:
+            return "ByBitStandartTriangularOpportunitiesDict"
+        case .huobi:
+            return "HuobiStandartTriangularOpportunitiesDict"
+        case .exmo:
+            return "ExmoStandartTriangularOpportunitiesDict"
+        }
+    }
+    
+    var stableTriangularOpportunityDictKey: String {
+        switch self {
+        case .binance:
+            return "BinanceStableTriangularOpportunitiesDict"
+        case .bybit:
+            return "ByBitStableTriangularOpportunitiesDict"
+        case .huobi:
+            return "HuobiStableTriangularOpportunitiesDict"
+        case .exmo:
+            return "ExmoStableTriangularOpportunitiesDict"
+        }
+    }
+    
     var standartTriangularsStorageURL: URL {
         switch self {
         case .binance:
