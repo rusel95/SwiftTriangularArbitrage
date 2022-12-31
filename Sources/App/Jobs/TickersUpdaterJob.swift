@@ -67,14 +67,17 @@ struct TickersUpdaterJob: ScheduledJob {
             bookTickersDict: latestBookTickersDict
         )
         
-        let standartDictKey = "BinanceStandartTriangularOpportunitiesDict"
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.binance.standartTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
         let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.binance.interestingProfit
         )
-        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(StockExchange.binance.standartTriangularOpportunityDictKey,
+                                        to: newStandartTriangularOpportunitiesDict)
         alertUsers(
             for: .standart,
             stockExchange: .binance,
@@ -101,14 +104,17 @@ struct TickersUpdaterJob: ScheduledJob {
             triangulars: standartTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        let standartDictKey = "ByBitStandartTriangularOpportunitiesDict"
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.bybit.standartTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
         let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.bybit.interestingProfit
         )
-        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(StockExchange.bybit.standartTriangularOpportunityDictKey,
+                                        to: newStandartTriangularOpportunitiesDict)
         alertUsers(for: .standart, stockExchange: .bybit, with: newStandartTriangularOpportunitiesDict)
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.stableTriangularsStorageURL)
@@ -118,14 +124,17 @@ struct TickersUpdaterJob: ScheduledJob {
             triangulars: stableTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        let stableDictKey = "ByBitStableTriangularOpportunitiesDict"
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(stableDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.bybit.stableTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
         let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: stableSurfaceResults,
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.bybit.interestingProfit
         )
-        try await app.caches.memory.set(stableDictKey, to: newStableTriangularOpportunitiesDict)
+        try await app.caches.memory.set(StockExchange.bybit.stableTriangularOpportunityDictKey,
+                                        to: newStableTriangularOpportunitiesDict)
         alertUsers(for: .stable, stockExchange: .bybit, with: newStableTriangularOpportunitiesDict)
     }
     
@@ -149,14 +158,19 @@ struct TickersUpdaterJob: ScheduledJob {
             triangulars: standartTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        let standartDictKey = "HuobiStandartTriangularOpportunitiesDict"
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(standartDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.huobi.standartTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
         let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: standartSurfaceResults,
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.huobi.interestingProfit
         )
-        try await app.caches.memory.set(standartDictKey, to: newStandartTriangularOpportunitiesDict)
+        try await app.caches.memory.set(
+            StockExchange.huobi.standartTriangularOpportunityDictKey,
+            to: newStandartTriangularOpportunitiesDict
+        )
         alertUsers(for: .standart, stockExchange: .huobi, with: newStandartTriangularOpportunitiesDict)
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.stableTriangularsStorageURL)
@@ -166,14 +180,16 @@ struct TickersUpdaterJob: ScheduledJob {
             triangulars: stableTriangulars,
             bookTickersDict: latestBookTickersDict
         )
-        let stableDictKey = "HuobiStableTriangularOpportunitiesDict"
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(stableDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(StockExchange.huobi.stableTriangularOpportunityDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
         let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
             from: stableSurfaceResults,
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.huobi.interestingProfit
         )
-        try await app.caches.memory.set(stableDictKey, to: newStableTriangularOpportunitiesDict)
+        try await app.caches.memory.set(
+            StockExchange.huobi.stableTriangularOpportunityDictKey,
+            to: newStableTriangularOpportunitiesDict
+        )
         alertUsers(for: .stable, stockExchange: .huobi, with: newStableTriangularOpportunitiesDict)
     }
     
@@ -784,10 +800,10 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.0
         case .huobi:
             comissionPercent = 0.15
-        case .kucoin:
-            comissionPercent = 0.1
         case .exmo:
             comissionPercent = 0.3
+        case .kucoin:
+            comissionPercent = 0.1
         }
         return 1.0 - comissionPercent / 100.0
     }

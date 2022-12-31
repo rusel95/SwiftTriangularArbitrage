@@ -31,7 +31,7 @@ enum StockExchange: String {
             return -0.1
         case .kucoin:
 #if DEBUG
-            return 0.1
+            return 0.2
 #else
             return 0.25
 #endif
