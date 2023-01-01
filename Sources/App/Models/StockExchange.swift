@@ -33,7 +33,7 @@ enum StockExchange: String {
 #if DEBUG
             return 0.2
 #else
-            return 0.25
+            return 0.4
 #endif
         }
     }
