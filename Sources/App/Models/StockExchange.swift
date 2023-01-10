@@ -36,7 +36,7 @@ enum StockExchange: String {
             return 1
 #endif
         case .kraken:
-            return 0.0
+            return -0.2
         }
     }
     

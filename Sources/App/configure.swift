@@ -33,6 +33,9 @@ public func configure(_ app: Application) throws {
     let kucoinTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
     app.queues.schedule(kucoinTickersUpdaterJob).everySecond()
     
+    let krakenTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
+    app.queues.schedule(krakenTickersUpdaterJob).everySecond()
+    
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(50)
     

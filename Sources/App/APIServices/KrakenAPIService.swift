@@ -45,6 +45,18 @@ final class KrakenAPIService {
         case online = "online"
         case reduceOnly = "reduce_only"
     }
+    
+    struct TickersResponse: Codable {
+        let result: [String: Ticker]
+    }
+
+    struct Ticker: Codable {
+        let a, b, c, v: [String]
+        let p: [String]
+        let t: [Int]
+        let l, h: [String]
+        let o: String
+    }
 
     // MARK: - PROPERTIES
     
@@ -59,19 +71,19 @@ final class KrakenAPIService {
         return response.result.map { $0.value }
     }
     
-//    func getBookTickers() async throws -> [BookTicker] {
-//        let url: URL = URL(string: "https://api.kucoin.com/api/v1/market/allTickers")!
-//        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-//        let response = try JSONDecoder().decode(TickersResponse.self, from: data)
-//        return response.data.ticker.map {
-//            BookTicker(
-//                symbol: $0.symbol,
-//                askPrice: $0.sell,
-//                askQty: "0",
-//                bidPrice: $0.buy,
-//                bidQty: "0"
-//            )
-//        }
-//    }
+    func getBookTickers() async throws -> [BookTicker] {
+        let url: URL = URL(string: "https://api.kraken.com/0/public/Ticker")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        let response = try JSONDecoder().decode(TickersResponse.self, from: data)
+        return response.result.map { key, value in
+            return BookTicker(
+                symbol: key,
+                askPrice: value.a.first ?? "0.0",
+                askQty: value.a.last ?? "0.0",
+                bidPrice: value.b.first ?? "0.0",
+                bidQty: value.b.last ?? "0.0"
+            )
+        }
+    }
    
 }

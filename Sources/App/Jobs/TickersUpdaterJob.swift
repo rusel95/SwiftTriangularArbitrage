@@ -53,7 +53,7 @@ struct TickersUpdaterJob: ScheduledJob {
             case .kucoin:
                 try await handleKuCoinStockExchange()
             case .kraken:
-                break
+                try await handleKrakenStockExchange()
             }
         }
     }
@@ -285,6 +285,52 @@ struct TickersUpdaterJob: ScheduledJob {
         try await app.caches.memory.set(StockExchange.kucoin.stableTriangularOpportunityDictKey,
                                         to: newStableTriangularOpportunitiesDict)
         alertUsers(for: .stable, stockExchange: .kucoin, with: newStableTriangularOpportunitiesDict)
+    }
+    
+    private func handleKrakenStockExchange() async throws {
+        let latestBookTickersDict = try await KrakenAPIService.shared
+            .getBookTickers()
+            .toDictionary(with: { $0.symbol } )
+        
+        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.kraken.standartTriangularsStorageURL)
+        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
+        let standartSurfaceResults = getSurfaceResults(
+            mode: .standart,
+            triangulars: standartTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.kraken.standartTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
+        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: standartSurfaceResults,
+            currentOpportunities: standartTriangularOpportunitiesDict,
+            profitPercent: StockExchange.kraken.interestingProfit
+        )
+        try await app.caches.memory.set(StockExchange.kraken.standartTriangularOpportunityDictKey,
+                                        to: newStandartTriangularOpportunitiesDict)
+        alertUsers(for: .standart, stockExchange: .kraken, with: newStandartTriangularOpportunitiesDict)
+        
+        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.kraken.stableTriangularsStorageURL)
+        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
+        let stableSurfaceResults = getSurfaceResults(
+            mode: .stable,
+            triangulars: stableTriangulars,
+            bookTickersDict: latestBookTickersDict
+        )
+        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
+            StockExchange.kraken.stableTriangularOpportunityDictKey,
+            as: TriangularOpportinitiesDict.self
+        ) ?? TriangularOpportinitiesDict()
+        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+            from: stableSurfaceResults,
+            currentOpportunities: stableTriangularOpportunitiesDict,
+            profitPercent: StockExchange.kraken.interestingProfit
+        )
+        try await app.caches.memory.set(StockExchange.kraken.stableTriangularOpportunityDictKey,
+                                        to: newStableTriangularOpportunitiesDict)
+        alertUsers(for: .stable, stockExchange: .kraken, with: newStableTriangularOpportunitiesDict)
     }
     
 }
