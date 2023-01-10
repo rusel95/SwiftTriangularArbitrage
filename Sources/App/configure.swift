@@ -48,6 +48,9 @@ public func configure(_ app: Application) throws {
     let kucoinTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
     app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(0)
     
+    let krakenTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
+    app.queues.schedule(krakenTriangularUpdaterJob).hourly().at(27)
+    
     try app.queues.startScheduledJobs()
     
     let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)

@@ -38,6 +38,8 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 try await handleExmoStockExchange()
             case .kucoin:
                 try await handleKuCoinStockExchange()
+            case .kraken:
+                try await handleKrakenStockExchange()
             }
         }
     }
@@ -136,6 +138,26 @@ struct TriangularsUpdaterJob: ScheduledJob {
             
             let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
             try stableTriangularsEndcodedData.write(to: StockExchange.kucoin.stableTriangularsStorageURL)
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func handleKrakenStockExchange() async throws {
+        do {
+            let tradeableSymbols = try await KrakenAPIService.shared
+                .getSymbols()
+                .filter { $0.status == .online }
+            
+            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
+            
+            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
+            try standartTriangularsEndcodedData.write(to: StockExchange.kraken.standartTriangularsStorageURL)
+            
+            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
+            
+            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+            try stableTriangularsEndcodedData.write(to: StockExchange.kraken.stableTriangularsStorageURL)
         } catch {
             print(error.localizedDescription)
         }

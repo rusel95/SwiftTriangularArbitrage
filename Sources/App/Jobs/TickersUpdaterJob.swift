@@ -52,6 +52,8 @@ struct TickersUpdaterJob: ScheduledJob {
                 try await handleExmoStockExchange()
             case .kucoin:
                 try await handleKuCoinStockExchange()
+            case .kraken:
+                break
             }
         }
     }
@@ -804,6 +806,8 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.3
         case .kucoin:
             comissionPercent = 0.1
+        case .kraken:
+            comissionPercent = 0.26
         }
         return 1.0 - comissionPercent / 100.0
     }
