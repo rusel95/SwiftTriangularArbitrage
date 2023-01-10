@@ -43,17 +43,41 @@ struct TickersUpdaterJob: ScheduledJob {
         return context.eventLoop.performWithTask {
             switch stockExchange {
             case .binance:
-                try await handleBinanceStockExchange()
+                do {
+                    try await handleBinanceStockExchange()
+                } catch {
+                    print(error.localizedDescription)
+                }
             case .bybit:
-                try await handleByBitStockExchange()
+                do {
+                    try await handleByBitStockExchange()
+                } catch {
+                    print(error.localizedDescription)
+                }
             case .huobi:
-                try await handleHuobiStockExchange()
+                do {
+                    try await handleHuobiStockExchange()
+                } catch {
+                    print(error.localizedDescription)
+                }
             case .exmo:
-                try await handleExmoStockExchange()
+                do {
+                    try await handleExmoStockExchange()
+                }  catch {
+                    print(error.localizedDescription)
+                }
             case .kucoin:
-                try await handleKuCoinStockExchange()
+                do {
+                    try await handleKuCoinStockExchange()
+                } catch {
+                    print(error.localizedDescription)
+                }
             case .kraken:
-                try await handleKrakenStockExchange()
+                do {
+                    try await handleKrakenStockExchange()
+                } catch {
+                    print(error.localizedDescription)
+                }
             }
         }
     }
@@ -510,13 +534,13 @@ private extension TickersUpdaterJob {
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB, stockExchange: stockExchange)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC, stockExchange: stockExchange)
         
-        guard let pairABookTicker = bookTickersDict[triangular.pairA],
+        guard let pairABookTicker = bookTickersDict[triangular.pairA] ?? bookTickersDict["\(aBase)\(aQuote)"],
               let aAsk = Double(pairABookTicker.askPrice),
               let aBid = Double(pairABookTicker.bidPrice),
-              let pairBBookTicker = bookTickersDict[triangular.pairB],
+              let pairBBookTicker = bookTickersDict[triangular.pairB] ?? bookTickersDict["\(bBase)\(bQuote)"],
               let bAsk = Double(pairBBookTicker.askPrice),
               let bBid = Double(pairBBookTicker.bidPrice),
-              let pairCBookTicker = bookTickersDict[triangular.pairC],
+              let pairCBookTicker = bookTickersDict[triangular.pairC] ?? bookTickersDict["\(cBase)\(cQuote)"],
               let cAsk = Double(pairCBookTicker.askPrice),
               let cBid = Double(pairCBookTicker.bidPrice) else {
             logger.critical("No prices for \(triangular)")

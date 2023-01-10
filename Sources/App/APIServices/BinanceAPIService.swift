@@ -130,10 +130,6 @@ final class BinanceAPIService {
     
     // MARK: - Welcome
     struct ExchangeInfoResponse: Codable {
-        //        let timezone: String
-        //        let serverTime: Int
-        //        let rateLimits: [RateLimit]
-        //        let exchangeFilters: [JSONAny]
         let symbols: [Symbol]
     }
     
@@ -148,16 +144,9 @@ final class BinanceAPIService {
         let symbol: String
         let status: Status
         let baseAsset: String
-//        let baseAssetPrecision: Int
         let quoteAsset: String
-//        let quotePrecision, quoteAssetPrecision, baseCommissionPrecision, quoteCommissionPrecision: Int
-        //        let orderTypes: [OrderType]
-        //        let icebergAllowed, ocoAllowed, quoteOrderQtyMarketAllowed, allowTrailingStop: Bool
-        //        let cancelReplaceAllowed: String
         let isSpotTradingAllowed: Bool
-        //        let isMarginTradingAllowed: Bool
         let filters: [Filter]
-        //        let permissions: [Permission]
     }
     
     // MARK: - Filter
@@ -187,15 +176,7 @@ final class BinanceAPIService {
         case priceFilter = "PRICE_FILTER"
         case trailingDelta = "TRAILING_DELTA"
     }
-    
-//    enum Permission: String, Codable {
-//        case leveraged = "LEVERAGED"
-//        case margin = "MARGIN"
-//        case spot = "SPOT"
-//        case trdGrp003 = "TRD_GRP_003"
-//        case trdGrp004 = "TRD_GRP_004"
-//    }
-//    
+     
     enum Status: String, Codable {
         case statusBREAK = "BREAK"
         case trading = "TRADING"
