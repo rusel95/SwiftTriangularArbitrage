@@ -27,139 +27,47 @@ struct TriangularsUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            switch stockExchange {
-            case .binance:
-                try await handleBinanceStockExchange()
-            case .bybit:
-                try await handleBybitStockExchange()
-            case .huobi:
-                try await handleHuobiStockExchange()
-            case .exmo:
-                try await handleExmoStockExchange()
-            case .kucoin:
-                try await handleKuCoinStockExchange()
-            case .kraken:
-                try await handleKrakenStockExchange()
+            do {
+                let tradeableSymbols: [TradeableSymbol]
+                
+                switch stockExchange {
+                case .binance:
+                    let binanceTradeableSymbols = try await BinanceAPIService().getExchangeInfo()
+                        .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                    tradeableSymbols = binanceTradeableSymbols
+                    let binanceTradeableSymbolsDict: [String: BinanceAPIService.Symbol] = binanceTradeableSymbols.toDictionary(with: { $0.symbol })
+                    try await app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: binanceTradeableSymbolsDict)
+                    let tradeableSymbolsEndcodedData = try JSONEncoder().encode(binanceTradeableSymbolsDict)
+                    try tradeableSymbolsEndcodedData.write(to: Constants.Binance.tradeableDictURL)
+                case .bybit:
+                    tradeableSymbols = try await ByBitAPIService().getSymbols()
+                        .filter { $0.status == "Trading" }
+                case .huobi:
+                    tradeableSymbols = try await HuobiAPIService.shared
+                        .getSymbolsInfo()
+                        .filter { $0.state == .online }
+                case .exmo:
+                    tradeableSymbols = try await ExmoAPIService.shared.getSymbols()
+                case .kucoin:
+                    tradeableSymbols = try await KuCoinAPIService.shared
+                        .getSymbols()
+                        .filter { $0.enableTrading }
+                case .kraken:
+                    tradeableSymbols = try await KrakenAPIService.shared
+                        .getSymbols()
+                        .filter { $0.status == .online }
+                }
+                
+                let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
+                let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
+                try standartTriangularsEndcodedData.write(to: stockExchange.standartTriangularsStorageURL)
+                
+                let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
+                let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+                try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
+            } catch {
+                print(error.localizedDescription)
             }
-        }
-    }
-    
-    private func handleBinanceStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await BinanceAPIService().getExchangeInfo()
-                .filter { $0.status == .trading && $0.isSpotTradingAllowed }
-
-            let tradeableSymbolsDict = tradeableSymbols.toDictionary(with: { $0.symbol })
-            try await app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: tradeableSymbolsDict)
-            let tradeableSymbolsEndcodedData = try JSONEncoder().encode(tradeableSymbolsDict)
-            try tradeableSymbolsEndcodedData.write(to: Constants.Binance.tradeableDictURL)
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.binance.standartTriangularsStorageURL)
-
-            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.binance.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    private func handleBybitStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await ByBitAPIService().getSymbols()
-                .filter { $0.status == "Trading" }
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.bybit.standartTriangularsStorageURL)
-            
-            let stableTriangulars = self.getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.bybit.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    private func handleHuobiStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await HuobiAPIService.shared
-                .getSymbolsInfo()
-                .filter { $0.state == .online }
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.huobi.standartTriangularsStorageURL)
-            
-            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.huobi.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    private func handleExmoStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await ExmoAPIService.shared.getSymbols()
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.exmo.standartTriangularsStorageURL)
-            
-            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.exmo.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    private func handleKuCoinStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await KuCoinAPIService.shared
-                .getSymbols()
-                .filter { $0.enableTrading }
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.kucoin.standartTriangularsStorageURL)
-            
-            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.kucoin.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    private func handleKrakenStockExchange() async throws {
-        do {
-            let tradeableSymbols = try await KrakenAPIService.shared
-                .getSymbols()
-                .filter { $0.status == .online }
-            
-            let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
-            
-            let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
-            try standartTriangularsEndcodedData.write(to: StockExchange.kraken.standartTriangularsStorageURL)
-            
-            let stableTriangulars = getTriangularsInfo(for: .stable, from: tradeableSymbols).triangulars
-            
-            let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-            try stableTriangularsEndcodedData.write(to: StockExchange.kraken.stableTriangularsStorageURL)
-        } catch {
-            print(error.localizedDescription)
         }
     }
     
@@ -313,7 +221,7 @@ private extension TriangularsUpdaterJob {
             duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
             statusText = "[Stable Triangulars] Calculated \(triangulars.count) from \(tradeableSymbols.count) symbols in \(duration) seconds (last updated \(Date().readableDescription))"
         }
-
+        
         return (Array(triangulars), statusText)
     }
     

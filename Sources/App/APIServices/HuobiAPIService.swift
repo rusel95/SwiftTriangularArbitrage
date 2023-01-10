@@ -24,25 +24,8 @@ final class HuobiAPIService {
         
         let baseCurrency: String
         let quoteCurrency: String
-        let pricePrecision, amountPrecision: Int
-//        let symbolPartition: SymbolPartition
         let symbol: String
         let state: State
-        let valuePrecision: Int
-        let minOrderAmt, maxOrderAmt, minOrderValue, limitOrderMinOrderAmt: Double
-        let limitOrderMaxOrderAmt, limitOrderMaxBuyAmt, limitOrderMaxSellAmt, buyLimitMustLessThan: Double
-        let sellLimitMustGreaterThan, sellMarketMinOrderAmt, sellMarketMaxOrderAmt, buyMarketMaxOrderValue: Double
-        let marketSellOrderRateMustLessThan, marketBuyOrderRateMustLessThan: Double
-        let leverageRatio: Double?
-        let superMarginLeverageRatio, fundingLeverageRatio: Int?
-        let apiTrading: APITrading
-        let tags: Tags?
-        let maxOrderValue: Int?
-        let underlying: String?
-        let mgmtFeeRate: Double?
-        let chargeTime, rebalTime: String?
-        let rebalThreshold: Int?
-        let initNav: Double?
 
         var baseAsset: String { baseCurrency }
         var quoteAsset: String { quoteCurrency }
@@ -50,37 +33,7 @@ final class HuobiAPIService {
         enum CodingKeys: String, CodingKey {
             case baseCurrency = "base-currency"
             case quoteCurrency = "quote-currency"
-            case pricePrecision = "price-precision"
-            case amountPrecision = "amount-precision"
-//            case symbolPartition = "symbol-partition"
             case symbol, state
-            case valuePrecision = "value-precision"
-            case minOrderAmt = "min-order-amt"
-            case maxOrderAmt = "max-order-amt"
-            case minOrderValue = "min-order-value"
-            case limitOrderMinOrderAmt = "limit-order-min-order-amt"
-            case limitOrderMaxOrderAmt = "limit-order-max-order-amt"
-            case limitOrderMaxBuyAmt = "limit-order-max-buy-amt"
-            case limitOrderMaxSellAmt = "limit-order-max-sell-amt"
-            case buyLimitMustLessThan = "buy-limit-must-less-than"
-            case sellLimitMustGreaterThan = "sell-limit-must-greater-than"
-            case sellMarketMinOrderAmt = "sell-market-min-order-amt"
-            case sellMarketMaxOrderAmt = "sell-market-max-order-amt"
-            case buyMarketMaxOrderValue = "buy-market-max-order-value"
-            case marketSellOrderRateMustLessThan = "market-sell-order-rate-must-less-than"
-            case marketBuyOrderRateMustLessThan = "market-buy-order-rate-must-less-than"
-            case leverageRatio = "leverage-ratio"
-            case superMarginLeverageRatio = "super-margin-leverage-ratio"
-            case fundingLeverageRatio = "funding-leverage-ratio"
-            case apiTrading = "api-trading"
-            case tags
-            case maxOrderValue = "max-order-value"
-            case underlying
-            case mgmtFeeRate = "mgmt-fee-rate"
-            case chargeTime = "charge-time"
-            case rebalTime = "rebal-time"
-            case rebalThreshold = "rebal-threshold"
-            case initNav = "init-nav"
         }
     }
 

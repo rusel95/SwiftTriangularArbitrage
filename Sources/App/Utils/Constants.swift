@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Constants.swift
 //  
 //
 //  Created by Ruslan on 30.12.2022.
