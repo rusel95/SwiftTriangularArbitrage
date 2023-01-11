@@ -1,5 +1,5 @@
 //
-//  Opportunity.swift
+//  TriangularOpportunity.swift
 //  
 //
 //  Created by Ruslan on 19.09.2022.
@@ -49,7 +49,7 @@ final class TriangularOpportunity: Codable, CustomStringConvertible, Hashable {
     }
     
     static func == (lhs: TriangularOpportunity, rhs: TriangularOpportunity) -> Bool {
-        return lhs.contractsDescription == rhs.contractsDescription
+        lhs.contractsDescription == rhs.contractsDescription
     }
     
     func hash(into hasher: inout Hasher) {
