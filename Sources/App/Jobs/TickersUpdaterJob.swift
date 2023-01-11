@@ -20,20 +20,14 @@ struct TickersUpdaterJob: ScheduledJob {
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let logger = Logger(label: "logger.artitrage.triangular")
     
-    private let autoTradingService: AutoTradingService?
+    private let autoTradingService: AutoTradingService
     private let printQueue = OperationQueue()
     private let printBreakTime: TimeInterval = 3.0
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.app = app
-        switch stockEchange {
-        case .binance:
-            self.autoTradingService = AutoTradingService(app: app)
-        default:
-            self.autoTradingService = nil
-        }
-        
+        self.autoTradingService = AutoTradingService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
         printQueue.maxConcurrentOperationCount = 1
@@ -102,13 +96,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.binance.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.binance.standartTriangularOpportunityDictKey,
-                                        to: newStandartTriangularOpportunitiesDict)
-        process(
+    
+        let tradedStandartTriangularsDict = try await process(
             triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
             mode: .standart,
             stockExchange: .binance,
             bookTickersDict: latestBookTickersDict
+        )
+        try await app.caches.memory.set(
+            StockExchange.binance.standartTriangularOpportunityDictKey,
+            to: tradedStandartTriangularsDict
         )
         
         // TODO: - handle Stables
@@ -141,7 +138,17 @@ struct TickersUpdaterJob: ScheduledJob {
         )
         try await app.caches.memory.set(StockExchange.bybit.standartTriangularOpportunityDictKey,
                                         to: newStandartTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .bybit)
+       
+        let tradedStandartTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+            mode: .standart,
+            stockExchange: .bybit
+        )
+        try await app.caches.memory.set(
+            StockExchange.bybit.standartTriangularOpportunityDictKey,
+            to: tradedStandartTriangularsDict
+        )
+        
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -161,7 +168,16 @@ struct TickersUpdaterJob: ScheduledJob {
         )
         try await app.caches.memory.set(StockExchange.bybit.stableTriangularOpportunityDictKey,
                                         to: newStableTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStableTriangularOpportunitiesDict, mode: .stable, stockExchange: .bybit)
+        
+        let tradedStableTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+            mode: .stable,
+            stockExchange: .bybit
+        )
+        try await app.caches.memory.set(
+            StockExchange.bybit.standartTriangularOpportunityDictKey,
+            to: tradedStableTriangularsDict
+        )
     }
     
     private func handleHuobiStockExchange() async throws {
@@ -193,11 +209,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.huobi.interestingProfit
         )
+  
+        let tradedStandartTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+            mode: .standart,
+            stockExchange: .huobi
+        )
         try await app.caches.memory.set(
             StockExchange.huobi.standartTriangularOpportunityDictKey,
-            to: newStandartTriangularOpportunitiesDict
+            to: tradedStandartTriangularsDict
         )
-        process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .huobi)
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -212,11 +233,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.huobi.interestingProfit
         )
+       
+        let tradedStableTriangularsDict =  try await process(
+            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+            mode: .stable,
+            stockExchange: .huobi
+        )
         try await app.caches.memory.set(
             StockExchange.huobi.stableTriangularOpportunityDictKey,
-            to: newStableTriangularOpportunitiesDict
+            to: tradedStableTriangularsDict
         )
-        process(triangularOpportunitiesDict: newStableTriangularOpportunitiesDict, mode: .stable, stockExchange: .huobi)
     }
     
     private func handleExmoStockExchange() async throws {
@@ -240,9 +266,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.exmo.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.exmo.standartTriangularOpportunityDictKey,
-                                        to: newStandartTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .exmo)
+        
+        let tradedStandartTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+            mode: .standart,
+            stockExchange: .exmo
+        )
+        try await app.caches.memory.set(
+            StockExchange.exmo.standartTriangularOpportunityDictKey,
+            to: tradedStandartTriangularsDict
+        )
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.exmo.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -260,9 +293,15 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.exmo.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.exmo.stableTriangularOpportunityDictKey,
-                                        to: newStableTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStableTriangularOpportunitiesDict, mode: .stable, stockExchange: .exmo)
+        let tradedStableTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+            mode: .stable,
+            stockExchange: .exmo
+        )
+        try await app.caches.memory.set(
+            StockExchange.exmo.stableTriangularOpportunityDictKey,
+            to: tradedStableTriangularsDict
+        )
     }
     
     private func handleKuCoinStockExchange() async throws {
@@ -286,9 +325,12 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.kucoin.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.kucoin.standartTriangularOpportunityDictKey,
-                                        to: newStandartTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .kucoin)
+       
+        let tradedStandartTriangularsDict = try await process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .kucoin)
+        try await app.caches.memory.set(
+            StockExchange.kucoin.standartTriangularOpportunityDictKey,
+            to: tradedStandartTriangularsDict
+        )
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.kucoin.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -306,9 +348,15 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.kucoin.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.kucoin.stableTriangularOpportunityDictKey,
-                                        to: newStableTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStableTriangularOpportunitiesDict, mode: .stable, stockExchange: .kucoin)
+        let tradedStableTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+            mode: .stable,
+            stockExchange: .kucoin
+        )
+        try await app.caches.memory.set(
+            StockExchange.kucoin.stableTriangularOpportunityDictKey,
+            to: tradedStableTriangularsDict
+        )
     }
     
     private func handleKrakenStockExchange() async throws {
@@ -332,9 +380,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: standartTriangularOpportunitiesDict,
             profitPercent: StockExchange.kraken.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.kraken.standartTriangularOpportunityDictKey,
-                                        to: newStandartTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .kraken)
+        
+        let tradedStandartTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+            mode: .standart,
+            stockExchange: .kraken
+        )
+        try await app.caches.memory.set(
+            StockExchange.kraken.standartTriangularOpportunityDictKey,
+            to: tradedStandartTriangularsDict
+        )
         
         let stableTriangularsJsonData = try Data(contentsOf: StockExchange.kraken.stableTriangularsStorageURL)
         let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
@@ -352,9 +407,16 @@ struct TickersUpdaterJob: ScheduledJob {
             currentOpportunities: stableTriangularOpportunitiesDict,
             profitPercent: StockExchange.kraken.interestingProfit
         )
-        try await app.caches.memory.set(StockExchange.kraken.stableTriangularOpportunityDictKey,
-                                        to: newStableTriangularOpportunitiesDict)
-        process(triangularOpportunitiesDict: newStableTriangularOpportunitiesDict, mode: .stable, stockExchange: .kraken)
+        
+        let tradedStableTriangularsDict = try await process(
+            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+            mode: .stable,
+            stockExchange: .kraken
+        )
+        try await app.caches.memory.set(
+            StockExchange.kraken.stableTriangularOpportunityDictKey,
+            to: tradedStableTriangularsDict
+        )
     }
     
 }
@@ -417,57 +479,61 @@ private extension TickersUpdaterJob {
         mode: Mode,
         stockExchange: StockExchange,
         bookTickersDict: [String: BookTicker] = [:]
-    ) {
+    ) async throws -> [String: TriangularOpportunity] {
         // NOTE: - sending all Alerts to specific people separatly
         // TODO: - make a separate mode for autotrading - currently trading only for admin
         guard let adminUserInfo = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
-            .first(where: { $0.userId == 204251205 }) else { return }
+            .first(where: { $0.userId == 204251205 }) else { return triangularOpportunitiesDict }
         
         switch stockExchange {
         case .binance:
-            triangularOpportunitiesDict.forEach { _, opportunity in
-                Task {
-                    guard opportunity.autotradeCicle == .pending, let autoTradingService = autoTradingService else { return }
-                    
-                    let tradedTriangularOpportunity = try await autoTradingService.handle(
-                        opportunity: opportunity,
-                        bookTickersDict: bookTickersDict,
-                        for: adminUserInfo
-                    )
-                    let text = tradedTriangularOpportunity.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                    if let updateMessageId = opportunity.updateMessageId {
-                        let editParams: TGEditMessageTextParams = .init(
-                            chatId: .chat(adminUserInfo.chatId),
-                            messageId: updateMessageId,
-                            inlineMessageId: nil,
-                            text: text
-                        )
-                        printQueue.addOperation {
-                            do {
-                                _ = try bot.editMessageText(params: editParams)
-                                print(printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: printBreakTime)
-                                return
-                            } catch (let botError) {
-                                logger.report(error: botError)
-                            }
+            return await withTaskGroup(of: (String, TriangularOpportunity).self) { group in
+                triangularOpportunitiesDict.forEach { key, opportunity in
+                    group.addTask {
+                        guard opportunity.autotradeCicle == .pending else {
+                            return (key, opportunity)
                         }
-                    } else {
-                        printQueue.addOperation {
-                            do {
-                                let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
-                                opportunity.updateMessageId = tgMessage.messageId
-                                print(printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: printBreakTime)
-                            } catch (let botError) {
-                                logger.report(error: botError)
+                        
+                        let tradedTriangularOpportunity = try? await autoTradingService.handle(
+                            opportunity: opportunity,
+                            bookTickersDict: bookTickersDict,
+                            for: adminUserInfo
+                        )
+                        let text = tradedTriangularOpportunity?.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
+                        if let updateMessageId = opportunity.updateMessageId {
+                            let editParams: TGEditMessageTextParams = .init(
+                                chatId: .chat(adminUserInfo.chatId),
+                                messageId: updateMessageId,
+                                inlineMessageId: nil,
+                                text: text ?? ""
+                            )
+                            Task {
+                                printQueue.addOperation {
+                                    do {
+                                        _ = try bot.editMessageText(params: editParams)
+                                        print(printQueue.operationCount)
+                                        Thread.sleep(forTimeInterval: printBreakTime)
+                                        return
+                                    } catch (let botError) {
+                                        logger.report(error: botError)
+                                    }
+                                }
                             }
+                            return (key, opportunity)
+                        } else {
+                            let tgMessage = try? bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text ?? "")).wait()
+                            opportunity.updateMessageId = tgMessage?.messageId ?? 0
+                            return (key, opportunity)
                         }
                     }
                 }
+                
+                return await group.reduce(into: [:]) { dictionary, result in
+                    dictionary[result.0] = result.1
+                }
             }
         default:
-            triangularOpportunitiesDict.forEach { _, opportunity in
+            return try triangularOpportunitiesDict.mapValues { opportunity in
                 let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
                 if let updateMessageId = opportunity.updateMessageId {
                     let editParams: TGEditMessageTextParams = .init(
@@ -476,26 +542,22 @@ private extension TickersUpdaterJob {
                         inlineMessageId: nil,
                         text: text
                     )
-                    printQueue.addOperation {
-                        do {
-                            _ = try bot.editMessageText(params: editParams)
-                            print(printQueue.operationCount)
-                            Thread.sleep(forTimeInterval: printBreakTime)
-                        } catch (let botError) {
-                            logger.report(error: botError)
+                    Task {
+                        printQueue.addOperation {
+                            do {
+                                _ = try bot.editMessageText(params: editParams)
+                                print(printQueue.operationCount)
+                                Thread.sleep(forTimeInterval: printBreakTime)
+                            } catch (let botError) {
+                                logger.report(error: botError)
+                            }
                         }
                     }
+                    return opportunity
                 } else {
-                    printQueue.addOperation {
-                        do {
-                            let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
-                            opportunity.updateMessageId = tgMessage.messageId
-                            print(printQueue.operationCount)
-                            Thread.sleep(forTimeInterval: printBreakTime)
-                        } catch (let botError) {
-                            logger.report(error: botError)
-                        }
-                    }
+                    let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
+                    opportunity.updateMessageId = tgMessage.messageId
+                    return opportunity
                 }
             }
         }

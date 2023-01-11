@@ -15,7 +15,7 @@ enum StockExchange: String {
         switch self {
         case .binance:
 #if DEBUG
-            return 0.1
+            return 0.0
 #else
             return 0.3
 #endif
@@ -23,15 +23,15 @@ enum StockExchange: String {
             return -0.2
         case .huobi:
 #if DEBUG
-            return 0.1
-#else
             return 0.2
+#else
+            return 0.3
 #endif
         case .exmo:
             return -0.2
         case .kucoin:
 #if DEBUG
-            return 0.6
+            return 0.8
 #else
             return 1
 #endif
