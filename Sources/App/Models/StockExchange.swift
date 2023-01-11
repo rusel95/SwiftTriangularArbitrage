@@ -25,10 +25,10 @@ enum StockExchange: String {
 #if DEBUG
             return 0.1
 #else
-            return 0.15
+            return 0.2
 #endif
         case .exmo:
-            return -0.1
+            return -0.2
         case .kucoin:
 #if DEBUG
             return 0.6
@@ -36,7 +36,7 @@ enum StockExchange: String {
             return 1
 #endif
         case .kraken:
-            return -0.2
+            return 0.3
         }
     }
     
