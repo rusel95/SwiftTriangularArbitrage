@@ -157,11 +157,18 @@ private extension DefaultBotHandlers {
                 .map { $0.description }
                 .joined(separator: "\n")
             
-            let text = "Users:\n\(usersDescription)\n"
-            do {
-                _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
-            } catch (let botError) {
-                print(botError.localizedDescription)
+            Task {
+                do {
+                    let editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
+                        "editParamsArray",
+                        as: [TGEditMessageTextParams].self
+                    ) ?? []
+                    
+                    let text = "Users:\n\(usersDescription)\nTo Update: \(editParamsArray.count)"
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
+                } catch {
+                    print(error.localizedDescription)
+                }
             }
         }
         bot.connection.dispatcher.add(handler)
