@@ -54,6 +54,9 @@ public func configure(_ app: Application) throws {
     let krakenTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
     app.queues.schedule(krakenTriangularUpdaterJob).hourly().at(27)
     
+    let tgUpdater = TGMessagesUpdaterJob(app: app, bot: TGBot.shared)
+    app.queues.schedule(tgUpdater).everySecond()
+    
     try app.queues.startScheduledJobs()
     
     let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)

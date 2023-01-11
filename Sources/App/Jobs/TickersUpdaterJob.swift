@@ -21,8 +21,6 @@ struct TickersUpdaterJob: ScheduledJob {
     private let logger = Logger(label: "logger.artitrage.triangular")
     
     private let autoTradingService: AutoTradingService
-    private let printQueue = OperationQueue()
-    private let printBreakTime: TimeInterval = 3.0
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
@@ -30,7 +28,6 @@ struct TickersUpdaterJob: ScheduledJob {
         self.autoTradingService = AutoTradingService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
-        printQueue.maxConcurrentOperationCount = 1
     }
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
@@ -470,7 +467,7 @@ private extension TickersUpdaterJob {
         
         // Remove opportunities, which became old
         return updatedOpportunities.filter {
-            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 60
+            Double(Date().timeIntervalSince($0.value.latestUpdateDate)) < 15
         }
     }
     
@@ -501,23 +498,20 @@ private extension TickersUpdaterJob {
                         )
                         let text = tradedTriangularOpportunity?.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
                         if let updateMessageId = opportunity.updateMessageId {
-                            let editParams: TGEditMessageTextParams = .init(
-                                chatId: .chat(adminUserInfo.chatId),
-                                messageId: updateMessageId,
-                                inlineMessageId: nil,
-                                text: text ?? ""
-                            )
                             Task {
-                                printQueue.addOperation {
-                                    do {
-                                        _ = try bot.editMessageText(params: editParams)
-                                        print(printQueue.operationCount)
-                                        Thread.sleep(forTimeInterval: printBreakTime)
-                                        return
-                                    } catch (let botError) {
-                                        logger.report(error: botError)
-                                    }
-                                }
+                                let editParams: TGEditMessageTextParams = .init(
+                                    chatId: .chat(adminUserInfo.chatId),
+                                    messageId: updateMessageId,
+                                    inlineMessageId: nil,
+                                    text: text ?? ""
+                                )
+                                var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
+                                    "editParamsArray",
+                                    as: [TGEditMessageTextParams].self
+                                ) ?? []
+                                
+                                editParamsArray.append(editParams)
+                                try await app.caches.memory.set("editParamsArray", to: editParamsArray)
                             }
                             return (key, opportunity)
                         } else {
@@ -536,22 +530,20 @@ private extension TickersUpdaterJob {
             return try triangularOpportunitiesDict.mapValues { opportunity in
                 let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
                 if let updateMessageId = opportunity.updateMessageId {
-                    let editParams: TGEditMessageTextParams = .init(
-                        chatId: .chat(adminUserInfo.chatId),
-                        messageId: updateMessageId,
-                        inlineMessageId: nil,
-                        text: text
-                    )
                     Task {
-                        printQueue.addOperation {
-                            do {
-                                _ = try bot.editMessageText(params: editParams)
-                                print(printQueue.operationCount)
-                                Thread.sleep(forTimeInterval: printBreakTime)
-                            } catch (let botError) {
-                                logger.report(error: botError)
-                            }
-                        }
+                        let editParams: TGEditMessageTextParams = .init(
+                            chatId: .chat(adminUserInfo.chatId),
+                            messageId: updateMessageId,
+                            inlineMessageId: nil,
+                            text: text
+                        )
+                        var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
+                            "editParamsArray",
+                            as: [TGEditMessageTextParams].self
+                        ) ?? []
+                        
+                        editParamsArray.append(editParams)
+                        try await app.caches.memory.set("editParamsArray", to: editParamsArray)
                     }
                     return opportunity
                 } else {
