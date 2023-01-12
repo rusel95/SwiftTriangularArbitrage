@@ -32,390 +32,116 @@ struct TickersUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            switch stockExchange {
-            case .binance:
-                do {
-                    try await handleBinanceStockExchange()
-                } catch {
-                    print(error.localizedDescription)
+            do {
+                let bookTickersDict: [String: BookTicker]
+                switch stockExchange {
+                case .binance:
+                    bookTickersDict = try await BinanceAPIService.shared
+                        .getAllBookTickers()
+                        .toDictionary(with: { $0.symbol })
+                case .bybit:
+                    bookTickersDict = try await ByBitAPIService.shared
+                        .getTickers()
+                        .map {
+                            BookTicker(
+                                symbol: $0.symbol,
+                                askPrice: $0.askPrice,
+                                askQty: "0",
+                                bidPrice: $0.bidPrice,
+                                bidQty: "0"
+                            )
+                        }
+                        .toDictionary(with: { $0.symbol })
+                case .huobi:
+                    bookTickersDict = try await HuobiAPIService.shared
+                        .getTickers()
+                        .map {
+                            BookTicker(
+                                symbol: $0.symbol,
+                                askPrice: String($0.ask),
+                                askQty: String($0.askSize),
+                                bidPrice: String($0.bid),
+                                bidQty: String($0.bidSize)
+                            )
+                        }
+                        .toDictionary(with: { $0.symbol })
+                case .exmo:
+                    bookTickersDict = try await ExmoAPIService.shared
+                        .getBookTickers()
+                        .toDictionary(with: { $0.symbol })
+                case .kucoin:
+                    bookTickersDict = try await KuCoinAPIService.shared
+                        .getBookTickers()
+                        .toDictionary(with: { $0.symbol })
+                case .kraken:
+                    bookTickersDict = try await KrakenAPIService.shared
+                        .getBookTickers()
+                        .toDictionary(with: { $0.symbol } )
                 }
-            case .bybit:
-                do {
-                    try await handleByBitStockExchange()
-                } catch {
-                    print(error.localizedDescription)
-                }
-            case .huobi:
-                do {
-                    try await handleHuobiStockExchange()
-                } catch {
-                    print(error.localizedDescription)
-                }
-            case .exmo:
-                do {
-                    try await handleExmoStockExchange()
-                }  catch {
-                    print(error.localizedDescription)
-                }
-            case .kucoin:
-                do {
-                    try await handleKuCoinStockExchange()
-                } catch {
-                    print(error.localizedDescription)
-                }
-            case .kraken:
-                do {
-                    try await handleKrakenStockExchange()
-                } catch {
-                    print(error.localizedDescription)
-                }
+                
+                // NOTE: - Standart
+                let standartTriangularsData = try Data(contentsOf: stockExchange.standartTriangularsStorageURL)
+                let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
+                let standartSurfaceResults = getSurfaceResults(
+                    mode: .standart,
+                    triangulars: standartTriangulars,
+                    bookTickersDict: bookTickersDict
+                )
+                let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
+                    stockExchange.standartTriangularOpportunityDictKey,
+                    as: TriangularOpportinitiesDict.self
+                ) ?? TriangularOpportinitiesDict()
+                let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+                    from: standartSurfaceResults,
+                    currentOpportunities: standartTriangularOpportunitiesDict,
+                    profitPercent: stockExchange.interestingProfit
+                )
+            
+                let tradedStandartTriangularsDict = try await process(
+                    triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+                    mode: .standart,
+                    stockExchange: stockExchange,
+                    bookTickersDict: bookTickersDict
+                )
+                try await app.caches.memory.set(
+                    stockExchange.standartTriangularOpportunityDictKey,
+                    to: tradedStandartTriangularsDict
+                )
+                
+                // NOTE: - Stables
+                let stableTriangularsData = try Data(contentsOf: stockExchange.stableTriangularsStorageURL)
+                let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsData)
+                let stableSurfaceResults = getSurfaceResults(
+                    mode: .stable,
+                    triangulars: stableTriangulars,
+                    bookTickersDict: bookTickersDict
+                )
+                let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
+                    stockExchange.stableTriangularOpportunityDictKey,
+                    as: TriangularOpportinitiesDict.self
+                ) ?? TriangularOpportinitiesDict()
+                let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+                    from: stableSurfaceResults,
+                    currentOpportunities: stableTriangularOpportunitiesDict,
+                    profitPercent: stockExchange.interestingProfit
+                )
+            
+                let tradedStableTriangularsDict = try await process(
+                    triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+                    mode: .stable,
+                    stockExchange: stockExchange,
+                    bookTickersDict: bookTickersDict
+                )
+                try await app.caches.memory.set(
+                    stockExchange.stableTriangularOpportunityDictKey,
+                    to: tradedStableTriangularsDict
+                )
+            } catch {
+                print(error.localizedDescription)
             }
         }
     }
-    
-    private func handleBinanceStockExchange() async throws {
-        let tickers = try await BinanceAPIService.shared.getAllBookTickers()
-        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
-        let triangularsJsonData = try Data(contentsOf: StockExchange.binance.standartTriangularsStorageURL)
-        let triangulars = try JSONDecoder().decode([Triangular].self, from: triangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: triangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.binance.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.binance.interestingProfit
-        )
-    
-        let tradedStandartTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-            mode: .standart,
-            stockExchange: .binance,
-            bookTickersDict: latestBookTickersDict
-        )
-        try await app.caches.memory.set(
-            StockExchange.binance.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        // TODO: - handle Stables
-    }
-    
-    private func handleByBitStockExchange() async throws {
-        let tickers = try await ByBitAPIService.shared.getTickers()
-            .map { BookTicker(symbol: $0.symbol,
-                              askPrice: $0.askPrice,
-                              askQty: "0",
-                              bidPrice: $0.bidPrice,
-                              bidQty: "0") }
-        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
-        
-        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.standartTriangularsStorageURL)
-        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: standartTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.bybit.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.bybit.interestingProfit
-        )
-        try await app.caches.memory.set(StockExchange.bybit.standartTriangularOpportunityDictKey,
-                                        to: newStandartTriangularOpportunitiesDict)
-       
-        let tradedStandartTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-            mode: .standart,
-            stockExchange: .bybit
-        )
-        try await app.caches.memory.set(
-            StockExchange.bybit.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        
-        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.bybit.stableTriangularsStorageURL)
-        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
-        let stableSurfaceResults = getSurfaceResults(
-            mode: .stable,
-            triangulars: stableTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.bybit.stableTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: stableSurfaceResults,
-            currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: StockExchange.bybit.interestingProfit
-        )
-        try await app.caches.memory.set(StockExchange.bybit.stableTriangularOpportunityDictKey,
-                                        to: newStableTriangularOpportunitiesDict)
-        
-        let tradedStableTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-            mode: .stable,
-            stockExchange: .bybit
-        )
-        try await app.caches.memory.set(
-            StockExchange.bybit.standartTriangularOpportunityDictKey,
-            to: tradedStableTriangularsDict
-        )
-    }
-    
-    private func handleHuobiStockExchange() async throws {
-        let tickers = try await HuobiAPIService.shared.getTickers()
-            .map {
-                BookTicker(
-                    symbol: $0.symbol,
-                    askPrice: String($0.ask),
-                    askQty: String($0.askSize),
-                    bidPrice: String($0.bid),
-                    bidQty: String($0.bidSize)
-                )
-            }
-        let latestBookTickersDict = tickers.toDictionary(with: { $0.symbol })
-        
-        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.standartTriangularsStorageURL)
-        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: standartTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.huobi.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.huobi.interestingProfit
-        )
-  
-        let tradedStandartTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-            mode: .standart,
-            stockExchange: .huobi
-        )
-        try await app.caches.memory.set(
-            StockExchange.huobi.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.huobi.stableTriangularsStorageURL)
-        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
-        let stableSurfaceResults = getSurfaceResults(
-            mode: .stable,
-            triangulars: stableTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(StockExchange.huobi.stableTriangularOpportunityDictKey, as: TriangularOpportinitiesDict.self) ?? TriangularOpportinitiesDict()
-        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: stableSurfaceResults,
-            currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: StockExchange.huobi.interestingProfit
-        )
-       
-        let tradedStableTriangularsDict =  try await process(
-            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-            mode: .stable,
-            stockExchange: .huobi
-        )
-        try await app.caches.memory.set(
-            StockExchange.huobi.stableTriangularOpportunityDictKey,
-            to: tradedStableTriangularsDict
-        )
-    }
-    
-    private func handleExmoStockExchange() async throws {
-        let latestBookTickersDict = try await ExmoAPIService.shared
-            .getBookTickers()
-            .toDictionary(with: { $0.symbol })
-        
-        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.exmo.standartTriangularsStorageURL)
-        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: standartTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.exmo.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.exmo.interestingProfit
-        )
-        
-        let tradedStandartTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-            mode: .standart,
-            stockExchange: .exmo
-        )
-        try await app.caches.memory.set(
-            StockExchange.exmo.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.exmo.stableTriangularsStorageURL)
-        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
-        let stableSurfaceResults = getSurfaceResults(
-            mode: .stable,
-            triangulars: stableTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.exmo.stableTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: stableSurfaceResults,
-            currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: StockExchange.exmo.interestingProfit
-        )
-        let tradedStableTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-            mode: .stable,
-            stockExchange: .exmo
-        )
-        try await app.caches.memory.set(
-            StockExchange.exmo.stableTriangularOpportunityDictKey,
-            to: tradedStableTriangularsDict
-        )
-    }
-    
-    private func handleKuCoinStockExchange() async throws {
-        let latestBookTickersDict = try await KuCoinAPIService.shared
-            .getBookTickers()
-            .toDictionary(with: { $0.symbol })
-        
-        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.kucoin.standartTriangularsStorageURL)
-        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: standartTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.kucoin.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.kucoin.interestingProfit
-        )
-       
-        let tradedStandartTriangularsDict = try await process(triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict, mode: .standart, stockExchange: .kucoin)
-        try await app.caches.memory.set(
-            StockExchange.kucoin.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.kucoin.stableTriangularsStorageURL)
-        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
-        let stableSurfaceResults = getSurfaceResults(
-            mode: .stable,
-            triangulars: stableTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.kucoin.stableTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: stableSurfaceResults,
-            currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: StockExchange.kucoin.interestingProfit
-        )
-        let tradedStableTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-            mode: .stable,
-            stockExchange: .kucoin
-        )
-        try await app.caches.memory.set(
-            StockExchange.kucoin.stableTriangularOpportunityDictKey,
-            to: tradedStableTriangularsDict
-        )
-    }
-    
-    private func handleKrakenStockExchange() async throws {
-        let latestBookTickersDict = try await KrakenAPIService.shared
-            .getBookTickers()
-            .toDictionary(with: { $0.symbol } )
-        
-        let standartTriangularsJsonData = try Data(contentsOf: StockExchange.kraken.standartTriangularsStorageURL)
-        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsJsonData)
-        let standartSurfaceResults = getSurfaceResults(
-            mode: .standart,
-            triangulars: standartTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.kraken.standartTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStandartTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: standartSurfaceResults,
-            currentOpportunities: standartTriangularOpportunitiesDict,
-            profitPercent: StockExchange.kraken.interestingProfit
-        )
-        
-        let tradedStandartTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-            mode: .standart,
-            stockExchange: .kraken
-        )
-        try await app.caches.memory.set(
-            StockExchange.kraken.standartTriangularOpportunityDictKey,
-            to: tradedStandartTriangularsDict
-        )
-        
-        let stableTriangularsJsonData = try Data(contentsOf: StockExchange.kraken.stableTriangularsStorageURL)
-        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsJsonData)
-        let stableSurfaceResults = getSurfaceResults(
-            mode: .stable,
-            triangulars: stableTriangulars,
-            bookTickersDict: latestBookTickersDict
-        )
-        let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
-            StockExchange.kraken.stableTriangularOpportunityDictKey,
-            as: TriangularOpportinitiesDict.self
-        ) ?? TriangularOpportinitiesDict()
-        let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-            from: stableSurfaceResults,
-            currentOpportunities: stableTriangularOpportunitiesDict,
-            profitPercent: StockExchange.kraken.interestingProfit
-        )
-        
-        let tradedStableTriangularsDict = try await process(
-            triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-            mode: .stable,
-            stockExchange: .kraken
-        )
-        try await app.caches.memory.set(
-            StockExchange.kraken.stableTriangularOpportunityDictKey,
-            to: tradedStableTriangularsDict
-        )
-    }
-    
+      
 }
 
 // MARK: - Helpers

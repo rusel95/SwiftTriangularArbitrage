@@ -58,9 +58,9 @@ struct SurfaceResult: Codable, CustomStringConvertible, Hashable {
     var step1Description: String {
         switch directionTrade1 {
         case .quoteToBase:
-            return "Buy \(swap1) at \(pairAExpectedPrice.string(maxFractionDigits: 8)) for \(swap0) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))"
+            return "Buy \(swap1) at \(pairAExpectedPrice.string(maxFractionDigits: 10)) for \(swap0) acquiring \(acquiredCoinT1.string(maxFractionDigits: 10))"
         case .baseToQuote:
-            return "Sell \(swap0) at \(pairAExpectedPrice.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT1.string(maxFractionDigits: 8))"
+            return "Sell \(swap0) at \(pairAExpectedPrice.string(maxFractionDigits: 10)) for \(swap1) acquiring \(acquiredCoinT1.string(maxFractionDigits: 10))"
         case .unknown:
             return "unknown"
         }
@@ -80,9 +80,9 @@ struct SurfaceResult: Codable, CustomStringConvertible, Hashable {
     var step2Description: String {
         switch directionTrade2 {
         case .quoteToBase:
-            return "Buy \(swap2) at \(pairBExpectedPrice.string(maxFractionDigits: 8)) for \(swap1) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))"
+            return "Buy \(swap2) at \(pairBExpectedPrice.string(maxFractionDigits: 10)) for \(swap1) acquiring \(acquiredCoinT2.string(maxFractionDigits: 10))"
         case .baseToQuote:
-            return "Sell \(swap1) at \(pairBExpectedPrice.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT2.string(maxFractionDigits: 8))"
+            return "Sell \(swap1) at \(pairBExpectedPrice.string(maxFractionDigits: 10)) for \(swap2) acquiring \(acquiredCoinT2.string(maxFractionDigits: 10))"
         case .unknown:
             return "unknown"
         }
@@ -102,9 +102,9 @@ struct SurfaceResult: Codable, CustomStringConvertible, Hashable {
     var step3Description: String {
         switch directionTrade3 {
         case .quoteToBase:
-            return "Buy \(swap3) at \(pairCExpectedPrice.string(maxFractionDigits: 8)) for \(swap2) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))"
+            return "Buy \(swap3) at \(pairCExpectedPrice.string(maxFractionDigits: 10)) for \(swap2) acquiring \(acquiredCoinT3.string(maxFractionDigits: 10))"
         case .baseToQuote:
-            return "Sell \(swap2) at \(pairCExpectedPrice.string(maxFractionDigits: 8)) for \(swap3) acquiring \(acquiredCoinT3.string(maxFractionDigits: 8))"
+            return "Sell \(swap2) at \(pairCExpectedPrice.string(maxFractionDigits: 10)) for \(swap3) acquiring \(acquiredCoinT3.string(maxFractionDigits: 10))"
         case .unknown:
             return "unknown"
         }
