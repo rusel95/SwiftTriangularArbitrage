@@ -77,6 +77,10 @@ struct TickersUpdaterJob: ScheduledJob {
                     bookTickersDict = try await KrakenAPIService.shared
                         .getBookTickers()
                         .toDictionary(with: { $0.symbol } )
+                case .whitebit:
+                    bookTickersDict = try await WhiteBitAPIService.shared
+                        .getBookTickers()
+                        .toDictionary(with: { $0.symbol })
                 }
                 
                 // NOTE: - Standart
@@ -659,6 +663,8 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.1
         case .kraken:
             comissionPercent = 0.26
+        case .whitebit:
+            comissionPercent = 0.1
         }
         return 1.0 - comissionPercent / 100.0
     }

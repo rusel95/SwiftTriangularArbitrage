@@ -9,13 +9,13 @@ import Foundation
 
 enum StockExchange: String {
     
-    case binance, bybit, huobi, exmo, kucoin, kraken
+    case binance, bybit, huobi, exmo, kucoin, kraken, whitebit
     
     var interestingProfit: Double {
         switch self {
         case .binance:
 #if DEBUG
-            return 0.0
+            return 0.1
 #else
             return 0.3
 #endif
@@ -37,6 +37,8 @@ enum StockExchange: String {
 #endif
         case .kraken:
             return 0.3
+        case .whitebit:
+            return 0.6
         }
     }
     
@@ -54,6 +56,8 @@ enum StockExchange: String {
             return "KuCoinStandartTriangularOpportunitiesDict"
         case .kraken:
             return "KrakenStandartTriangularOpportunitiesDict"
+        case .whitebit:
+            return "WhiteBitStandartTriangularOpportunitiesDict"
         }
     }
     
@@ -71,6 +75,8 @@ enum StockExchange: String {
             return "KuCoinStableTriangularOpportunitiesDict"
         case .kraken:
             return "KrakenStableTriangularOpportunitiesDict"
+        case .whitebit:
+            return "WhiteBitStableTriangularOpportunitiesDict"
         }
     }
     
@@ -88,6 +94,8 @@ enum StockExchange: String {
             return URL.documentsDirectory.appendingPathComponent("kucoin_standart_triangulars")
         case .kraken:
             return URL.documentsDirectory.appendingPathComponent("kraken_standart_triangulars")
+        case .whitebit:
+            return URL.documentsDirectory.appendingPathComponent("whitebit_standart_triangulars")
         }
     }
     
@@ -105,6 +113,8 @@ enum StockExchange: String {
             return URL.documentsDirectory.appendingPathComponent("kucoin_stable_triangulars")
         case .kraken:
             return URL.documentsDirectory.appendingPathComponent("kraken_stable_triangulars")
+        case .whitebit:
+            return URL.documentsDirectory.appendingPathComponent("whitebit_stable_triangulars")
         }
     }
     

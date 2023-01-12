@@ -56,6 +56,10 @@ struct TriangularsUpdaterJob: ScheduledJob {
                     tradeableSymbols = try await KrakenAPIService.shared
                         .getSymbols()
                         .filter { $0.status == .online }
+                case .whitebit:
+                    tradeableSymbols = try await WhiteBitAPIService.shared
+                        .getSymbols()
+                        .filter { $0.tradesEnabled && $0.type == .spot }
                 }
                 
                 let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
