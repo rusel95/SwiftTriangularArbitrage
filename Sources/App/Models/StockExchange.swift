@@ -38,7 +38,7 @@ enum StockExchange: String {
         case .kraken:
             return 0.3
         case .whitebit:
-            return 0.6
+            return 0.2
         }
     }
     

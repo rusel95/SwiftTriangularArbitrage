@@ -40,25 +40,25 @@ public func configure(_ app: Application) throws {
     app.queues.schedule(whitebitTickersUpdaterJob).everySecond()
     
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
-    app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(50)
+    app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
     
     let bybitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
     app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(10)
     
     let huobiTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
-    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(30)
+    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(15)
     
     let exmoTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
-    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(45)
+    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(25)
     
     let kucoinTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
-    app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(0)
+    app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(30)
     
     let krakenTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
-    app.queues.schedule(krakenTriangularUpdaterJob).hourly().at(27)
+    app.queues.schedule(krakenTriangularUpdaterJob).hourly().at(40)
     
     let whitebitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .whitebit)
-    app.queues.schedule(whitebitTriangularUpdaterJob).hourly().at(11)
+    app.queues.schedule(whitebitTriangularUpdaterJob).hourly().at(50)
     
     let tgUpdater = TGMessagesUpdaterJob(app: app, bot: TGBot.shared)
     app.queues.schedule(tgUpdater).everySecond()
