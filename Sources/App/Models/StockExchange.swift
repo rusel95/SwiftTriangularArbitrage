@@ -33,12 +33,12 @@ enum StockExchange: String {
 #if DEBUG
             return 0.5
 #else
-            return 0.6
+            return 0.8
 #endif
         case .kraken:
-            return 0.3
+            return 0.5
         case .whitebit:
-            return 0.2
+            return 0.5
         }
     }
     

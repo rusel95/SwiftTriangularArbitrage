@@ -21,7 +21,7 @@ final class AutoTradingService {
     
     private var bookTickersDict: [String: BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 1.5
+    private let minimumQuantityMultipler: Double = 3
     private let minimumQuantityStableEquivalent: Double
     private let maximalDifferencePercent = 0.2
     
