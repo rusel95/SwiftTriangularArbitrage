@@ -76,7 +76,10 @@ final class AutoTradingService {
                     amount: trade1ApproximateOrderbookQuantity * 4 // to be sure our amount exist
                 )
                 let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
-                guard abs(trade1PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                
+                guard (lastSurfaceResult.directionTrade1 == .baseToQuote && trade1PriceDifferencePercent >= -maximalDifferencePercent) ||
+                        (lastSurfaceResult.directionTrade1 == .quoteToBase && trade1PriceDifferencePercent <= maximalDifferencePercent)
+                else {
                     opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
@@ -88,7 +91,9 @@ final class AutoTradingService {
                     amount: trade2ApproximateOrderbookQuantity * 5 // Extra
                 )
                 let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
-                guard abs(trade2PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                guard (lastSurfaceResult.directionTrade2 == .baseToQuote && trade2PriceDifferencePercent >= -maximalDifferencePercent) ||
+                        (lastSurfaceResult.directionTrade2 == .quoteToBase && trade2PriceDifferencePercent <= maximalDifferencePercent)
+                else {
                     opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
@@ -100,7 +105,9 @@ final class AutoTradingService {
                     amount: trade3ApproximateOrderbookQuantity * 6
                 )
                 let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
-                guard abs(trade3PriceDifferencePercent) <= self.maximalDifferencePercent else {
+                guard (lastSurfaceResult.directionTrade3 == .baseToQuote && trade3PriceDifferencePercent >= -maximalDifferencePercent) ||
+                        (lastSurfaceResult.directionTrade3 == .quoteToBase && trade3PriceDifferencePercent <= maximalDifferencePercent)
+                else {
                     opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
                     opportunity.autotradeCicle = .pending
                     return opportunity
@@ -110,21 +117,23 @@ final class AutoTradingService {
             } catch TradingError.noMinimalPortion(let description) {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
+                emailService.sendEmail(subject: description, text: opportunity.description)
                 return opportunity
             } catch TradingError.customError(let description) {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
-                emailService.sendEmail(subject: "trading error", text: description)
+                emailService.sendEmail(subject: description, text: opportunity.description)
                 return opportunity
             } catch BinanceError.unexpected(let description) {
                 opportunity.autotradeCicle = .forbidden
                 opportunity.autotradeLog.append(description)
-                emailService.sendEmail(subject: "binance error", text: description)
+                emailService.sendEmail(subject: "binance error: \(description)", text: opportunity.description)
                 return opportunity
             } catch {
                 opportunity.autotradeCicle = .pending
                 opportunity.autotradeLog.append(error.localizedDescription)
-                emailService.sendEmail(subject: "unexpected error", text: error.localizedDescription)
+                emailService.sendEmail(subject: "unexpected error: \(error.localizedDescription)",
+                                       text: opportunity.description)
                 return opportunity
             }
             
