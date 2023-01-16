@@ -21,11 +21,13 @@ struct TickersUpdaterJob: ScheduledJob {
     private let logger = Logger(label: "logger.artitrage.triangular")
     
     private let autoTradingService: AutoTradingService
+    private let depthCheckService: DepthCheckService
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.app = app
         self.autoTradingService = AutoTradingService(app: app)
+        self.depthCheckService = DepthCheckService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
     }
@@ -221,19 +223,24 @@ private extension TickersUpdaterJob {
                             return (key, opportunity)
                         }
                         
-                        let tradedTriangularOpportunity = try? await autoTradingService.handle(
-                            opportunity: opportunity,
-                            bookTickersDict: bookTickersDict,
-                            for: adminUserInfo
-                        )
-                        let text = tradedTriangularOpportunity?.tradingDescription.appending("\nUpdated at: \(Date().readableDescription)")
-                        if let updateMessageId = opportunity.updateMessageId {
-                            Task {
+                        do {
+                            let depthCheckedTriangularOpportunity = try await depthCheckService.handle(
+                                opportunity: opportunity,
+                                bookTickersDict: bookTickersDict,
+                                for: adminUserInfo
+                            )
+                            let tradedTriangularOpportunity = try await autoTradingService.handle(
+                                opportunity: depthCheckedTriangularOpportunity,
+                                bookTickersDict: bookTickersDict,
+                                for: adminUserInfo
+                            )
+                            let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
+                            if let updateMessageId = opportunity.updateMessageId {
                                 let editParams: TGEditMessageTextParams = .init(
                                     chatId: .chat(adminUserInfo.chatId),
                                     messageId: updateMessageId,
                                     inlineMessageId: nil,
-                                    text: text ?? ""
+                                    text: text
                                 )
                                 var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
                                     "editParamsArray",
@@ -242,11 +249,13 @@ private extension TickersUpdaterJob {
                                 
                                 editParamsArray.append(editParams)
                                 try await app.caches.memory.set("editParamsArray", to: editParamsArray)
+                                return (key, opportunity)
+                            } else {
+                                let tgMessage = try? bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
+                                opportunity.updateMessageId = tgMessage?.messageId ?? 0
+                                return (key, opportunity)
                             }
-                            return (key, opportunity)
-                        } else {
-                            let tgMessage = try? bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text ?? "")).wait()
-                            opportunity.updateMessageId = tgMessage?.messageId ?? 0
+                        } catch {
                             return (key, opportunity)
                         }
                     }

@@ -10,11 +10,12 @@ import Foundation
 final class TriangularOpportunity: Codable, CustomStringConvertible, Hashable {
     
     enum AutoTradeCicle: Codable, Equatable {
-        case forbidden
         case pending
         case depthCheck
+        case readyToTrade
         case trading
         case completed
+        case forbidden
     }
     
     let contractsDescription: String

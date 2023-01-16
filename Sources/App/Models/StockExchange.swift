@@ -29,7 +29,7 @@ enum StockExchange: String, CaseIterable {
             return 0.3
 #endif
         case .exmo:
-            return -0.2
+            return 0.0
         case .kucoin:
 #if DEBUG
             return 0.5

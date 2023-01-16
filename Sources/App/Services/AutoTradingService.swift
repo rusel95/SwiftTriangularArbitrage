@@ -5,18 +5,16 @@
 //  Created by Ruslan on 12.10.2022.
 //
 
-import Jobs
 import CoreFoundation
 import Vapor
 
+enum TradingError: Error {
+    case noMinimalPortion(description: String)
+    case customError(description: String)
+}
+
 final class AutoTradingService {
     
-    enum TradingError: Error {
-        case noMinimalPortion(description: String)
-        case customError(description: String)
-    }
-    
-    private let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
     
     private var bookTickersDict: [String: BookTicker] = [:]
@@ -58,93 +56,32 @@ final class AutoTradingService {
         for userInfo: UserInfo
     ) async throws -> TriangularOpportunity {
         self.bookTickersDict = bookTickersDict
-        switch opportunity.autotradeCicle {
-        case .pending:
-            opportunity.autotradeCicle = .depthCheck
-            // NOTE: - remove handling only first - handle all of opportunities
-            guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0) else {
-                opportunity.autotradeCicle = .forbidden
-                opportunity.autotradeLog.append("\nNot tradeable opportunity\n")
-                return opportunity
-            }
-            
-            guard let lastSurfaceResult = opportunity.surfaceResults.last else {
-                opportunity.autotradeCicle = .forbidden
-                opportunity.autotradeLog.append("no last result..")
-                return opportunity
-            }
-            
-            do {
-                let depth = try await getDepth(for: lastSurfaceResult, limit: 6)
-                
-                let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
-                let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
-                    for: lastSurfaceResult.directionTrade1,
-                    amount: trade1ApproximateOrderbookQuantity * 4 // to be sure our amount exist
-                )
-                let trade1PriceDifferencePercent = (trade1AveragePrice - lastSurfaceResult.pairAExpectedPrice) / lastSurfaceResult.pairAExpectedPrice * 100.0
-                
-                guard (lastSurfaceResult.directionTrade1 == .baseToQuote && trade1PriceDifferencePercent >= -maximalDifferencePercent) ||
-                        (lastSurfaceResult.directionTrade1 == .quoteToBase && trade1PriceDifferencePercent <= maximalDifferencePercent)
-                else {
-                    opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
-                    opportunity.autotradeCicle = .pending
-                    return opportunity
-                }
-                
-                let trade2ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract2, asset: lastSurfaceResult.swap1)
-                let trade2AveragePrice = depth.pairBDepth.getProbableDepthPrice(
-                    for: lastSurfaceResult.directionTrade2,
-                    amount: trade2ApproximateOrderbookQuantity * 5 // Extra
-                )
-                let trade2PriceDifferencePercent = (trade2AveragePrice - lastSurfaceResult.pairBExpectedPrice) / lastSurfaceResult.pairBExpectedPrice * 100.0
-                guard (lastSurfaceResult.directionTrade2 == .baseToQuote && trade2PriceDifferencePercent >= -maximalDifferencePercent) ||
-                        (lastSurfaceResult.directionTrade2 == .quoteToBase && trade2PriceDifferencePercent <= maximalDifferencePercent)
-                else {
-                    opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
-                    opportunity.autotradeCicle = .pending
-                    return opportunity
-                }
-                
-                let trade3ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract3, asset: lastSurfaceResult.swap2)
-                let trade3AveragePrice = depth.pairCDepth.getProbableDepthPrice(
-                    for: lastSurfaceResult.directionTrade3,
-                    amount: trade3ApproximateOrderbookQuantity * 6
-                )
-                let trade3PriceDifferencePercent = (trade3AveragePrice - lastSurfaceResult.pairCExpectedPrice) / lastSurfaceResult.pairCExpectedPrice * 100.0
-                guard (lastSurfaceResult.directionTrade3 == .baseToQuote && trade3PriceDifferencePercent >= -maximalDifferencePercent) ||
-                        (lastSurfaceResult.directionTrade3 == .quoteToBase && trade3PriceDifferencePercent <= maximalDifferencePercent)
-                else {
-                    opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
-                    opportunity.autotradeCicle = .pending
-                    return opportunity
-                }
-                
-                return try await handleFirstTrade(for: opportunity)
-            } catch TradingError.noMinimalPortion(let description) {
-                opportunity.autotradeCicle = .forbidden
-                opportunity.autotradeLog.append(description)
-                emailService.sendEmail(subject: description, text: opportunity.description)
-                return opportunity
-            } catch TradingError.customError(let description) {
-                opportunity.autotradeCicle = .forbidden
-                opportunity.autotradeLog.append(description)
-                emailService.sendEmail(subject: description, text: opportunity.description)
-                return opportunity
-            } catch BinanceError.unexpected(let description) {
-                opportunity.autotradeCicle = .forbidden
-                opportunity.autotradeLog.append(description)
-                emailService.sendEmail(subject: "binance error: \(description)", text: opportunity.description)
-                return opportunity
-            } catch {
-                opportunity.autotradeCicle = .pending
-                opportunity.autotradeLog.append(error.localizedDescription)
-                emailService.sendEmail(subject: "unexpected error: \(error.localizedDescription)",
-                                       text: opportunity.description)
-                return opportunity
-            }
-            
-        default:
+        guard opportunity.autotradeCicle == .readyToTrade else { return opportunity }
+        
+        opportunity.autotradeCicle = .trading
+     
+        do {
+            return try await handleFirstTrade(for: opportunity)
+        } catch TradingError.noMinimalPortion(let description) {
+            opportunity.autotradeCicle = .forbidden
+            opportunity.autotradeLog.append(description)
+            emailService.sendEmail(subject: description, text: opportunity.description)
+            return opportunity
+        } catch TradingError.customError(let description) {
+            opportunity.autotradeCicle = .forbidden
+            opportunity.autotradeLog.append(description)
+            emailService.sendEmail(subject: description, text: opportunity.description)
+            return opportunity
+        } catch BinanceError.unexpected(let description) {
+            opportunity.autotradeCicle = .forbidden
+            opportunity.autotradeLog.append(description)
+            emailService.sendEmail(subject: "binance error: \(description)", text: opportunity.description)
+            return opportunity
+        } catch {
+            opportunity.autotradeCicle = .pending
+            opportunity.autotradeLog.append(error.localizedDescription)
+            emailService.sendEmail(subject: "unexpected error: \(error.localizedDescription)",
+                                   text: opportunity.description)
             return opportunity
         }
     }
@@ -520,7 +457,7 @@ private extension AutoTradingService {
     }
     
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
-        guard stablesSet.contains(asset) == false else { return assetQuantity }
+        guard Constants.stablesSet.contains(asset) == false else { return assetQuantity }
         
         if let assetToStableSymbol = bookTickersDict["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice

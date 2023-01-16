@@ -27,8 +27,6 @@ struct TGMessagesUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            guard Calendar.current.component(.second, from: Date()) % 2 == 0 else { return }
-            
             do {
                 var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
                     "editParamsArray",
