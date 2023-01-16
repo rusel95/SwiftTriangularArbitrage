@@ -21,12 +21,10 @@ public func configure(_ app: Application) throws {
     let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
     defaultBotHandlers.addHandlers(app: app)
     
-    for stockExchange in StockExchange.allCases {
+    for stockExchange in StockExchange.allCases.filter({ $0.isTurnedOn }) {
         let tickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: stockExchange)
         app.queues.schedule(tickersUpdaterJob).everySecond()
-    }
-    
-    for stockExchange in StockExchange.allCases {
+
         let triangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: stockExchange)
         app.queues.schedule(triangularUpdaterJob).hourly().at(stockExchange.minuteToScheduleTriangularUpdater)
     }
