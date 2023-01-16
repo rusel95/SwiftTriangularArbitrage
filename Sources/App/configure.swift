@@ -26,26 +26,10 @@ public func configure(_ app: Application) throws {
         app.queues.schedule(tickersUpdaterJob).everySecond()
     }
     
-    let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
-    app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
-    
-    let bybitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
-    app.queues.schedule(bybitTriangularUpdaterJob).hourly().at(10)
-    
-    let huobiTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
-    app.queues.schedule(huobiTriangularUpdaterJob).hourly().at(15)
-    
-    let exmoTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
-    app.queues.schedule(exmoTriangularUpdaterJob).hourly().at(25)
-    
-    let kucoinTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
-    app.queues.schedule(kucoinTriangularUpdaterJob).hourly().at(30)
-    
-    let krakenTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
-    app.queues.schedule(krakenTriangularUpdaterJob).hourly().at(40)
-    
-    let whitebitTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .whitebit)
-    app.queues.schedule(whitebitTriangularUpdaterJob).hourly().at(50)
+    for stockExchange in StockExchange.allCases {
+        let triangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: stockExchange)
+        app.queues.schedule(triangularUpdaterJob).hourly().at(stockExchange.minuteToScheduleTriangularUpdater)
+    }
     
     let tgUpdater = TGMessagesUpdaterJob(app: app, bot: TGBot.shared)
     app.queues.schedule(tgUpdater).everySecond()

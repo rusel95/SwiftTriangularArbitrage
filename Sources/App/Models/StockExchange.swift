@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Queues
 
 enum StockExchange: String, CaseIterable {
     
@@ -39,6 +40,25 @@ enum StockExchange: String, CaseIterable {
             return 0.5
         case .whitebit:
             return 0.5
+        }
+    }
+    
+    var minuteToScheduleTriangularUpdater: ScheduleBuilder.Minute {
+        switch self {
+        case .binance:
+            return 0
+        case .bybit:
+            return 10
+        case .huobi:
+            return 15
+        case .exmo:
+            return 25
+        case .kucoin:
+            return 30
+        case .kraken:
+            return 40
+        case .whitebit:
+            return 50
         }
     }
     
