@@ -8,7 +8,7 @@
 import SMTPKitten
 import Vapor
 
-final class EmailAPIService {
+final class EmailService {
 
     // MARK: - PROPERTIES
     

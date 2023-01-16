@@ -21,16 +21,23 @@ final class AutoTradingService {
     
     private var bookTickersDict: [String: BookTicker] = [:]
     
-    private let minimumQuantityMultipler: Double = 3
+    private var minimumQuantityMultipler: Double = {
+#if DEBUG
+        return 1.5
+#else
+        return 3
+#endif
+    }()
+    
     private let minimumQuantityStableEquivalent: Double
     private let maximalDifferencePercent = 0.2
     
-    private let emailService: EmailAPIService
+    private let emailService: EmailService
     private let app: Application
     
     init(app: Application) {
         self.app = app
-        self.emailService = EmailAPIService(app: app)
+        self.emailService = EmailService(app: app)
         
         minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
         
