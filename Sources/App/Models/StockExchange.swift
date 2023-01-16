@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum StockExchange: String {
+enum StockExchange: String, CaseIterable {
     
     case binance, bybit, huobi, exmo, kucoin, kraken, whitebit
     
@@ -15,7 +15,7 @@ enum StockExchange: String {
         switch self {
         case .binance:
 #if DEBUG
-            return 0.1
+            return 0.0
 #else
             return 0.3
 #endif

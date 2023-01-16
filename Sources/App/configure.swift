@@ -18,26 +18,13 @@ public func configure(_ app: Application) throws {
     
     try app.queues.use(.redis(url: "redis://127.0.0.1:6379"))
     
-    let binanceTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
-    app.queues.schedule(binanceTickersUpdaterJob).everySecond()
-
-    let bybitTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .bybit)
-    app.queues.schedule(bybitTickersUpdaterJob).everySecond()
-
-    let huobiTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .huobi)
-    app.queues.schedule(huobiTickersUpdaterJob).everySecond()
-
-    let exmoTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .exmo)
-    app.queues.schedule(exmoTickersUpdaterJob).everySecond()
+    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
+    defaultBotHandlers.addHandlers(app: app)
     
-    let kucoinTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kucoin)
-    app.queues.schedule(kucoinTickersUpdaterJob).everySecond()
-    
-    let krakenTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .kraken)
-    app.queues.schedule(krakenTickersUpdaterJob).everySecond()
-    
-    let whitebitTickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .whitebit)
-    app.queues.schedule(whitebitTickersUpdaterJob).everySecond()
+    for stockExchange in StockExchange.allCases {
+        let tickersUpdaterJob = TickersUpdaterJob(app: app, bot: TGBot.shared, stockEchange: stockExchange)
+        app.queues.schedule(tickersUpdaterJob).everySecond()
+    }
     
     let binanceTriangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: .binance)
     app.queues.schedule(binanceTriangularUpdaterJob).hourly().at(0)
@@ -64,9 +51,6 @@ public func configure(_ app: Application) throws {
     app.queues.schedule(tgUpdater).everySecond()
     
     try app.queues.startScheduledJobs()
-    
-    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
-    defaultBotHandlers.addHandlers(app: app)
     
     try routes(app)
 }
