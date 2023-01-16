@@ -35,7 +35,7 @@ struct TGMessagesUpdaterJob: ScheduledJob {
               
                 if let firstScheduledMessageEditParams = editParamsArray.first {
                     _ = try bot.editMessageText(params: firstScheduledMessageEditParams)
-                    print("\(editParamsArray.count)")
+                    print("\(editParamsArray.count) \(Date())")
                     editParamsArray.removeFirst()
                     try await app.caches.memory.set("editParamsArray", to: editParamsArray)
                 }

@@ -32,12 +32,12 @@ enum StockExchange: String, CaseIterable {
             return 0.0
         case .kucoin:
 #if DEBUG
-            return 0.5
+            return 0.3
 #else
             return 0.8
 #endif
         case .kraken:
-            return 0.5
+            return 0.3
         case .whitebit:
             return 0.5
         }
@@ -49,6 +49,15 @@ enum StockExchange: String, CaseIterable {
             return false
         default:
             return true
+        }
+    }
+    
+    var isTradeable: Bool {
+        switch self {
+        case .binance:
+            return true
+        default:
+            return false
         }
     }
     
