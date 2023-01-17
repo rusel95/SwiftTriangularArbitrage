@@ -51,12 +51,13 @@ final class AutoTradingService {
     // MARK: - Depth Check
     
     func handle(
+        stockExchange: StockExchange,
         opportunity: TriangularOpportunity,
         bookTickersDict: [String: BookTicker],
         for userInfo: UserInfo
     ) async throws -> TriangularOpportunity {
         self.bookTickersDict = bookTickersDict
-        guard opportunity.autotradeCicle == .readyToTrade else { return opportunity }
+        guard opportunity.autotradeCicle == .readyToTrade, stockExchange == .binance else { return opportunity }
         
         opportunity.autotradeCicle = .trading
      

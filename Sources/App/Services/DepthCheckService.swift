@@ -47,6 +47,7 @@ final class DepthCheckService {
     // MARK: - Depth Check
     
     func handle(
+        stockExchange: StockExchange,
         opportunity: TriangularOpportunity,
         bookTickersDict: [String: BookTicker],
         for userInfo: UserInfo
@@ -68,7 +69,28 @@ final class DepthCheckService {
         }
         
         do {
-            let depth = try await getDepth(for: lastSurfaceResult, limit: 6)
+            let depth: TriangularOpportunityDepth
+            switch stockExchange {
+            case .binance:
+                depth = try await getDepth(for: lastSurfaceResult, limit: 6)
+            case .bybit:
+                opportunity.autotradeCicle = .forbidden
+                return opportunity
+            case .huobi:
+                opportunity.autotradeCicle = .forbidden
+                return opportunity
+            case .exmo:
+                opportunity.autotradeCicle = .forbidden
+                return opportunity
+            case .kucoin:
+                depth = try await getKucoinDepth(for: lastSurfaceResult)
+            case .kraken:
+                opportunity.autotradeCicle = .forbidden
+                return opportunity
+            case .whitebit:
+                opportunity.autotradeCicle = .forbidden
+                return opportunity
+            }
             
             let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
             let trade1AveragePrice = depth.pairADepth.getProbableDepthPrice(
@@ -125,7 +147,7 @@ final class DepthCheckService {
     
 }
 
-// MARK: - Helpers
+// MARK: - Depth
 
 private extension DepthCheckService {
     
@@ -137,6 +159,22 @@ private extension DepthCheckService {
         let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
         return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
     }
+    
+    
+    func getKucoinDepth(for surfaceResult: SurfaceResult) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1)
+        async let pairBDepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2)
+        async let pairCDepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3)
+        
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+    }
+    
+}
+
+// MARK: - Helpers
+
+private extension DepthCheckService {
     
     func getApproximateMinimalAssetPortionToReceive(contract: String, asset: String) throws -> Double {
         let baseAsset = contract.starts(with: asset) ? asset : contract.replace(asset, "")

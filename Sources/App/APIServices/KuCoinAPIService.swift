@@ -12,8 +12,12 @@ import FoundationNetworking
 import Logging
 
 final class KuCoinAPIService {
+
+    // MARK: - PROPERTIES
     
-    // MARK: - STRUCTS
+    static let shared = KuCoinAPIService()
+    
+    // MARK: - SYMBOLS
     
     struct SymbolsResponse: Codable {
         let code: String
@@ -46,6 +50,15 @@ final class KuCoinAPIService {
         case usds = "USDS"
     }
     
+    func getSymbols() async throws -> [Symbol] {
+        let url: URL = URL(string: "https://api.kucoin.com/api/v2/symbols")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        let response = try JSONDecoder().decode(SymbolsResponse.self, from: data)
+        return response.data
+    }
+    
+    // MARK: - TICKERS
+    
     struct TickersResponse: Codable {
         let code: String
         let data: TickersData
@@ -60,19 +73,6 @@ final class KuCoinAPIService {
         let symbol: String
         let buy: String?         // bestAsk
         let sell: String?        // bestBid
-    }
-
-    // MARK: - PROPERTIES
-    
-    static let shared = KuCoinAPIService()
-    
-    // MARK: - METHODS
-    
-    func getSymbols() async throws -> [Symbol] {
-        let url: URL = URL(string: "https://api.kucoin.com/api/v2/symbols")!
-        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        let response = try JSONDecoder().decode(SymbolsResponse.self, from: data)
-        return response.data
     }
     
     func getBookTickers() async throws -> [BookTicker] {
@@ -91,5 +91,27 @@ final class KuCoinAPIService {
             )
         }
     }
-   
+    
+
+    // MARK: - DEPTH
+    
+    struct OrderBookDepthResponse: Codable {
+        let code: String
+        let data: OrderBook
+    }
+
+    struct OrderBook: Codable {
+        let time: Int
+        let sequence: String
+        let bids: [[String]]
+        let asks: [[String]]
+    }
+
+    func getOrderbookDepth(symbol: String) async throws -> OrderbookDepth {
+        let url: URL = URL(string: "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=\(symbol)")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        let response = try JSONDecoder().decode(OrderBookDepthResponse.self, from: data)
+        return OrderbookDepth(lastUpdateId: 0, asks: response.data.asks, bids: response.data.bids)
+    }
+    
 }

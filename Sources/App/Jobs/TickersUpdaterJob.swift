@@ -214,85 +214,58 @@ private extension TickersUpdaterJob {
         guard let adminUserInfo = UsersInfoProvider.shared.getUsersInfo(selectedMode: .alerting)
             .first(where: { $0.userId == 204251205 }) else { return triangularOpportunitiesDict }
         
-        switch stockExchange {
-        case .binance:
-            return await withTaskGroup(of: (String, TriangularOpportunity).self) { group in
-                triangularOpportunitiesDict.forEach { key, opportunity in
-                    group.addTask {
-                        guard opportunity.autotradeCicle == .pending else {
+        return await withTaskGroup(of: (String, TriangularOpportunity).self) { group in
+            triangularOpportunitiesDict.forEach { key, opportunity in
+                group.addTask {
+                    guard opportunity.autotradeCicle == .pending else { return (key, opportunity) }
+                    
+                    do {
+                        let depthCheckedTriangularOpportunity = try await depthCheckService.handle(
+                            stockExchange: stockExchange,
+                            opportunity: opportunity,
+                            bookTickersDict: bookTickersDict,
+                            for: adminUserInfo
+                        )
+                        let tradedTriangularOpportunity = try await autoTradingService.handle(
+                            stockExchange: stockExchange,
+                            opportunity: depthCheckedTriangularOpportunity,
+                            bookTickersDict: bookTickersDict,
+                            for: adminUserInfo
+                        )
+                        let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
+                        if let updateMessageId = opportunity.updateMessageId {
+                            let editParams: TGEditMessageTextParams = .init(
+                                chatId: .chat(adminUserInfo.chatId),
+                                messageId: updateMessageId,
+                                inlineMessageId: nil,
+                                text: text
+                            )
+                            var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
+                                "editParamsArray",
+                                as: [TGEditMessageTextParams].self
+                            ) ?? []
+                            
+                            editParamsArray.append(editParams)
+                            try await app.caches.memory.set("editParamsArray", to: editParamsArray)
+                            return (key, opportunity)
+                        } else {
+                            let tgMessage = try? bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
+                            opportunity.updateMessageId = tgMessage?.messageId ?? 0
                             return (key, opportunity)
                         }
-                        
-                        do {
-                            let depthCheckedTriangularOpportunity = try await depthCheckService.handle(
-                                opportunity: opportunity,
-                                bookTickersDict: bookTickersDict,
-                                for: adminUserInfo
-                            )
-                            let tradedTriangularOpportunity = try await autoTradingService.handle(
-                                opportunity: depthCheckedTriangularOpportunity,
-                                bookTickersDict: bookTickersDict,
-                                for: adminUserInfo
-                            )
-                            let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
-                            if let updateMessageId = opportunity.updateMessageId {
-                                let editParams: TGEditMessageTextParams = .init(
-                                    chatId: .chat(adminUserInfo.chatId),
-                                    messageId: updateMessageId,
-                                    inlineMessageId: nil,
-                                    text: text
-                                )
-                                var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
-                                    "editParamsArray",
-                                    as: [TGEditMessageTextParams].self
-                                ) ?? []
-                                
-                                editParamsArray.append(editParams)
-                                try await app.caches.memory.set("editParamsArray", to: editParamsArray)
-                                return (key, opportunity)
-                            } else {
-                                let tgMessage = try? bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
-                                opportunity.updateMessageId = tgMessage?.messageId ?? 0
-                                return (key, opportunity)
-                            }
-                        } catch {
-                            return (key, opportunity)
-                        }
+                    } catch {
+                        return (key, opportunity)
                     }
-                }
-                
-                return await group.reduce(into: [:]) { dictionary, result in
-                    dictionary[result.0] = result.1
                 }
             }
-        default:
-            return try triangularOpportunitiesDict.mapValues { opportunity in
-                let text = "[\(stockExchange.rawValue)] \(opportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
-                if let updateMessageId = opportunity.updateMessageId {
-                    Task {
-                        let editParams: TGEditMessageTextParams = .init(
-                            chatId: .chat(adminUserInfo.chatId),
-                            messageId: updateMessageId,
-                            inlineMessageId: nil,
-                            text: text
-                        )
-                        var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
-                            "editParamsArray",
-                            as: [TGEditMessageTextParams].self
-                        ) ?? []
-                        
-                        editParamsArray.append(editParams)
-                        try await app.caches.memory.set("editParamsArray", to: editParamsArray)
-                    }
-                    return opportunity
-                } else {
-                    let tgMessage = try bot.sendMessage(params: .init(chatId: .chat(adminUserInfo.chatId), text: text)).wait()
-                    opportunity.updateMessageId = tgMessage.messageId
-                    return opportunity
-                }
+            
+            return await group.reduce(into: [:]) { dictionary, result in
+                dictionary[result.0] = result.1
             }
         }
     }
+    
+    // MARK: - Surface Rate
     
     func calculateSurfaceRate(
         bookTickersDict: [String: BookTicker],
