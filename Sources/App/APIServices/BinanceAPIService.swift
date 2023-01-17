@@ -17,11 +17,11 @@ enum OrderSide: String, Codable {
     case unknown = "UNKNOWN"
 }
 
-enum BinanceError: Error, CustomStringConvertible {
+enum BinanceError: Error, LocalizedError {
     case unexpected(message: String)
     case noData
     
-    var description: String {
+    var errorDescription: String? {
         switch self {
         case .unexpected(let message):
             return message

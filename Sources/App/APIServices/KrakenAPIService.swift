@@ -103,7 +103,7 @@ final class KrakenAPIService {
         let response = try JSONDecoder().decode(OrderbookDepthResponse.self, from: data)
         
         guard let orderBook = response.result[symbol] else {
-            throw TradingError.customError(description: "No orderBook for \(symbol) at Kraken")
+            throw CommonError.customError(description: "No orderBook for \(symbol) at Kraken")
         }
         let asks: [[String]] = orderBook.asks.map {
             let price = String(decoding: $0[0], as: UTF8.self)

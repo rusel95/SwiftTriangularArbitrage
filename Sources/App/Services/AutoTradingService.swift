@@ -8,11 +8,6 @@
 import CoreFoundation
 import Vapor
 
-enum TradingError: Error {
-    case noMinimalPortion(description: String)
-    case customError(description: String)
-}
-
 final class AutoTradingService {
     
     private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
@@ -70,12 +65,12 @@ final class AutoTradingService {
      
         do {
             return try await handleFirstTrade(for: opportunity)
-        } catch TradingError.noMinimalPortion(let description) {
+        } catch CommonError.noMinimalPortion(let description) {
             opportunity.autotradeCicle = .forbidden
             opportunity.autotradeLog.append(description)
             emailService.sendEmail(subject: description, text: opportunity.description)
             return opportunity
-        } catch TradingError.customError(let description) {
+        } catch CommonError.customError(let description) {
             opportunity.autotradeCicle = .forbidden
             opportunity.autotradeLog.append(description)
             emailService.sendEmail(subject: description, text: opportunity.description)
@@ -100,17 +95,17 @@ final class AutoTradingService {
         guard let tradeableSymbolsDict = try await app.caches.memory.get(Constants.Binance.tradeableSymbolsDictKey,
                                                                          as: [String: BinanceAPIService.Symbol].self),
             let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
-            throw TradingError.customError(description: "\nError: No contract1 at tradeable symbols")
+            throw CommonError.customError(description: "\nError: No contract1 at tradeable symbols")
         }
         
         guard let firstOrderMinNotionalString = firstSymbolDetails.filters.first(where: { $0.filterType == .minNotional })?.minNotional,
               let firstOrderMinNotional = Double(firstOrderMinNotionalString)
         else {
-            throw TradingError.customError(description: "\nError: No min notional")
+            throw CommonError.customError(description: "\nError: No min notional")
         }
         
         guard let approximateTickerPrice = bookTickersDict[opportunity.firstSurfaceResult.contract1]?.buyPrice else {
-            throw TradingError.customError(description: "No approximate ticker price")
+            throw CommonError.customError(description: "No approximate ticker price")
         }
         
         let preferableQuantityForFirstTrade: Double
@@ -124,12 +119,12 @@ final class AutoTradingService {
             let minStableEquivalentQuantity = try getApproximateMinimalPortion(for: opportunity.firstSurfaceResult.swap0)
             preferableQuantityForFirstTrade = max(minNotionalEquivalentQuantity, minStableEquivalentQuantity)
         case .unknown:
-            throw TradingError.customError(description: "Unknown side")
+            throw CommonError.customError(description: "Unknown side")
         }
         
         guard let lotSizeMinQtyString = firstSymbolDetails.filters.first(where: { $0.filterType == .lotSize })?.minQty,
               let lotSizeMinQty = Double(lotSizeMinQtyString) else {
-            throw TradingError.customError(description: "No Lot_Size for \(opportunity.firstSurfaceResult.contract2)")
+            throw CommonError.customError(description: "No Lot_Size for \(opportunity.firstSurfaceResult.contract2)")
         }
         
         let leftoversAfterRounding = preferableQuantityForFirstTrade.truncatingRemainder(dividingBy: lotSizeMinQty)
@@ -137,7 +132,7 @@ final class AutoTradingService {
         
         guard quantityToExequte > 0 else {
             opportunity.autotradeCicle = .forbidden
-            throw TradingError.customError(description: "Quantity to Qxecute is 0 - have to have bigger amount")
+            throw CommonError.customError(description: "Quantity to Qxecute is 0 - have to have bigger amount")
         }
         
         return quantityToExequte
@@ -209,7 +204,7 @@ final class AutoTradingService {
               let tickSizeString = secondSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
               let tickSize = Double(tickSizeString)
         else {
-            throw TradingError.customError(description:"No Lot_Size for \(opportunity.firstSurfaceResult.contract2)")
+            throw CommonError.customError(description:"No Lot_Size for \(opportunity.firstSurfaceResult.contract2)")
         }
         
         let precisionDivider: Double
@@ -307,7 +302,7 @@ final class AutoTradingService {
               let tickSizeString = thirdSymbolDetails.filters.first(where: { $0.filterType == .priceFilter })?.tickSize,
               let tickSize = Double(tickSizeString)
         else {
-            throw TradingError.customError(description: "No Lot_Size for \(opportunity.firstSurfaceResult.contract3)")
+            throw CommonError.customError(description: "No Lot_Size for \(opportunity.firstSurfaceResult.contract3)")
         }
         
         let precisionDivider: Double
@@ -472,7 +467,7 @@ private extension AutoTradingService {
         } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
-            throw TradingError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")
+            throw CommonError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")
         }
     }
     

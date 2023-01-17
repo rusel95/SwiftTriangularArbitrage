@@ -119,4 +119,29 @@ final class HuobiAPIService {
         return response.data
     }
    
+    
+    // MARK: - DEPTH
+    
+    struct DepthResponse: Codable {
+        let ch, status: String
+        let ts: Int
+        let tick: Tick
+    }
+
+    struct Tick: Codable {
+        let bids, asks: [[Double]]
+        let version, ts: Int
+    }
+    
+    func getOrderbookDepth(symbol: String) async throws -> OrderbookDepth {
+        let url: URL = URL(string: "https://api.huobi.pro/market/depth?symbol=\(symbol)&type=step1")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        let response = try JSONDecoder().decode(DepthResponse.self, from: data)
+        let asks = response.tick.asks.map { [String($0[0]), String($0[1])] }
+        let bids = response.tick.bids.map { [String($0[0]), String($0[1])] }
+
+        return OrderbookDepth(lastUpdateId: 0, asks: asks, bids: bids)
+    }
+    
+    
 }

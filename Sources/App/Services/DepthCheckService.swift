@@ -52,8 +52,6 @@ final class DepthCheckService {
         bookTickersDict: [String: BookTicker],
         for userInfo: UserInfo
     ) async throws -> TriangularOpportunity {
-        self.bookTickersDict = bookTickersDict
-        
         opportunity.autotradeCicle = .depthCheck
         
         guard let lastSurfaceResult = opportunity.surfaceResults.last else {
@@ -61,6 +59,8 @@ final class DepthCheckService {
             opportunity.autotradeLog.append("no last result..")
             return opportunity
         }
+        
+        self.bookTickersDict = bookTickersDict
         
         do {
             let depth: TriangularOpportunityDepth
@@ -71,8 +71,7 @@ final class DepthCheckService {
                 opportunity.autotradeCicle = .forbidden
                 return opportunity
             case .huobi:
-                opportunity.autotradeCicle = .forbidden
-                return opportunity
+                depth = try await getHuobiDepth(for: lastSurfaceResult)
             case .exmo:
                 opportunity.autotradeCicle = .forbidden
                 return opportunity
@@ -132,7 +131,7 @@ final class DepthCheckService {
             return opportunity
         } catch {
             opportunity.autotradeLog.append(error.localizedDescription)
-            emailService.sendEmail(subject: "[\(stockExchange)] [depth] unexpected error: \(error.localizedDescription)",
+            emailService.sendEmail(subject: "[\(stockExchange)] [depth] \(error.localizedDescription)",
                                    text: opportunity.description)
             return opportunity
         }
@@ -173,6 +172,17 @@ private extension DepthCheckService {
         async let pairCDepthData = KrakenAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, count: 10)
         
         let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth,
+                                          pairBDepth: pairBDepth,
+                                          pairCDepth: pairCDepth)
+    }
+    
+    func getHuobiDepth(for surfaceResult: SurfaceResult) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1)
+        async let pairBDepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2)
+        async let pairCDepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3)
+        
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
         return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
     }
     
@@ -211,12 +221,12 @@ private extension DepthCheckService {
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
         guard Constants.stablesSet.contains(asset) == false else { return assetQuantity }
 
-        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"] ?? bookTickersDict["\(asset)-USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"] ?? bookTickersDict["USDT-\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
-            throw TradingError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")
+            throw CommonError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")
         }
     }
     
