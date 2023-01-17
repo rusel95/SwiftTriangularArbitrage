@@ -10,7 +10,7 @@ import Queues
 
 enum StockExchange: String, CaseIterable {
     
-    case binance, bybit, huobi, exmo, kucoin, kraken, whitebit
+    case binance, bybit, huobi, exmo, kucoin, kraken, whitebit, gateio
     
     var interestingProfit: Double {
         switch self {
@@ -24,7 +24,7 @@ enum StockExchange: String, CaseIterable {
             return -0.2
         case .huobi:
 #if DEBUG
-            return 0.1
+            return -0.2
 #else
             return 0.3
 #endif
@@ -32,20 +32,22 @@ enum StockExchange: String, CaseIterable {
             return 0.0
         case .kucoin:
 #if DEBUG
-            return 0.3
+            return 0.1
 #else
-            return 0.8
+            return 0.3
 #endif
         case .kraken:
-            return 0.3
+            return -0.2
         case .whitebit:
             return 0.5
+        case .gateio:
+            return -0.2
         }
     }
     
     var isTurnedOn: Bool {
         switch self {
-        case .whitebit:
+        case .whitebit, .gateio:
             return false
         default:
             return true
@@ -68,6 +70,8 @@ enum StockExchange: String, CaseIterable {
             return 40
         case .whitebit:
             return 50
+        case .gateio:
+            return 52
         }
     }
     
@@ -87,6 +91,8 @@ enum StockExchange: String, CaseIterable {
             return "KrakenStandartTriangularOpportunitiesDict"
         case .whitebit:
             return "WhiteBitStandartTriangularOpportunitiesDict"
+        case .gateio:
+            return "GateIOStandartTriangularOpportunitiesDict"
         }
     }
     
@@ -106,6 +112,8 @@ enum StockExchange: String, CaseIterable {
             return "KrakenStableTriangularOpportunitiesDict"
         case .whitebit:
             return "WhiteBitStableTriangularOpportunitiesDict"
+        case .gateio:
+            return "GateIOStableTriangularOpportunitiesDict"
         }
     }
     
@@ -125,6 +133,8 @@ enum StockExchange: String, CaseIterable {
             return URL.documentsDirectory.appendingPathComponent("kraken_standart_triangulars")
         case .whitebit:
             return URL.documentsDirectory.appendingPathComponent("whitebit_standart_triangulars")
+        case .gateio:
+            return URL.documentsDirectory.appendingPathComponent("gateio_standart_triangulars")
         }
     }
     
@@ -144,6 +154,8 @@ enum StockExchange: String, CaseIterable {
             return URL.documentsDirectory.appendingPathComponent("kraken_stable_triangulars")
         case .whitebit:
             return URL.documentsDirectory.appendingPathComponent("whitebit_stable_triangulars")
+        case .gateio:
+            return URL.documentsDirectory.appendingPathComponent("gateio_stable_triangulars")
         }
     }
     

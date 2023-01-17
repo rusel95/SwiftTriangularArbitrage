@@ -82,6 +82,8 @@ final class DepthCheckService {
             case .whitebit:
                 opportunity.autotradeCicle = .forbidden
                 return opportunity
+            case .gateio:
+                depth = try await getGateIODepth(for: lastSurfaceResult)
             }
             
             let trade1ApproximateOrderbookQuantity = try getApproximateMinimalAssetPortionToReceive(contract: lastSurfaceResult.contract1, asset: lastSurfaceResult.swap0)
@@ -181,6 +183,15 @@ private extension DepthCheckService {
         async let pairADepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1)
         async let pairBDepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2)
         async let pairCDepthData = HuobiAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3)
+        
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+    }
+    
+    func getGateIODepth(for surfaceResult: SurfaceResult) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = GateIOAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: 10)
+        async let pairBDepthData = GateIOAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: 10)
+        async let pairCDepthData = GateIOAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: 10)
         
         let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
         return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)

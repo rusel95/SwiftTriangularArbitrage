@@ -7,7 +7,6 @@
 
 import Queues
 import Vapor
-import telegram_vapor_bot
 import CoreFoundation
 
 struct TriangularsUpdaterJob: ScheduledJob {
@@ -16,12 +15,12 @@ struct TriangularsUpdaterJob: ScheduledJob {
     private let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
     private let app: Application
-    private let bot: TGBotPrtcl
+    private let emailService: EmailService
     private let stockExchange: StockExchange
     
-    init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
+    init(app: Application, stockEchange: StockExchange) {
         self.app = app
-        self.bot = bot
+        self.emailService = EmailService(app: app)
         self.stockExchange = stockEchange
     }
     
@@ -57,8 +56,11 @@ struct TriangularsUpdaterJob: ScheduledJob {
                         .getSymbols()
                         .filter { $0.status == .online }
                 case .whitebit:
-                    tradeableSymbols = try await WhiteBitAPIService.shared
+                    tradeableSymbols = try await WhiteBitAPIService.shared.getSymbols()
+                case .gateio:
+                    tradeableSymbols = try await GateIOAPIService.shared
                         .getSymbols()
+                        .filter { $0.tradeStatus == .tradable }
                 }
                 
                 let standartTriangulars = getTriangularsInfo(for: .standart, from: tradeableSymbols).triangulars
@@ -70,6 +72,10 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
             } catch {
                 print(error.localizedDescription)
+                emailService.sendEmail(
+                    subject: "[\(stockExchange)] [triangulars]",
+                    text: error.localizedDescription
+                )
             }
         }
     }

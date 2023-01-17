@@ -27,7 +27,7 @@ public func configure(_ app: Application) throws {
     }
     
     for stockExchange in StockExchange.allCases {
-        let triangularUpdaterJob = TriangularsUpdaterJob(app: app, bot: TGBot.shared, stockEchange: stockExchange)
+        let triangularUpdaterJob = TriangularsUpdaterJob(app: app, stockEchange: stockExchange)
         app.queues.schedule(triangularUpdaterJob).hourly().at(stockExchange.minuteToScheduleTriangularUpdater)
     }
     

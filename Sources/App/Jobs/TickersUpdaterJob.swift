@@ -83,6 +83,10 @@ struct TickersUpdaterJob: ScheduledJob {
                     bookTickersDict = try await WhiteBitAPIService.shared
                         .getBookTickers()
                         .toDictionary(with: { $0.symbol })
+                case .gateio:
+                    bookTickersDict = try await GateIOAPIService.shared
+                        .getBookTickers()
+                        .toDictionary(with: { $0.symbol })
                 }
                 
                 // NOTE: - Standart
@@ -143,7 +147,7 @@ struct TickersUpdaterJob: ScheduledJob {
                     to: tradedStableTriangularsDict
                 )
             } catch {
-                print(error.localizedDescription)
+                print("[\(stockExchange)] [tickers]: \(error.localizedDescription)")
             }
         }
     }
@@ -647,6 +651,8 @@ private extension TickersUpdaterJob {
             comissionPercent = 0.26
         case .whitebit:
             comissionPercent = 0.1
+        case .gateio:
+            comissionPercent = 0.2
         }
         return 1.0 - comissionPercent / 100.0
     }

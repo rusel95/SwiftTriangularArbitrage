@@ -37,50 +37,13 @@ final class HuobiAPIService {
         }
     }
 
-    enum APITrading: String, Codable {
-        case disabled = "disabled"
-        case enabled = "enabled"
-    }
-
     enum State: String, Codable {
         case offline = "offline"
         case online = "online"
     }
 
-    enum SymbolPartition: String, Codable {
-        case main = "main"
-        case st = "st"
-    }
-
-    enum Tags: String, Codable {
-        case abnormalmarket = "abnormalmarket"
-        case abnormalmarketHadax = "abnormalmarket,hadax"
-        case abnormalmarketHadaxHighrisk = "abnormalmarket,hadax,highrisk"
-        case activities = "activities"
-        case altsAbnormalmarket = "alts,abnormalmarket"
-        case crypto = "crypto"
-        case empty = ""
-        case etpNavHoldinglimit = "etp,nav,holdinglimit"
-        case etpNavHoldinglimitActivities = "etp,nav,holdinglimit,activities"
-        case fiat = "fiat"
-        case griddisabled = "griddisabled"
-        case griddisabledFiat = "griddisabled,fiat"
-        case griddisabledSt = "griddisabled,st"
-        case griddisabledStAbnormalmarket = "griddisabled,st,abnormalmarket"
-        case griddisabledStHadax = "griddisabled,st,hadax"
-        case hadax = "hadax"
-        case hadaxAbnormalmarket = "hadax,abnormalmarket"
-        case hadaxHad = "hadax,had"
-        case hadaxHighrisk = "hadax,highrisk"
-        case st = "st"
-        case stAbnormalmarket = "st,abnormalmarket"
-        case stHadax = "st,hadax"
-        case stHadaxAbnormalmarket = "st,hadax,abnormalmarket"
-        case stHighrisk = "st,highrisk"
-        case zerofee = "zerofee"
-    }
-
     // MARK: - Tickers
+    
     struct TickersResponse: Codable {
         let data: [Ticker]
         let status: String
