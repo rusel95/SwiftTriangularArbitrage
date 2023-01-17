@@ -56,7 +56,14 @@ final class AutoTradingService {
         bookTickersDict: [String: BookTicker],
         for userInfo: UserInfo
     ) async throws -> TriangularOpportunity {
+        guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0) else {
+            opportunity.autotradeCicle = .forbidden
+            opportunity.autotradeLog.append("\nNot tradeable opportunity\n")
+            return opportunity
+        }
+        
         self.bookTickersDict = bookTickersDict
+        
         guard opportunity.autotradeCicle == .readyToTrade, stockExchange == .binance else { return opportunity }
         
         opportunity.autotradeCicle = .trading

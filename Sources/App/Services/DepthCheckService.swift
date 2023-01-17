@@ -55,12 +55,6 @@ final class DepthCheckService {
         self.bookTickersDict = bookTickersDict
         
         opportunity.autotradeCicle = .depthCheck
-        // NOTE: - remove handling only first - handle all of opportunities
-        guard allowedAssetsToTrade.contains(opportunity.firstSurfaceResult.swap0) else {
-            opportunity.autotradeCicle = .forbidden
-            opportunity.autotradeLog.append("\nNot tradeable opportunity\n")
-            return opportunity
-        }
         
         guard let lastSurfaceResult = opportunity.surfaceResults.last else {
             opportunity.autotradeCicle = .forbidden
@@ -72,7 +66,7 @@ final class DepthCheckService {
             let depth: TriangularOpportunityDepth
             switch stockExchange {
             case .binance:
-                depth = try await getDepth(for: lastSurfaceResult, limit: 6)
+                depth = try await getBinanceDepth(for: lastSurfaceResult, limit: 6)
             case .bybit:
                 opportunity.autotradeCicle = .forbidden
                 return opportunity
@@ -85,8 +79,7 @@ final class DepthCheckService {
             case .kucoin:
                 depth = try await getKucoinDepth(for: lastSurfaceResult)
             case .kraken:
-                opportunity.autotradeCicle = .forbidden
-                return opportunity
+                depth = try await getKrakenDepth(for: lastSurfaceResult)
             case .whitebit:
                 opportunity.autotradeCicle = .forbidden
                 return opportunity
@@ -102,7 +95,7 @@ final class DepthCheckService {
             guard (lastSurfaceResult.directionTrade1 == .baseToQuote && trade1PriceDifferencePercent >= -maximalDifferencePercent) ||
                     (lastSurfaceResult.directionTrade1 == .quoteToBase && trade1PriceDifferencePercent <= maximalDifferencePercent)
             else {
-                opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
+                opportunity.autotradeLog.append("\nTrade 1 price: \(trade1AveragePrice.string()) (\(trade1PriceDifferencePercent.string(maxFractionDigits: 2))% diff)")
                 opportunity.autotradeCicle = .pending
                 return opportunity
             }
@@ -116,7 +109,7 @@ final class DepthCheckService {
             guard (lastSurfaceResult.directionTrade2 == .baseToQuote && trade2PriceDifferencePercent >= -maximalDifferencePercent) ||
                     (lastSurfaceResult.directionTrade2 == .quoteToBase && trade2PriceDifferencePercent <= maximalDifferencePercent)
             else {
-                opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
+                opportunity.autotradeLog.append("\nTrade 2 price: \(trade2AveragePrice.string(maxFractionDigits: 5)) (\(trade2PriceDifferencePercent.string(maxFractionDigits: 2))% diff)")
                 opportunity.autotradeCicle = .pending
                 return opportunity
             }
@@ -130,7 +123,7 @@ final class DepthCheckService {
             guard (lastSurfaceResult.directionTrade3 == .baseToQuote && trade3PriceDifferencePercent >= -maximalDifferencePercent) ||
                     (lastSurfaceResult.directionTrade3 == .quoteToBase && trade3PriceDifferencePercent <= maximalDifferencePercent)
             else {
-                opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 2))% diff)\n")
+                opportunity.autotradeLog.append("\nTrade 3 price: \(trade3AveragePrice.string()) (\(trade3PriceDifferencePercent.string(maxFractionDigits: 2))% diff)")
                 opportunity.autotradeCicle = .pending
                 return opportunity
             }
@@ -139,7 +132,7 @@ final class DepthCheckService {
             return opportunity
         } catch {
             opportunity.autotradeLog.append(error.localizedDescription)
-            emailService.sendEmail(subject: "unexpected error: \(error.localizedDescription)",
+            emailService.sendEmail(subject: "[\(stockExchange)] [depth] unexpected error: \(error.localizedDescription)",
                                    text: opportunity.description)
             return opportunity
         }
@@ -151,13 +144,15 @@ final class DepthCheckService {
 
 private extension DepthCheckService {
     
-    func getDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
+    func getBinanceDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
         async let pairADepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit)
         async let pairBDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit)
         async let pairCDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit)
         
         let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
-        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
+        return TriangularOpportunityDepth(pairADepth: pairADepth,
+                                          pairBDepth: pairBDepth,
+                                          pairCDepth: pairCDepth)
     }
     
     
@@ -165,6 +160,17 @@ private extension DepthCheckService {
         async let pairADepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1)
         async let pairBDepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2)
         async let pairCDepthData = KuCoinAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3)
+        
+        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
+        return TriangularOpportunityDepth(pairADepth: pairADepth,
+                                          pairBDepth: pairBDepth,
+                                          pairCDepth: pairCDepth)
+    }
+    
+    func getKrakenDepth(for surfaceResult: SurfaceResult) async throws -> TriangularOpportunityDepth {
+        async let pairADepthData = KrakenAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, count: 10)
+        async let pairBDepthData = KrakenAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, count: 10)
+        async let pairCDepthData = KrakenAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, count: 10)
         
         let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
         return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)

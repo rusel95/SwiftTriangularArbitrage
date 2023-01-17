@@ -52,15 +52,6 @@ enum StockExchange: String, CaseIterable {
         }
     }
     
-    var isTradeable: Bool {
-        switch self {
-        case .binance:
-            return true
-        default:
-            return false
-        }
-    }
-    
     var minuteToScheduleTriangularUpdater: ScheduleBuilder.Minute {
         switch self {
         case .binance:

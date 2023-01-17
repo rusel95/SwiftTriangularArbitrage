@@ -232,7 +232,7 @@ private extension TickersUpdaterJob {
                             bookTickersDict: bookTickersDict,
                             for: adminUserInfo
                         )
-                        let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \nUpdated at: \(Date().readableDescription)"
+                        let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \n\nUpdated at: \(Date().readableDescription)"
                         if let updateMessageId = opportunity.updateMessageId {
                             let editParams: TGEditMessageTextParams = .init(
                                 chatId: .chat(adminUserInfo.chatId),
