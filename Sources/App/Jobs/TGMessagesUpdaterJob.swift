@@ -28,6 +28,8 @@ struct TGMessagesUpdaterJob: ScheduledJob {
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
             do {
+                print(String().getMemoryUsedMegabytes())
+                
                 var editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
                     "editParamsArray",
                     as: [TGEditMessageTextParams].self

@@ -43,7 +43,7 @@ enum StockExchange: String, CaseIterable {
     
     var isTurnedOn: Bool {
         switch self {
-        case .whitebit:
+        case .whitebit, .kucoin:
             return false
         default:
             return true

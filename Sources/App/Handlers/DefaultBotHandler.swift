@@ -174,7 +174,8 @@ private extension DefaultBotHandlers {
                         "editParamsArray",
                         as: [TGEditMessageTextParams].self
                     ) ?? []
-                    text.append("To Update: \(editParamsArray.count)")
+                    text.append("\n\(String().getMemoryUsedMegabytes())")
+                    text.append("\nTo Update: \(editParamsArray.count)")
                     
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 } catch {
