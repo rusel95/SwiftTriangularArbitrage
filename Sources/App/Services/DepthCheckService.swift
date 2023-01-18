@@ -232,9 +232,11 @@ private extension DepthCheckService {
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
         guard Constants.stablesSet.contains(asset) == false else { return assetQuantity }
 
-        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"] ?? bookTickersDict["\(asset)-USDT"], let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"] ?? bookTickersDict["\(asset)-USDT"] ?? bookTickersDict["\(asset)usdc"],
+            let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"] ?? bookTickersDict["USDT-\(asset)"], let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
+        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"] ?? bookTickersDict["USDT-\(asset)"] ?? bookTickersDict["usdc\(asset)"],
+                  let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
             throw CommonError.noMinimalPortion(description: "\nNo Approximate Minimal Portion for asset \(asset)")

@@ -9,7 +9,6 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Logging
 
 enum OrderSide: String, Codable {
     case quoteToBase = "BUY"

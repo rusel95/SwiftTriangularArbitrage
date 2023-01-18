@@ -16,6 +16,7 @@ struct TickersUpdaterJob: ScheduledJob {
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
     
+    // TODO: - add symbolsWithoutComissions for different Stocks
     private let symbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     private let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "USD")
     private let logger = Logger(label: "logger.artitrage.triangular")

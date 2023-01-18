@@ -9,7 +9,6 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Logging
 
 final class ByBitAPIService {
     
@@ -93,8 +92,6 @@ final class ByBitAPIService {
     // MARK: - PROPERTIES
     
     static let shared = ByBitAPIService()
-    
-    private var logger = Logger(label: "api.bybit")
     
     // MARK: - METHODS
     

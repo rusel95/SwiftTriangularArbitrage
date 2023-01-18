@@ -9,7 +9,6 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Logging
 
 final class KrakenAPIService {
 
@@ -93,8 +92,36 @@ final class KrakenAPIService {
     }
     
     struct OrderBook: Codable {
-        let asks: [[Data]]
-        let bids: [[Data]]
+        let asks: [[PropositionElement]]
+        let bids: [[PropositionElement]]
+    }
+    
+    enum PropositionElement: Codable {
+        case integer(Int)
+        case string(String)
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let x = try? container.decode(Int.self) {
+                self = .integer(x)
+                return
+            }
+            if let x = try? container.decode(String.self) {
+                self = .string(x)
+                return
+            }
+            throw DecodingError.typeMismatch(PropositionElement.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for Ask"))
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .integer(let x):
+                try container.encode(x)
+            case .string(let x):
+                try container.encode(x)
+            }
+        }
     }
     
     func getOrderbookDepth(symbol: String, count: UInt) async throws -> OrderbookDepth {
@@ -102,18 +129,24 @@ final class KrakenAPIService {
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         let response = try JSONDecoder().decode(OrderbookDepthResponse.self, from: data)
         
-        guard let orderBook = response.result[symbol] else {
+        guard let orderBook = response.result.first?.value else {
             throw CommonError.customError(description: "No orderBook for \(symbol) at Kraken")
         }
         let asks: [[String]] = orderBook.asks.map {
-            let price = String(decoding: $0[0], as: UTF8.self)
-            let volume = String(decoding: $0[1], as: UTF8.self)
-            return [price, volume]
+            switch ($0[0], $0[1]) {
+            case (.string(let price), .string(let volume)):
+                return [price, volume]
+            default:
+                return ["", ""]
+            }
         }
         let bids: [[String]] = orderBook.bids.map {
-            let price = String(decoding: $0[0], as: UTF8.self)
-            let volume = String(decoding: $0[1], as: UTF8.self)
-            return [price, volume]
+            switch ($0[0], $0[1]) {
+            case (.string(let price), .string(let volume)):
+                return [price, volume]
+            default:
+                return ["", ""]
+            }
         }
         return OrderbookDepth(lastUpdateId: 0, asks: asks, bids: bids)
     }

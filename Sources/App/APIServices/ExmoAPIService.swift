@@ -9,7 +9,6 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Logging
 
 final class ExmoAPIService {
     
