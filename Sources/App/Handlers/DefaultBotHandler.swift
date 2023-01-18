@@ -153,18 +153,29 @@ private extension DefaultBotHandlers {
         let handler = TGCommandHandler(commands: ["/status"]) { update, bot in
             guard let chatId = update.message?.chat.id else { return }
             
-            let usersDescription = UsersInfoProvider.shared.getAllUsersInfo()
-                .map { $0.description }
-                .joined(separator: "\n")
-            
             Task {
                 do {
+                    var text = UsersInfoProvider.shared.getAllUsersInfo()
+                        .map { $0.description }
+                        .joined(separator: "\n")
+                    
+                    for stockExchange in StockExchange.allCases {
+                        // NOTE: - Standart
+                        let standartTriangularsData = try Data(contentsOf: stockExchange.standartTriangularsStorageURL)
+                        let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
+                        
+                        // NOTE: - Stables
+                        let stableTriangularsData = try Data(contentsOf: stockExchange.stableTriangularsStorageURL)
+                        let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsData)
+                        text.append("\n[\(stockExchange)] standart Triangulars: \(standartTriangulars.count), stable triangulars: \(stableTriangulars.count)")
+                    }
+                    
                     let editParamsArray: [TGEditMessageTextParams] = try await app.caches.memory.get(
                         "editParamsArray",
                         as: [TGEditMessageTextParams].self
                     ) ?? []
+                    text.append("To Update: \(editParamsArray.count)")
                     
-                    let text = "Users:\n\(usersDescription)\nTo Update: \(editParamsArray.count)"
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 } catch {
                     print(error.localizedDescription)

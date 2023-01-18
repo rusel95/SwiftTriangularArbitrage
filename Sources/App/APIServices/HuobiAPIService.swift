@@ -10,10 +10,17 @@ import Foundation
 import FoundationNetworking
 #endif
 import Logging
+import AsyncHTTPClient
 
 final class HuobiAPIService {
 
-    // MARK: - Symbols
+    // MARK: - PROPERTIES
+    
+    static let shared = HuobiAPIService()
+    
+    let httpClient = HTTPClient(eventLoopGroupProvider: .createNew)
+    
+    // MARK: - SYMBOLS
     
     struct SymbolsReponse: Codable {
         let status: String
@@ -42,6 +49,13 @@ final class HuobiAPIService {
         case online = "online"
     }
 
+    func getSymbolsInfo() async throws -> [Symbol] {
+        let request = try HTTPClient.Request(url: "https://api.huobi.pro/v1/common/symbols")
+        let response = try await httpClient.execute(request: request).get()
+        let symbolsResponse = try JSONDecoder().decode(SymbolsReponse.self, from: response.body!)
+        return symbolsResponse.data
+    }
+    
     // MARK: - Tickers
     
     struct TickersResponse: Codable {
@@ -52,27 +66,11 @@ final class HuobiAPIService {
 
     struct Ticker: Codable {
         let symbol: String
-        let open, high, low, close: Double
-        let amount, vol: Double
-        let count: Int
         let bid, bidSize, ask, askSize: Double
 
         enum CodingKeys: String, CodingKey {
-            case symbol, open, high, low, close, amount, vol, count, bid, bidSize, ask, askSize
+            case symbol, bid, bidSize, ask, askSize
         }
-    }
-
-    // MARK: - PROPERTIES
-    
-    static let shared = HuobiAPIService()
-    
-    // MARK: - METHODS
-    
-    func getSymbolsInfo() async throws -> [Symbol] {
-        let url: URL = URL(string: "https://api.huobi.pro/v1/common/symbols")!
-        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        let response = try JSONDecoder().decode(SymbolsReponse.self, from: data)
-        return response.data
     }
     
     func getTickers() async throws -> [Ticker] {

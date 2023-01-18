@@ -9,13 +9,15 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Logging
+import AsyncHTTPClient
 
 final class GateIOAPIService {
 
     // MARK: - PROPERTIES
     
     static let shared = GateIOAPIService()
+    
+    let httpClient = HTTPClient(eventLoopGroupProvider: .createNew)
     
     // MARK: - SYMBOLS
     
@@ -54,15 +56,15 @@ final class GateIOAPIService {
     }
     
     func getSymbols() async throws -> [Symbol] {
-        let url: URL = URL(string: "https://api.gateio.ws/api/v4/spot/currency_pairs")!
-        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        return try JSONDecoder().decode([Symbol].self, from: data)
+        let request = try HTTPClient.Request(url: "https://api.gateio.ws/api/v4/spot/currency_pairs")
+        let response = try await httpClient.execute(request: request).get()
+        return try JSONDecoder().decode([Symbol].self, from: response.body!)
     }
     
     // MARK: - TICKERS
     
     struct Ticker: Codable {
-        let currencyPair, lowestAsk, highestBid: String
+        let currencyPair, lowestAsk, highestBid: String?
 
         enum CodingKeys: String, CodingKey {
             case currencyPair = "currency_pair"
@@ -71,15 +73,17 @@ final class GateIOAPIService {
         }
     }
     func getBookTickers() async throws -> [BookTicker] {
-        let url: URL = URL(string: "https://api.gateio.ws/api/v4/spot/tickers")!
-        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        let tickers = try JSONDecoder().decode([Ticker].self, from: data)
-        return tickers.map {
-            BookTicker(
-                symbol: $0.currencyPair,
-                askPrice: $0.lowestAsk,
+        let request = try HTTPClient.Request(url: "https://api.gateio.ws/api/v4/spot/tickers")
+        let response = try await httpClient.execute(request: request).get()
+        let tickers = try JSONDecoder().decode([Ticker].self, from: response.body!)
+        return tickers.compactMap {
+            guard let currencyPair = $0.currencyPair, let lowestAsk = $0.lowestAsk, let highestBid = $0.highestBid else { return nil }
+            
+            return BookTicker(
+                symbol: currencyPair,
+                askPrice: lowestAsk,
                 askQty: "0",
-                bidPrice: $0.highestBid,
+                bidPrice: highestBid,
                 bidQty: "0"
             )
         }
@@ -94,9 +98,9 @@ final class GateIOAPIService {
     }
     
     func getOrderbookDepth(symbol: String, limit: UInt) async throws -> OrderbookDepth {
-        let url: URL = URL(string: "https://api.gateio.ws/api/v4/spot/order_book?currency_pair=\(symbol)&limit=\(limit)")!
-        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
-        let orderBook = try JSONDecoder().decode(OrderBook.self, from: data)
+        let request = try HTTPClient.Request(url: "https://api.gateio.ws/api/v4/spot/order_book?currency_pair=\(symbol)&limit=\(limit)")
+        let response = try await httpClient.execute(request: request).get()
+        let orderBook = try JSONDecoder().decode(OrderBook.self, from: response.body!)
         return OrderbookDepth(lastUpdateId: 0, asks: orderBook.asks, bids: orderBook.bids)
     }
     

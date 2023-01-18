@@ -232,10 +232,15 @@ private extension DepthCheckService {
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
         guard Constants.stablesSet.contains(asset) == false else { return assetQuantity }
 
-        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"] ?? bookTickersDict["\(asset)-USDT"] ?? bookTickersDict["\(asset)usdc"],
-            let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
+        if let assetToStableSymbol = bookTickersDict["\(asset)USDT"]
+            ?? bookTickersDict["\(asset)-USDT"]
+            ?? bookTickersDict["\(asset)"]
+            ?? bookTickersDict["\(asset)usdc"],
+           let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
-        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"] ?? bookTickersDict["USDT-\(asset)"] ?? bookTickersDict["usdc\(asset)"],
+        } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"]
+                    ?? bookTickersDict["USDT-\(asset)"]
+                    ?? bookTickersDict["usdc\(asset)"],
                   let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {
