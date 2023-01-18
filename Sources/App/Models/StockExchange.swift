@@ -33,7 +33,7 @@ enum StockExchange: String, CaseIterable {
         case .kucoin:
             return 0.3
         case .kraken:
-            return -0.2
+            return 0.0
         case .whitebit:
             return 0.5
         case .gateio:

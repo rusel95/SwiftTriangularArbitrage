@@ -179,7 +179,7 @@ private extension DefaultBotHandlers {
                     
                     _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: text))
                 } catch {
-                    print(error.localizedDescription)
+                    _ = try bot.sendMessage(params: .init(chatId: .chat(chatId), text: error.localizedDescription))
                 }
             }
         }
