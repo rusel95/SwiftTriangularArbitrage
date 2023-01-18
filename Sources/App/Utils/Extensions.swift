@@ -129,6 +129,7 @@ extension Double {
 extension String {
     
     func getMemoryUsedMegabytes() -> String {
+#if os(macOS)
         var taskInfo = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info>.size) / 4
         let result: kern_return_t = withUnsafeMutablePointer(to: &taskInfo) {
@@ -139,6 +140,9 @@ extension String {
         let usedMb = Float(taskInfo.phys_footprint) / 1048576.0
         let totalMb = Float(ProcessInfo.processInfo.physicalMemory) / 1048576.0
         return result != KERN_SUCCESS ? "Memory used: ? of \(totalMb) mb" : "Memory used: \(usedMb) mb of \(totalMb) mb"
+#else
+        return "OMG, not works for linux yet"
+#endif
     }
     
 }
