@@ -33,7 +33,7 @@ enum StockExchange: String, CaseIterable {
         case .kucoin:
             return 0.3
         case .kraken:
-            return 0.0
+            return 0.2
         case .whitebit:
             return 0.5
         case .gateio:
@@ -53,7 +53,7 @@ enum StockExchange: String, CaseIterable {
     var minuteToScheduleTriangularUpdater: ScheduleBuilder.Minute {
         switch self {
         case .binance:
-            return 31
+            return 35
         case .bybit:
             return 10
         case .huobi:
