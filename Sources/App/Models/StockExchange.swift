@@ -53,7 +53,7 @@ enum StockExchange: String, CaseIterable {
     var minuteToScheduleTriangularUpdater: ScheduleBuilder.Minute {
         switch self {
         case .binance:
-            return 35
+            return 0
         case .bybit:
             return 10
         case .huobi:
