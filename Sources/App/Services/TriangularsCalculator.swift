@@ -10,7 +10,6 @@ import Foundation
 struct TriangularsCalculator {
     
     private static let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
-    private static let forbiddenAssetsToTrade: Set<String> = Set(arrayLiteral: "RUB", "rub", "OP", "op")
     
     static func getTriangularsInfo(
         for mode: Mode,
@@ -25,30 +24,18 @@ struct TriangularsCalculator {
                 let aBase: String = pairA.baseAsset
                 let aQuote: String = pairA.quoteAsset
                 
-                guard forbiddenAssetsToTrade.contains(aBase) == false, forbiddenAssetsToTrade.contains(aQuote) == false else {
-                    break
-                }
                 // Get Pair B - Find B pair where one coint matched
                 for pairB in tradeableSymbols {
                     let bBase: String = pairB.baseAsset
                     let bQuote: String = pairB.quoteAsset
                     
-                    guard forbiddenAssetsToTrade.contains(bBase) == false, forbiddenAssetsToTrade.contains(bQuote) == false else {
-                        break
-                    }
-                    
                     if pairB.symbol != pairA.symbol {
-                        if (aBase == bBase || aQuote == bBase) ||
-                            (aBase == bQuote || aQuote == bQuote) {
+                        if (aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote) {
                             
                             // Get Pair C - Find C pair where base and quote exist in A and B configurations
                             for pairC in tradeableSymbols {
                                 let cBase: String = pairC.baseAsset
                                 let cQuote: String = pairC.quoteAsset
-                                
-                                guard forbiddenAssetsToTrade.contains(cBase) == false, forbiddenAssetsToTrade.contains(cQuote) == false else {
-                                    break
-                                }
                                 
                                 // Count the number of matching C items
                                 if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
@@ -81,10 +68,6 @@ struct TriangularsCalculator {
                 let aBase: String = pairA.baseAsset
                 let aQuote: String = pairA.quoteAsset
                 
-                guard forbiddenAssetsToTrade.contains(aBase) == false, forbiddenAssetsToTrade.contains(aQuote) == false else {
-                    break
-                }
-                
                 if (stableAssets.contains(aBase) && stableAssets.contains(aQuote) == false) ||
                     (stableAssets.contains(aBase) == false && stableAssets.contains(aQuote)) {
                     // Get Pair B - Find B pair where one coin matched
@@ -92,20 +75,12 @@ struct TriangularsCalculator {
                         let bBase: String = pairB.baseAsset
                         let bQuote: String = pairB.quoteAsset
                         
-                        guard forbiddenAssetsToTrade.contains(bBase) == false, forbiddenAssetsToTrade.contains(bQuote) == false else {
-                            break
-                        }
-                        
                         if pairB.symbol != pairA.symbol && ((aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote)) {
                             
                             // Get Pair C - Find C pair where base and quote exist in A and B configurations
                             for pairC in tradeableSymbols {
                                 let cBase: String = pairC.baseAsset
                                 let cQuote: String = pairC.quoteAsset
-                                
-                                guard forbiddenAssetsToTrade.contains(cBase) == false, forbiddenAssetsToTrade.contains(cQuote) == false else {
-                                    break
-                                }
                                 
                                 // Count the number of matching C items
                                 if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {

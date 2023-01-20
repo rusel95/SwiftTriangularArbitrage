@@ -72,7 +72,7 @@ final class TriangularsCalculatorTests: XCTestCase {
                 .filter { $0.baseAsset != "RUB" && $0.quoteAsset != "RUB" }
             
             let triangulars = TriangularsCalculator.getTriangularsInfo(for: .standart, from: symbols)
-            assert(triangulars.count == 266)
+            assert(triangulars.count == 14148)
         }
     }
 

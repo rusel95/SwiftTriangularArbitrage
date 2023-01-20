@@ -30,6 +30,8 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 case .binance:
                     let binanceTradeableSymbols = try await BinanceAPIService().getExchangeInfo()
                         .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+                        .filter { $0.baseAsset != "RUB" && $0.quoteAsset != "RUB" }
+                    
                     tradeableSymbols = binanceTradeableSymbols
                     let binanceTradeableSymbolsDict: [String: BinanceAPIService.Symbol] = binanceTradeableSymbols.toDictionary(with: { $0.symbol })
                     try await app.caches.memory.set(Constants.Binance.tradeableSymbolsDictKey, to: binanceTradeableSymbolsDict)
