@@ -236,14 +236,16 @@ private extension DepthCheckService {
             ?? bookTickersDict["\(asset)-USDT"]
             ?? bookTickersDict["\(asset)"]
             ?? bookTickersDict["\(asset)_USD"]
-            ?? bookTickersDict["\(asset)USD"],
+            ?? bookTickersDict["\(asset)USD"]
+            ?? bookTickersDict["\(asset)BUSD"],
            let assetToStableApproximatePrice = assetToStableSymbol.sellPrice {
             return assetQuantity * assetToStableApproximatePrice
         } else if let stableToAssetSymbol = bookTickersDict["USDT\(asset)"]
                     ?? bookTickersDict["USDT-\(asset)"]
                     ?? bookTickersDict["\(asset)"]
                     ?? bookTickersDict["USD_\(asset)"]
-                    ?? bookTickersDict["USD\(asset)"],
+                    ?? bookTickersDict["USD\(asset)"]
+                    ?? bookTickersDict["BUSD\(asset)"],
                   let stableToAssetApproximatePrice = stableToAssetSymbol.buyPrice {
             return assetQuantity / stableToAssetApproximatePrice
         } else {

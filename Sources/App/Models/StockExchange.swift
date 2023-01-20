@@ -24,12 +24,12 @@ enum StockExchange: String, CaseIterable {
             return -0.2
         case .huobi:
 #if DEBUG
-            return -0.2
+            return 0.1
 #else
             return 0.3
 #endif
         case .exmo:
-            return 0.0
+            return 0.3
         case .kucoin:
             return 0.3
         case .kraken:
@@ -37,7 +37,7 @@ enum StockExchange: String, CaseIterable {
         case .whitebit:
             return 0.5
         case .gateio:
-            return -0.2
+            return 0.2
         }
     }
     

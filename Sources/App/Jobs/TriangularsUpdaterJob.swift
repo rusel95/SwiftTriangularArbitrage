@@ -46,6 +46,7 @@ struct TriangularsUpdaterJob: ScheduledJob {
                         .filter { $0.state == .online }
                 case .exmo:
                     tradeableSymbols = try await ExmoAPIService.shared.getSymbols()
+                        .filter { $0.quoteAsset != "RUB" && $0.baseAsset != "RUB" }
                 case .kucoin:
                     tradeableSymbols = try await KuCoinAPIService.shared
                         .getSymbols()
