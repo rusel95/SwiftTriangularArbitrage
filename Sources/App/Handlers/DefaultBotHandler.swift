@@ -159,7 +159,7 @@ private extension DefaultBotHandlers {
                         .map { $0.description }
                         .joined(separator: "\n")
                     
-                    for stockExchange in StockExchange.allCases.filter({ $0.isTurnedOn }) {
+                    for stockExchange in StockExchange.allCases {
                         // NOTE: - Standart
                         let standartTriangularsData = try Data(contentsOf: stockExchange.standartTriangularsStorageURL)
                         let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
