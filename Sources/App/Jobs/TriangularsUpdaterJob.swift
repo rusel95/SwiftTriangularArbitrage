@@ -24,6 +24,8 @@ struct TriangularsUpdaterJob: ScheduledJob {
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
             do {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                
                 let tradeableSymbols: [TradeableSymbol]
                 
                 switch stockExchange {
@@ -67,9 +69,14 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
                 try standartTriangularsEndcodedData.write(to: stockExchange.standartTriangularsStorageURL)
                 
-                let stableTriangulars = TriangularsCalculator.getTriangularsInfo(for: .stable, from: tradeableSymbols)
-                let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
-                try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
+                let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+//                let stableTriangulars = TriangularsCalculator.getTriangularsInfo(for: .stable, from: tradeableSymbols)
+//                let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+//                try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
+                emailService.sendEmail(
+                    subject: "[\(stockExchange)] [triangulars]",
+                    text: "StandartTriangulars: \(standartTriangulars.count) calculated in \(duration) seconds"
+                )
             } catch {
                 print(error.localizedDescription)
                 emailService.sendEmail(

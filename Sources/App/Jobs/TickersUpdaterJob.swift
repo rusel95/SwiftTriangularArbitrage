@@ -120,33 +120,33 @@ struct TickersUpdaterJob: ScheduledJob {
                 )
                 
                 // NOTE: - Stables
-                let stableTriangularsData = try Data(contentsOf: stockExchange.stableTriangularsStorageURL)
-                let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsData)
-                let stableSurfaceResults = getSurfaceResults(
-                    mode: .stable,
-                    triangulars: stableTriangulars,
-                    bookTickersDict: bookTickersDict
-                )
-                let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
-                    stockExchange.stableTriangularOpportunityDictKey,
-                    as: TriangularOpportinitiesDict.self
-                ) ?? TriangularOpportinitiesDict()
-                let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
-                    from: stableSurfaceResults,
-                    currentOpportunities: stableTriangularOpportunitiesDict,
-                    profitPercent: stockExchange.interestingProfit
-                )
-            
-                let tradedStableTriangularsDict = try await process(
-                    triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
-                    mode: .stable,
-                    stockExchange: stockExchange,
-                    bookTickersDict: bookTickersDict
-                )
-                try await app.caches.memory.set(
-                    stockExchange.stableTriangularOpportunityDictKey,
-                    to: tradedStableTriangularsDict
-                )
+//                let stableTriangularsData = try Data(contentsOf: stockExchange.stableTriangularsStorageURL)
+//                let stableTriangulars = try JSONDecoder().decode([Triangular].self, from: stableTriangularsData)
+//                let stableSurfaceResults = getSurfaceResults(
+//                    mode: .stable,
+//                    triangulars: stableTriangulars,
+//                    bookTickersDict: bookTickersDict
+//                )
+//                let stableTriangularOpportunitiesDict = try await app.caches.memory.get(
+//                    stockExchange.stableTriangularOpportunityDictKey,
+//                    as: TriangularOpportinitiesDict.self
+//                ) ?? TriangularOpportinitiesDict()
+//                let newStableTriangularOpportunitiesDict = getActualTriangularOpportunitiesDict(
+//                    from: stableSurfaceResults,
+//                    currentOpportunities: stableTriangularOpportunitiesDict,
+//                    profitPercent: stockExchange.interestingProfit
+//                )
+//
+//                let tradedStableTriangularsDict = try await process(
+//                    triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+//                    mode: .stable,
+//                    stockExchange: stockExchange,
+//                    bookTickersDict: bookTickersDict
+//                )
+//                try await app.caches.memory.set(
+//                    stockExchange.stableTriangularOpportunityDictKey,
+//                    to: tradedStableTriangularsDict
+//                )
             } catch {
                 print("[\(stockExchange)] [tickers]: \(error.localizedDescription)")
             }
