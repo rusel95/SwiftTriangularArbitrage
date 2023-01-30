@@ -7,7 +7,6 @@
 
 import Vapor
 import telegram_vapor_bot
-import Jobs
 import Logging
 import CoreFoundation
 

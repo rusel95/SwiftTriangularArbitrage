@@ -28,15 +28,6 @@
       }
     },
     {
-      "identity" : "jobs",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/BrettRToomey/Jobs.git",
-      "state" : {
-        "revision" : "2051cc49b64692534225ea9d347051f64ac682ee",
-        "version" : "1.1.2"
-      }
-    },
-    {
       "identity" : "multipart-kit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/multipart-kit.git",

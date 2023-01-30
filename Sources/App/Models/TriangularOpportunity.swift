@@ -66,7 +66,7 @@ final class TriangularOpportunity: Codable, CustomStringConvertible, Hashable {
     }
     
     var duration: Double {
-        latestUpdateDate.timeIntervalSince(startDate).seconds.unixTime
+        latestUpdateDate.timeIntervalSince(startDate)
     }
     
     var description: String {
