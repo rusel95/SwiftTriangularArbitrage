@@ -48,4 +48,12 @@ final class PricesTests: XCTestCase {
         XCTAssertEqual(probableBuyPrice, 7.666, accuracy: 0.001)
     }
     
+    func testPerformanceOfGetWeightedAveragePrice() {
+        self.measure {
+            for _ in 0...100000 {
+                _ = orderbookDepth.getWeightedAveragePrice(for: .quoteToBase, amount: 15)
+            }
+        }
+    }
+    
 }
