@@ -139,7 +139,7 @@ final class BinanceAPIService {
     }
     
     // MARK: - Symbol
-    struct Symbol: TradeableSymbol {
+    struct Symbol: TradeableSymbol, Hashable {
         let symbol: String
         let status: Status
         let baseAsset: String
@@ -149,7 +149,7 @@ final class BinanceAPIService {
     }
     
     // MARK: - Filter
-    struct Filter: Codable {
+    struct Filter: Codable, Hashable {
         let filterType: FilterType
         let minPrice, maxPrice, tickSize, multiplierUp: String?
         let multiplierDown: String?
@@ -176,7 +176,7 @@ final class BinanceAPIService {
         case trailingDelta = "TRAILING_DELTA"
     }
      
-    enum Status: String, Codable {
+    enum Status: String, Codable, Hashable {
         case statusBREAK = "BREAK"
         case trading = "TRADING"
     }
