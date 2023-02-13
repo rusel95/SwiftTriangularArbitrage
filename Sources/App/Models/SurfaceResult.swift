@@ -25,10 +25,6 @@ struct SurfaceResult: Codable, CustomStringConvertible, Hashable {
     let contract2: String
     let contract3: String
     
-    let contract1AvailableQuantity: Double?
-    let contract2AvailableQuantity: Double?
-    let contract3AvailableQuantity: Double?
-    
     let directionTrade1: OrderSide
     let directionTrade2: OrderSide
     let directionTrade3: OrderSide
