@@ -503,27 +503,27 @@ final class RateCalculator {
             return nil
         }
         
-        let aAsk = pairAOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let aAsk = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
             amount: trade1ApproximateOrderbookQuantity * 10
         )
-        let aBid = pairAOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let aBid = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
             amount: trade1ApproximateOrderbookQuantity * 10
         )
-        let bAsk = pairBOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let bAsk = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
             amount: trade2ApproximateOrderbookQuantity * 7
         )
-        let bBid = pairBOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let bBid = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
             amount: trade2ApproximateOrderbookQuantity * 7
         )
-        let cAsk = pairCOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let cAsk = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
             amount: trade3ApproximateOrderbookQuantity * 5
         )
-        let cBid = pairCOrderbookDepth.orderbookDepth.getProbableDepthPrice(
+        let cBid = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
             amount: trade3ApproximateOrderbookQuantity * 5
         )
