@@ -91,6 +91,31 @@ final class DefaultBotHandlers {
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
     }
+    
+    func connectToWebSocket() {
+        for symbol in symbolsToSubscribe {
+            let _ = WebSocket.connect(to: "wss://stream.binance.com:9443/ws/\(symbol.symbol.lowercased())@depth10@100ms", on: app.eventLoopGroup.next()) { ws in
+                print(symbol.symbol)
+                ws.onText { _, text in
+                    guard let data = text.data(using: .utf8),
+                          let orderbookDepth = try? JSONDecoder().decode(OrderbookDepth.self, from: data) else {
+                        print(text)
+                        return
+                    }
+                    TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths[symbol.symbol] = TradeableSymbolOrderbookDepth(tradeableSymbol: symbol, orderbookDepth: orderbookDepth)
+                }
+                
+                ws.onPing { ws in
+                    ws.send(raw: Data(), opcode: .pong)
+                }
+                
+                ws.onClose.whenComplete { result in
+                    self.unsubscribedParams.append(symbol)
+                    print("closed", symbol, self.unsubscribedParams.count)
+                }
+            }
+        }
+    }
 
 }
 

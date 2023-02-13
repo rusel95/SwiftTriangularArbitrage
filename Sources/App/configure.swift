@@ -18,7 +18,7 @@ public func configure(_ app: Application) throws {
     
     try app.queues.use(.redis(url: "redis://127.0.0.1:6379"))
     
-    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared)
+    let defaultBotHandlers = DefaultBotHandlers(bot: TGBot.shared, app: app)
     defaultBotHandlers.addHandlers(app: app)
     
     for stockExchange in StockExchange.allCases.filter({ $0.isTurnedOn }) {
