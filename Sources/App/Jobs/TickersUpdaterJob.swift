@@ -20,13 +20,11 @@ struct TickersUpdaterJob: ScheduledJob {
     private let logger = Logger(label: "logger.artitrage.triangular")
     
     private let autoTradingService: AutoTradingService
-    private let depthCheckService: DepthCheckService
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.app = app
         self.autoTradingService = AutoTradingService(app: app)
-        self.depthCheckService = DepthCheckService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
     }

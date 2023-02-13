@@ -481,17 +481,17 @@ final class RateCalculator {
         let pairBComissionMultipler = getCommissionMultipler(symbol: pairB, stockExchange: stockExchange)
         let pairCComissionMultipler = getCommissionMultipler(symbol: pairC, stockExchange: stockExchange)
         
-        guard let pairAOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairA] else {
+        guard let pairAOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairA] ?? tradeableSymbolOrderbookDepths["\(aBase)\(aQuote)"] else {
             logger.critical("No Orderbook Depth \(triangular.pairA)")
             return nil
             }
         
-        guard let pairBOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairB] else {
+        guard let pairBOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairB] ?? tradeableSymbolOrderbookDepths["\(bBase)\(bQuote)"] else {
             logger.critical("No Orderbook Depth \(triangular.pairB)")
             return nil
         }
         
-        guard let pairCOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairC] else {
+        guard let pairCOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairC] ?? tradeableSymbolOrderbookDepths["\(cBase)\(cQuote)"] else {
             logger.critical("No Orderbook Depth \(triangular.pairC)")
             return nil
         }
