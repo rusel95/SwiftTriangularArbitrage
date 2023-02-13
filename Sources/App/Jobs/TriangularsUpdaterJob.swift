@@ -65,7 +65,7 @@ struct TriangularsUpdaterJob: ScheduledJob {
                         .filter { $0.tradeStatus == .tradable }
                 }
                 
-                let standartTriangulars = TriangularsCalculator.getTriangularsInfo(for: .standart, from: tradeableSymbols)
+                let standartTriangulars = TriangularsCalculator.getTradeableAssetsTriangulars(from: tradeableSymbols)
                 let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
                 try standartTriangularsEndcodedData.write(to: stockExchange.standartTriangularsStorageURL)
                 

@@ -58,9 +58,7 @@ final class AutoTradingService {
         }
         
         self.bookTickersDict = bookTickersDict
-        
-        guard opportunity.autotradeCicle == .readyToTrade, stockExchange == .binance else { return opportunity }
-        
+              
         opportunity.autotradeCicle = .trading
      
         do {
@@ -92,8 +90,10 @@ final class AutoTradingService {
     // MARK: - First Trade
     
     private func getFirstTradeQuantity(for opportunity: TriangularOpportunity) async throws -> Double {
-        guard let tradeableSymbolsDict = try await app.caches.memory.get(Constants.Binance.tradeableSymbolsDictKey,
-                                                                         as: [String: BinanceAPIService.Symbol].self),
+        guard let tradeableSymbolsDict = try await app.caches.memory.get(
+            Constants.Binance.tradeableSymbolsDictKey,
+            as: [String: BinanceAPIService.Symbol].self
+        ),
             let firstSymbolDetails = tradeableSymbolsDict[opportunity.firstSurfaceResult.contract1] else {
             throw CommonError.customError(description: "\nError: No contract1 at tradeable symbols")
         }

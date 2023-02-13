@@ -9,9 +9,10 @@ import Queues
 import Vapor
 import telegram_vapor_bot
 
+typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
+
 struct TickersUpdaterJob: ScheduledJob {
     
-    typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
     
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange

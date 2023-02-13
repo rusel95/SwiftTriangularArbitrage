@@ -71,6 +71,27 @@ enum StockExchange: String, CaseIterable {
         }
     }
     
+    var standartTriangularsMemoryKey: String {
+        switch self {
+        case .binance:
+            return "BinanceStandartTriangularsMemoryKey"
+        case .bybit:
+            return "ByBitStandartTriangularsMemoryKey"
+        case .huobi:
+            return "HuobiStandartTriangularsMemoryKey"
+        case .exmo:
+            return "ExmoStandartTriangularsMemoryKey"
+        case .kucoin:
+            return "KuCoinStandartTriangularsMemoryKey"
+        case .kraken:
+            return "KrakenStandartTriangularsMemoryKey"
+        case .whitebit:
+            return "WhiteBitStandartTriangularsMemoryKey"
+        case .gateio:
+            return "GateIOStandartTriangularsMemoryKey"
+        }
+    }
+    
     var standartTriangularOpportunityDictKey: String {
         switch self {
         case .binance:
