@@ -51,6 +51,13 @@ extension Date {
         dateFormatter.locale = Locale(identifier: "UA_ua")
         return dateFormatter.string(from: self)
     }
+    
+    var minuteAnsSecondDescription: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "mm:ss.SSS"
+        dateFormatter.locale = Locale(identifier: "UA_ua")
+        return dateFormatter.string(from: self)
+    }
                     
 }
 

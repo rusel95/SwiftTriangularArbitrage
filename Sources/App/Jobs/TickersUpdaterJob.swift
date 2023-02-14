@@ -12,8 +12,7 @@ import telegram_vapor_bot
 typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
 
 struct TickersUpdaterJob: ScheduledJob {
-    
-    
+
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
     
@@ -31,18 +30,24 @@ struct TickersUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            print("start")
-            await process()
-            try await Task.sleep(nanoseconds: 100_000_000)
-            await process()
-            try await Task.sleep(nanoseconds: 100_000_000)
-            await process()
-            try await Task.sleep(nanoseconds: 100_000_000)
-            await process()
-            try await Task.sleep(nanoseconds: 100_000_000)
-            await process()
-            print("end")
+            print("start secondly processing")
+            await process(delay: 0)
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
         }
+    }
+    
+    func getNumberOfNanoSecondsToNextTenthOfSecond() -> UInt64 {
+        let currentTime = CFAbsoluteTimeGetCurrent()
+        let nextTenthOfSecondTime = ceil(currentTime * 10.0) / 10.0
+        return UInt64((nextTenthOfSecondTime - currentTime) * 1_000_000_000)
     }
       
 }
@@ -51,8 +56,10 @@ struct TickersUpdaterJob: ScheduledJob {
 
 private extension TickersUpdaterJob {
     
-    func process() async {
+    func process(delay: UInt64) async {
         do {
+            try await Task.sleep(nanoseconds: delay)
+            let startDate = Date()
             let startTime = CFAbsoluteTimeGetCurrent()
             let readStartTime = CFAbsoluteTimeGetCurrent()
             let standartTriangulars: [Triangular] = try await self.app.caches.memory.get(
@@ -76,32 +83,32 @@ private extension TickersUpdaterJob {
                 profitPercent: StockExchange.binance.interestingProfit
             )
             let calcDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - calcStartTime)
-//            var bookTickersDict: [String: BookTicker] = [:]
-//            TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths.forEach({ key, value in
-//                bookTickersDict[key] = BookTicker(
-//                    symbol: key,
-//                    askPrice: value.orderbookDepth.asks.first?.first ?? "0.0",
-//                    askQty: value.orderbookDepth.asks.first?[1] ?? "0.0",
-//                    bidPrice: value.orderbookDepth.bids.first?.first ?? "0.0",
-//                    bidQty: value.orderbookDepth.bids.first?[1] ?? "0.0"
-//                )
-//            })
-//            let tradedStandartTriangularsDict = try await self.handleTrade(
-//                triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-//                stockExchange: StockExchange.binance,
-//                bookTickersDict: bookTickersDict
-//            )
+            var bookTickersDict: [String: BookTicker] = [:]
+            TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths.forEach({ key, value in
+                bookTickersDict[key] = BookTicker(
+                    symbol: key,
+                    askPrice: value.orderbookDepth.asks.first?.first ?? "0.0",
+                    askQty: value.orderbookDepth.asks.first?[1] ?? "0.0",
+                    bidPrice: value.orderbookDepth.bids.first?.first ?? "0.0",
+                    bidQty: value.orderbookDepth.bids.first?[1] ?? "0.0"
+                )
+            })
+            let tradedStandartTriangularsDict = try await self.handleTrade(
+                triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+                stockExchange: StockExchange.binance,
+                bookTickersDict: bookTickersDict
+            )
             try await self.app.caches.memory.set(
                 StockExchange.binance.standartTriangularOpportunityDictKey,
-                to: newStandartTriangularOpportunitiesDict
+                to: tradedStandartTriangularsDict
             )
             standartFairResults
-                .filter { $0.profitPercent > 0.2 }
+                .filter { $0.profitPercent > 0.1 }
                 .forEach { fairResult in
                     print(fairResult.description)
                 }
             let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            print("All \(duration), calc: \(calcDuration), read: \(readDuration), \(Date().fullDateReadableDescription)")
+            print("start: \(startDate.minuteAnsSecondDescription) end: \(Date().minuteAnsSecondDescription) All time: \(duration), calc: \(calcDuration), read: \(readDuration)")
         } catch {
             print("[\(stockExchange)] [calculation]: \(error.localizedDescription)")
         }

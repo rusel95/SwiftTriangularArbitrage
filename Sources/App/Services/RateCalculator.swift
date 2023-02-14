@@ -505,27 +505,27 @@ final class RateCalculator {
         
         let aAsk = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade1ApproximateOrderbookQuantity * 10
+            amount: trade1ApproximateOrderbookQuantity * 50
         )
         let aBid = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade1ApproximateOrderbookQuantity * 10
+            amount: trade1ApproximateOrderbookQuantity * 50
         )
         let bAsk = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade2ApproximateOrderbookQuantity * 7
+            amount: trade2ApproximateOrderbookQuantity * 40
         )
         let bBid = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade2ApproximateOrderbookQuantity * 7
+            amount: trade2ApproximateOrderbookQuantity * 40
         )
         let cAsk = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade3ApproximateOrderbookQuantity * 5
+            amount: trade3ApproximateOrderbookQuantity * 30
         )
         let cBid = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade3ApproximateOrderbookQuantity * 5
+            amount: trade3ApproximateOrderbookQuantity * 30
         )
         
         // Set direction and loop through

@@ -29,6 +29,7 @@ struct OrderbookDepth: Codable {
         asks.map { MarketOrder(price: Double($0.first ?? "") ?? 0.0, quantity: Double($0.last ?? "") ?? 0.0) }
     }
     
+    // TODO: - What will be if we are asking about quantity which is bigger than orderbook have - possible for rare symbols
     func getWeightedAveragePrice(for orderSide: OrderSide, amount: Double) -> Double {
         let marketOrders: [MarketOrder] = orderSide == .baseToQuote ? bidMarketOrders : askMarketOrders
         
