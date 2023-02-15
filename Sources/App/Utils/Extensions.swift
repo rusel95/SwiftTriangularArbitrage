@@ -47,7 +47,14 @@ extension Date {
     
     var fullDateReadableDescription: String {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MM-dd-yyyy HH:mm"
+        dateFormatter.dateFormat = "MM-dd-yyyy HH:mm:ss.SSS"
+        dateFormatter.locale = Locale(identifier: "UA_ua")
+        return dateFormatter.string(from: self)
+    }
+    
+    var secondsDescription: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "ss.SSS"
         dateFormatter.locale = Locale(identifier: "UA_ua")
         return dateFormatter.string(from: self)
     }

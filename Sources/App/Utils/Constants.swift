@@ -12,6 +12,7 @@ struct Constants {
     static let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
     struct Binance {
+        
         static let tradeableSymbolsDictKey = "binanceTradeableSymbolsDictKey"
         
         static var tradeableDictURL: URL {

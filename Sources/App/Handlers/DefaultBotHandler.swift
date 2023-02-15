@@ -10,6 +10,25 @@ import telegram_vapor_bot
 import Logging
 import CoreFoundation
 
+struct Request: Encodable {
+    
+    enum Method: String, Encodable {
+        case subscribe = "SUBSCRIBE"
+        case unsubscribe = "UNSUBSCRIBE"
+    }
+    
+    let method: Method
+    let params: [String]
+    let id: UInt
+}
+
+struct TradeableSymbolOrderbookDepth: Codable {
+    
+    let tradeableSymbol: BinanceAPIService.Symbol
+    let orderbookDepth: OrderbookDepth
+    
+}
+
 final class DefaultBotHandlers {
     
     // MARK: - PROPERTIES
@@ -26,11 +45,56 @@ final class DefaultBotHandlers {
     private var huobiStableTriangularOpportunitiesDict: [String: TriangularOpportunity] = [:]
 
     private let bot: TGBotPrtcl
+    private let app: Application
+    
+    var unsubscribedParams: [BinanceAPIService.Symbol] = []
+    var symbolsToSubscribe: [BinanceAPIService.Symbol] = []
+    
+    var lastRequestId: UInt = 1
+    var lastSendDate: Date = Date()
+    
+    private let autoTradingService: AutoTradingService
     
     // MARK: - METHODS
     
-    init(bot: TGBotPrtcl) {
+    init(bot: TGBotPrtcl, app: Application) {
         self.bot = bot
+        self.app = app
+        self.autoTradingService = AutoTradingService(app: app)
+        
+        Task {
+            let standartTriangularsData = try Data(contentsOf: StockExchange.binance.standartTriangularsStorageURL)
+            let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
+            
+            try await app.caches.memory.set(StockExchange.binance.standartTriangularsMemoryKey, to: standartTriangulars)
+            print(standartTriangulars.count)
+            let tradeableSymbols = try await BinanceAPIService().getExchangeInfo()
+                .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+            
+            self.symbolsToSubscribe = tradeableSymbols
+                .filter { symbol in
+                    return standartTriangulars.contains(where: { triangular in
+                        triangular.pairA == symbol.symbol
+                        || triangular.pairB == symbol.symbol
+                        || triangular.pairC == symbol.symbol
+                    })
+                }
+            
+            await withTaskGroup(of: (symbol: BinanceAPIService.Symbol, depth: OrderbookDepth?).self) { [weak self] group in
+                for symbolToSubscribe in self?.symbolsToSubscribe ?? [] {
+                    group.addTask {
+                        let orderboolDepth = try? await BinanceAPIService.shared.getOrderbookDepth(symbol: symbolToSubscribe.symbol, limit: 10)
+                        return (symbolToSubscribe, orderboolDepth)
+                    }
+                }
+                for await tuple in group {
+                    guard let depth = tuple.depth else { return }
+                    
+                    TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths[tuple.symbol.symbol] = TradeableSymbolOrderbookDepth(tradeableSymbol: tuple.symbol, orderbookDepth: depth)
+                }
+            }
+            connectToWebSocket()
+        }
     }
     
     func addHandlers(app: Vapor.Application) {
@@ -40,6 +104,31 @@ final class DefaultBotHandlers {
         commandStartAlertingHandler(app: app, bot: bot)
         commandStopHandler(app: app, bot: bot)
         commandTestHandler(app: app, bot: bot)
+    }
+    
+    func connectToWebSocket() {
+        for symbol in symbolsToSubscribe {
+            let _ = WebSocket.connect(to: "wss://stream.binance.com:9443/ws/\(symbol.symbol.lowercased())@depth10@100ms", on: app.eventLoopGroup.next()) { ws in
+                print(symbol.symbol)
+                ws.onText { _, text in
+                    guard let data = text.data(using: .utf8),
+                          let orderbookDepth = try? JSONDecoder().decode(OrderbookDepth.self, from: data) else {
+                        print(text)
+                        return
+                    }
+                    TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths[symbol.symbol] = TradeableSymbolOrderbookDepth(tradeableSymbol: symbol, orderbookDepth: orderbookDepth)
+                }
+                
+                ws.onPing { ws in
+                    ws.send(raw: Data(), opcode: .pong)
+                }
+                
+                ws.onClose.whenComplete { result in
+                    self.unsubscribedParams.append(symbol)
+                    print("closed", symbol, self.unsubscribedParams.count)
+                }
+            }
+        }
     }
 
 }

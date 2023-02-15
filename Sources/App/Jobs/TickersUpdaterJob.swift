@@ -9,117 +9,45 @@ import Queues
 import Vapor
 import telegram_vapor_bot
 
+typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
+
 struct TickersUpdaterJob: ScheduledJob {
-    
-    typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
-    
+
     private let bot: TGBotPrtcl
     private let stockExchange: StockExchange
     
     private let logger = Logger(label: "logger.artitrage.triangular")
     
     private let autoTradingService: AutoTradingService
-    private let depthCheckService: DepthCheckService
     private let app: Application
     
     init(app: Application, bot: TGBotPrtcl, stockEchange: StockExchange) {
         self.app = app
         self.autoTradingService = AutoTradingService(app: app)
-        self.depthCheckService = DepthCheckService(app: app)
         self.bot = bot
         self.stockExchange = stockEchange
     }
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            do {
-                let bookTickersDict: [String: BookTicker]
-                switch stockExchange {
-                case .binance:
-                    bookTickersDict = try await BinanceAPIService.shared
-                        .getAllBookTickers()
-                        .toDictionary(with: { $0.symbol })
-                case .bybit:
-                    bookTickersDict = try await ByBitAPIService.shared
-                        .getTickers()
-                        .map {
-                            BookTicker(
-                                symbol: $0.symbol,
-                                askPrice: $0.askPrice,
-                                askQty: "0",
-                                bidPrice: $0.bidPrice,
-                                bidQty: "0"
-                            )
-                        }
-                        .toDictionary(with: { $0.symbol })
-                case .huobi:
-                    bookTickersDict = try await HuobiAPIService.shared
-                        .getTickers()
-                        .map {
-                            BookTicker(
-                                symbol: $0.symbol,
-                                askPrice: String($0.ask),
-                                askQty: String($0.askSize),
-                                bidPrice: String($0.bid),
-                                bidQty: String($0.bidSize)
-                            )
-                        }
-                        .toDictionary(with: { $0.symbol })
-                case .exmo:
-                    bookTickersDict = try await ExmoAPIService.shared
-                        .getBookTickers()
-                        .toDictionary(with: { $0.symbol })
-                case .kucoin:
-                    bookTickersDict = try await KuCoinAPIService.shared
-                        .getBookTickers()
-                        .toDictionary(with: { $0.symbol })
-                case .kraken:
-                    bookTickersDict = try await KrakenAPIService.shared
-                        .getBookTickers()
-                        .toDictionary(with: { $0.symbol } )
-                case .whitebit:
-                    bookTickersDict = try await WhiteBitAPIService.shared
-                        .getBookTickers()
-                        .toDictionary(with: { $0.symbol })
-                case .gateio:
-                    bookTickersDict = try await GateIOAPIService.shared
-                        .getBookTickers()
-                        .toDictionary(with: { $0.symbol })
-                }
-                
-                // NOTE: - Standart
-                let standartTriangularsData = try Data(contentsOf: stockExchange.standartTriangularsStorageURL)
-                let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
-                let standartSurfaceResults = RateCalculator.getSurfaceResults(
-                    stockExchange: stockExchange,
-                    mode: .standart,
-                    triangulars: standartTriangulars,
-                    bookTickersDict: bookTickersDict
-                )
-                let standartTriangularOpportunitiesDict = try await app.caches.memory.get(
-                    stockExchange.standartTriangularOpportunityDictKey,
-                    as: TriangularOpportinitiesDict.self
-                ) ?? TriangularOpportinitiesDict()
-                let newStandartTriangularOpportunitiesDict = RateCalculator.getActualTriangularOpportunitiesDict(
-                    from: standartSurfaceResults,
-                    currentOpportunities: standartTriangularOpportunitiesDict,
-                    profitPercent: stockExchange.interestingProfit
-                )
-            
-                let tradedStandartTriangularsDict = try await process(
-                    triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
-                    mode: .standart,
-                    stockExchange: stockExchange,
-                    bookTickersDict: bookTickersDict
-                )
-                try await app.caches.memory.set(
-                    stockExchange.stableTriangularOpportunityDictKey,
-                    to: tradedStandartTriangularsDict
-                )
-            } catch {
-                print("[\(stockExchange)] [tickers]: \(error.localizedDescription)")
-            }
+            print("---------------------------------------------------------------------------")
+            await process(delay: 0)
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
+            await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
         }
+    }
+    
+    func getNumberOfNanoSecondsToNextTenthOfSecond() -> UInt64 {
+        let currentTime = CFAbsoluteTimeGetCurrent()
+        let nextTenthOfSecondTime = ceil(currentTime * 10.0) / 10.0
+        return UInt64((nextTenthOfSecondTime - currentTime) * 1_000_000_000)
     }
       
 }
@@ -128,9 +56,69 @@ struct TickersUpdaterJob: ScheduledJob {
 
 private extension TickersUpdaterJob {
     
-    func process(
+    func process(delay: UInt64) async {
+        // delay should not be more then 50ms
+        let delayToUse = delay > 50_000_000 ? 0 : delay
+        
+        do {
+            try await Task.sleep(nanoseconds: delayToUse)
+            let startDate = Date()
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let readStartTime = CFAbsoluteTimeGetCurrent()
+            let standartTriangulars: [Triangular] = try await self.app.caches.memory.get(
+                StockExchange.binance.standartTriangularsMemoryKey, as: [Triangular].self) ?? []
+            let readDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - readStartTime)
+            
+            let calcStartTime = CFAbsoluteTimeGetCurrent()
+            let standartFairResults = RateCalculator.shared.getFairResults(
+                stockExchange: .binance,
+                mode: .standart,
+                triangulars: standartTriangulars,
+                tradeableSymbolOrderbookDepths: TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths
+            )
+            let standartTriangularOpportunitiesDict = try await self.app.caches.memory.get(
+                StockExchange.binance.standartTriangularOpportunityDictKey,
+                as: TriangularOpportinitiesDict.self
+            ) ?? TriangularOpportinitiesDict()
+            let newStandartTriangularOpportunitiesDict = RateCalculator.shared.getActualTriangularOpportunitiesDict(
+                from: standartFairResults,
+                currentOpportunities: standartTriangularOpportunitiesDict,
+                profitPercent: StockExchange.binance.interestingProfit
+            )
+            let calcDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - calcStartTime)
+            var bookTickersDict: [String: BookTicker] = [:]
+            TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths.forEach({ key, value in
+                bookTickersDict[key] = BookTicker(
+                    symbol: key,
+                    askPrice: value.orderbookDepth.asks.first?.first ?? "0.0",
+                    askQty: value.orderbookDepth.asks.first?[1] ?? "0.0",
+                    bidPrice: value.orderbookDepth.bids.first?.first ?? "0.0",
+                    bidQty: value.orderbookDepth.bids.first?[1] ?? "0.0"
+                )
+            })
+            let tradedStandartTriangularsDict = try await self.handleTrade(
+                triangularOpportunitiesDict: newStandartTriangularOpportunitiesDict,
+                stockExchange: StockExchange.binance,
+                bookTickersDict: bookTickersDict
+            )
+            try await self.app.caches.memory.set(
+                StockExchange.binance.standartTriangularOpportunityDictKey,
+                to: tradedStandartTriangularsDict
+            )
+            standartFairResults
+                .filter { $0.profitPercent > 0.1 }
+                .forEach { fairResult in
+                    print(fairResult.description)
+                }
+            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            print("| start: \(startDate.secondsDescription) | end: \(Date().secondsDescription) | all: \(duration) | calc: \(calcDuration) | read: \(readDuration) |")
+        } catch {
+            print("[\(stockExchange)] [calculation]: \(error.localizedDescription)")
+        }
+    }
+    
+    func handleTrade(
         triangularOpportunitiesDict: [String: TriangularOpportunity],
-        mode: Mode,
         stockExchange: StockExchange,
         bookTickersDict: [String: BookTicker] = [:]
     ) async throws -> [String: TriangularOpportunity] {
@@ -145,15 +133,9 @@ private extension TickersUpdaterJob {
                     guard opportunity.autotradeCicle == .pending else { return (key, opportunity) }
                     
                     do {
-                        let depthCheckedTriangularOpportunity = try await depthCheckService.handle(
-                            stockExchange: stockExchange,
-                            opportunity: opportunity,
-                            bookTickersDict: bookTickersDict,
-                            for: adminUserInfo
-                        )
                         let tradedTriangularOpportunity = try await autoTradingService.handle(
                             stockExchange: stockExchange,
-                            opportunity: depthCheckedTriangularOpportunity,
+                            opportunity: opportunity,
                             bookTickersDict: bookTickersDict,
                             for: adminUserInfo
                         )
