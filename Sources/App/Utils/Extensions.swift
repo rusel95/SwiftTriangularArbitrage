@@ -52,9 +52,9 @@ extension Date {
         return dateFormatter.string(from: self)
     }
     
-    var minuteAnsSecondDescription: String {
+    var secondsDescription: String {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "mm:ss.SSS"
+        dateFormatter.dateFormat = "ss.SSS"
         dateFormatter.locale = Locale(identifier: "UA_ua")
         return dateFormatter.string(from: self)
     }

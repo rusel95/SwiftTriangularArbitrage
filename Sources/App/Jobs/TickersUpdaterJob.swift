@@ -30,7 +30,7 @@ struct TickersUpdaterJob: ScheduledJob {
     
     func run(context: Queues.QueueContext) -> NIOCore.EventLoopFuture<Void> {
         return context.eventLoop.performWithTask {
-            print("start secondly processing")
+            print("---------------------------------------------------------------------------")
             await process(delay: 0)
             await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
             await process(delay: getNumberOfNanoSecondsToNextTenthOfSecond())
@@ -57,8 +57,11 @@ struct TickersUpdaterJob: ScheduledJob {
 private extension TickersUpdaterJob {
     
     func process(delay: UInt64) async {
+        // delay should not be more then 50ms
+        let delayToUse = delay > 50_000_000 ? 0 : delay
+        
         do {
-            try await Task.sleep(nanoseconds: delay)
+            try await Task.sleep(nanoseconds: delayToUse)
             let startDate = Date()
             let startTime = CFAbsoluteTimeGetCurrent()
             let readStartTime = CFAbsoluteTimeGetCurrent()
@@ -108,7 +111,7 @@ private extension TickersUpdaterJob {
                     print(fairResult.description)
                 }
             let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-            print("start: \(startDate.minuteAnsSecondDescription) end: \(Date().minuteAnsSecondDescription) All time: \(duration), calc: \(calcDuration), read: \(readDuration)")
+            print("| start: \(startDate.secondsDescription) | end: \(Date().secondsDescription) | all: \(duration) | calc: \(calcDuration) | read: \(readDuration) |")
         } catch {
             print("[\(stockExchange)] [calculation]: \(error.localizedDescription)")
         }
