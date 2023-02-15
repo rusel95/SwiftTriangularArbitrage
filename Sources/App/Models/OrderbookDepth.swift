@@ -33,32 +33,23 @@ struct OrderbookDepth: Codable {
     func getWeightedAveragePrice(for orderSide: OrderSide, amount: Double) -> Double {
         let marketOrders: [MarketOrder] = orderSide == .baseToQuote ? bidMarketOrders : askMarketOrders
         
-        var marketOrdersToFullfill: [MarketOrder] = []
-
+        var priceQuantityMultiplicationSummary: Double = 0
+        var quantitySummary: Double = 0
         var leftoverAmount = amount
         for marketOrder in marketOrders {
             guard leftoverAmount > 0 else { break }
             
-            if leftoverAmount < marketOrder.quantity {
-                marketOrdersToFullfill.append(MarketOrder(price: marketOrder.price, quantity: leftoverAmount))
+            if leftoverAmount > marketOrder.quantity {
+                priceQuantityMultiplicationSummary += marketOrder.price * marketOrder.quantity
+                quantitySummary += marketOrder.quantity
             } else {
-                marketOrdersToFullfill.append(marketOrder)
+                priceQuantityMultiplicationSummary += marketOrder.price * leftoverAmount
+                quantitySummary += leftoverAmount
             }
             leftoverAmount -= marketOrder.quantity
         }
         
-        let priceQuantityMultiplicationSummary = marketOrdersToFullfill.reduce(0) { partialResult, order in
-            partialResult + order.price * order.quantity
-        }
-        let quantitySummary = marketOrdersToFullfill.reduce(0) { partialResult, order in
-            partialResult + order.quantity
-        }
         return priceQuantityMultiplicationSummary / quantitySummary
-    }
-    
-    func getQuantity(for orderSide: OrderSide) -> Double {
-        (orderSide == .baseToQuote ? bidMarketOrders : askMarketOrders)
-            .reduce(0.0) { partialResult, marketOrder in return partialResult + marketOrder.quantity }
     }
     
 }
