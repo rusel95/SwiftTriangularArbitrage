@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  TickersUpdaterJob.swift
 //  
 //
 //  Created by Ruslan on 29.12.2022.
@@ -8,6 +8,7 @@
 import Queues
 import Vapor
 import telegram_vapor_bot
+import CoreFoundation
 
 typealias TriangularOpportinitiesDict = [String: TriangularOpportunity]
 
