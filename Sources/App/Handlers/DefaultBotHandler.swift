@@ -79,6 +79,20 @@ final class DefaultBotHandlers {
                         || triangular.pairC == symbol.symbol
                     })
                 }
+            
+            await withTaskGroup(of: (symbol: BinanceAPIService.Symbol, depth: OrderbookDepth?).self) { [weak self] group in
+                for symbolToSubscribe in self?.symbolsToSubscribe ?? [] {
+                    group.addTask {
+                        let orderboolDepth = try? await BinanceAPIService.shared.getOrderbookDepth(symbol: symbolToSubscribe.symbol, limit: 10)
+                        return (symbolToSubscribe, orderboolDepth)
+                    }
+                }
+                for await tuple in group {
+                    guard let depth = tuple.depth else { return }
+                    
+                    TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths[tuple.symbol.symbol] = TradeableSymbolOrderbookDepth(tradeableSymbol: tuple.symbol, orderbookDepth: depth)
+                }
+            }
             connectToWebSocket()
         }
     }
