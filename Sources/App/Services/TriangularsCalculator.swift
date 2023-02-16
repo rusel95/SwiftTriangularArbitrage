@@ -27,38 +27,37 @@ struct TriangularsCalculator {
                 let bBase: String = pairB.baseAsset
                 let bQuote: String = pairB.quoteAsset
                 
-                if pairB.symbol != pairA.symbol {
-                    if (aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote) {
-                        
-                        // Get Pair C - Find C pair where base and quote exist in A and B configurations
-                        for pairC in tradeableSymbols {
-                            let cBase: String = pairC.baseAsset
-                            let cQuote: String = pairC.quoteAsset
-                            
-                            guard tradeableAssets.contains(cBase) || tradeableAssets.contains(cQuote) else { break }
-                            
-                            // Count the number of matching C items
-                            if pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol {
-                                let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
-                                
-                                let cBaseCount = pairBox.filter { $0 == cBase }.count
-                                let cQuoteCount = pairBox.filter { $0 == cQuote }.count
-                                
-                                // Determining Triangular Match
-                                if cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote {
-                                    triangulars.insert(Triangular(aBase: aBase,
-                                                                  bBase: bBase,
-                                                                  cBase: cBase,
-                                                                  aQuote: aQuote,
-                                                                  bQuote: bQuote,
-                                                                  cQuote: cQuote,
-                                                                  pairA: pairA.symbol,
-                                                                  pairB: pairB.symbol,
-                                                                  pairC: pairC.symbol))
-                                }
-                            }
-                        }
-                    }
+                guard pairB.symbol != pairA.symbol else { continue }
+                
+                guard (aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote) else { continue }
+                
+                // Get Pair C - Find C pair where base and quote exist in A and B configurations
+                for pairC in tradeableSymbols {
+                    let cBase: String = pairC.baseAsset
+                    let cQuote: String = pairC.quoteAsset
+                    
+                    guard tradeableAssets.contains(cBase) || tradeableAssets.contains(cQuote) else { break }
+                    
+                    // Count the number of matching C items
+                    guard pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol else { continue }
+                    
+                    let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
+                    
+                    let cBaseCount = pairBox.filter { $0 == cBase }.count
+                    let cQuoteCount = pairBox.filter { $0 == cQuote }.count
+                    
+                    // Determining Triangular Match
+                    guard cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote else { continue }
+                    
+                    triangulars.insert(Triangular(aBase: aBase,
+                                                  bBase: bBase,
+                                                  cBase: cBase,
+                                                  aQuote: aQuote,
+                                                  bQuote: bQuote,
+                                                  cQuote: cQuote,
+                                                  pairA: pairA.symbol,
+                                                  pairB: pairB.symbol,
+                                                  pairC: pairC.symbol))
                 }
             }
         }

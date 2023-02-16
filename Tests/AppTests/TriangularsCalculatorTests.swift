@@ -63,11 +63,20 @@ final class TriangularsCalculatorTests: XCTestCase {
         let triangulars = TriangularsCalculator.getTriangularsInfo(for: .standart, from: symbols)
         assert(triangulars.count == 12)
     }
+    
+    func testTriangularCalculatorGetTradeableAssetsTriangulars_ShouldReturnEightHundreadThirtySix() {
+        let symbols = BinanceDTOProvider.getSymbolsDTO()!
+            .filter { $0.status == .trading && $0.isSpotTradingAllowed }
+            .filter { $0.baseAsset != "RUB" && $0.quoteAsset != "RUB" }
+        
+        let triangulars = TriangularsCalculator.getTradeableAssetsTriangulars(from: symbols)
+        assert(triangulars.count == 836)
+    }
 
     func testPerformanceExample() throws {
         // This is an example of a performance test case.
         self.measure {
-            let symbols = BinanceMock.getMock()!
+            let symbols = BinanceDTOProvider.getSymbolsDTO()!
                 .filter { $0.status == .trading && $0.isSpotTradingAllowed }
                 .filter { $0.baseAsset != "RUB" && $0.quoteAsset != "RUB" }
             

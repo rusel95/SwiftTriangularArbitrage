@@ -1,4 +1,8 @@
-{
+import Foundation
+
+class SymbolDTO {
+    
+    static var json: String = """
     "timezone": "UTC",
     "serverTime": 1674125775028,
     "rateLimits": [
@@ -2614,4 +2618,7 @@
             ]
         }
     ]
+}
+"""
+
 }
