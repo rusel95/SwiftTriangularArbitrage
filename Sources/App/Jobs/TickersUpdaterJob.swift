@@ -58,11 +58,8 @@ struct TickersUpdaterJob: ScheduledJob {
 private extension TickersUpdaterJob {
     
     func process(delay: UInt64) async {
-        // delay should not be more then 50ms
-        let delayToUse = delay > 50_000_000 ? 0 : delay
-        
         do {
-            try await Task.sleep(nanoseconds: delayToUse)
+            try await Task.sleep(nanoseconds: delay)
             let startDate = Date()
             let startTime = CFAbsoluteTimeGetCurrent()
             let readStartTime = CFAbsoluteTimeGetCurrent()
@@ -107,7 +104,70 @@ private extension TickersUpdaterJob {
                 to: tradedStandartTriangularsDict
             )
             standartFairResults
-                .filter { $0.profitPercent > 0.1 }
+                .filter { $0.profitPercent > -0.05 }
+                .forEach { fairResult in
+                    print(fairResult.description)
+                }
+            let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+            print("| start: \(startDate.secondsDescription) | end: \(Date().secondsDescription) | all: \(duration) | calc: \(calcDuration) | read: \(readDuration) |")
+        } catch {
+            print("[\(stockExchange)] [calculation]: \(error.localizedDescription)")
+        }
+    }
+    
+    func processStable(delay: UInt64) async {
+        // delay should not be more then 50ms
+        let delayToUse = delay > 50_000_000 ? 0 : delay
+        
+        do {
+            try await Task.sleep(nanoseconds: delayToUse)
+            let startDate = Date()
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let readStartTime = CFAbsoluteTimeGetCurrent()
+            let stableTriangulars: [Triangular] = try await self.app.caches.memory.get(
+                StockExchange.binance.stableTriangularsMemoryKey,
+                as: [Triangular].self
+            ) ?? []
+            let readDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - readStartTime)
+            
+            let calcStartTime = CFAbsoluteTimeGetCurrent()
+            let stableFairResults = RateCalculator.shared.getFairResults(
+                stockExchange: .binance,
+                mode: .standart,
+                triangulars: stableTriangulars,
+                tradeableSymbolOrderbookDepths: TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths
+            )
+            let stableTriangularOpportunitiesDict = try await self.app.caches.memory.get(
+                StockExchange.binance.stableTriangularOpportunityDictKey,
+                as: TriangularOpportinitiesDict.self
+            ) ?? TriangularOpportinitiesDict()
+            let newStableTriangularOpportunitiesDict = RateCalculator.shared.getActualTriangularOpportunitiesDict(
+                from: stableFairResults,
+                currentOpportunities: stableTriangularOpportunitiesDict,
+                profitPercent: StockExchange.binance.interestingProfit
+            )
+            let calcDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - calcStartTime)
+            var bookTickersDict: [String: BookTicker] = [:]
+            TradeableSymbolOrderbookDepthsStorage.shared.tradeableSymbolOrderbookDepths.forEach({ key, value in
+                bookTickersDict[key] = BookTicker(
+                    symbol: key,
+                    askPrice: value.orderbookDepth.asks.first?.first ?? "0.0",
+                    askQty: value.orderbookDepth.asks.first?[1] ?? "0.0",
+                    bidPrice: value.orderbookDepth.bids.first?.first ?? "0.0",
+                    bidQty: value.orderbookDepth.bids.first?[1] ?? "0.0"
+                )
+            })
+            let tradedStableTriangularsDict = try await self.handleTrade(
+                triangularOpportunitiesDict: newStableTriangularOpportunitiesDict,
+                stockExchange: StockExchange.binance,
+                bookTickersDict: bookTickersDict
+            )
+            try await self.app.caches.memory.set(
+                StockExchange.binance.stableTriangularOpportunityDictKey,
+                to: tradedStableTriangularsDict
+            )
+            stableFairResults
+                .filter { $0.profitPercent > 0.0 }
                 .forEach { fairResult in
                     print(fairResult.description)
                 }

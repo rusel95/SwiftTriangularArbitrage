@@ -10,7 +10,70 @@ import Foundation
 struct TriangularsCalculator {
     
     private static let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
-    private static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
+    private static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "BETH", "ADA", "DOGE", "GALA", "MATIC", "LINA")
+    
+    // Every swap should be current tradeableAsset
+    static func getParralelTradeableAssetsTriangulars(from tradeableSymbols: [TradeableSymbol]) -> [Triangular] {
+        var triangulars: Set<Triangular> = Set()
+        
+        // Get Pair A - Start from A
+        for pairA in tradeableSymbols {
+            let aBase: String = pairA.baseAsset
+            let aQuote: String = pairA.quoteAsset
+            
+            guard tradeableAssets.contains(aBase) && tradeableAssets.contains(aQuote) else {
+                continue
+            }
+            
+            // Get Pair B - Find B pair where one coint matched
+            for pairB in tradeableSymbols {
+                let bBase: String = pairB.baseAsset
+                let bQuote: String = pairB.quoteAsset
+                
+                guard pairB.symbol != pairA.symbol else { continue }
+                
+                guard (aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote) else { continue }
+                
+                guard tradeableAssets.contains(bBase) && tradeableAssets.contains(bQuote) else {
+                    continue
+                }
+                
+                // Get Pair C - Find C pair where base and quote exist in A and B configurations
+                for pairC in tradeableSymbols {
+                    let cBase: String = pairC.baseAsset
+                    let cQuote: String = pairC.quoteAsset
+                    
+                    guard tradeableAssets.contains(cBase) && tradeableAssets.contains(cQuote) else {
+                        continue
+                    }
+                    
+                    // Count the number of matching C items
+                    guard pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol else { continue }
+                    
+                    let pairBox: [String] = [aBase, aQuote, bBase, bQuote, cBase, cQuote]
+                    
+                    let cBaseCount = pairBox.filter { $0 == cBase }.count
+                    let cQuoteCount = pairBox.filter { $0 == cQuote }.count
+                    
+                    // Determining Triangular Match
+                    guard cBaseCount == 2 && cQuoteCount == 2 && cBase != cQuote else { continue }
+                    
+                    triangulars.insert(Triangular(aBase: aBase,
+                                                  bBase: bBase,
+                                                  cBase: cBase,
+                                                  aQuote: aQuote,
+                                                  bQuote: bQuote,
+                                                  cQuote: cQuote,
+                                                  pairA: pairA.symbol,
+                                                  pairB: pairB.symbol,
+                                                  pairC: pairC.symbol))
+                }
+            }
+        }
+            
+        return Array(triangulars)
+    }
+    
     
     static func getTradeableAssetsTriangulars(from tradeableSymbols: [TradeableSymbol]) -> [Triangular] {
         var triangulars: Set<Triangular> = Set()

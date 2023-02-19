@@ -65,14 +65,20 @@ struct TriangularsUpdaterJob: ScheduledJob {
                         .filter { $0.tradeStatus == .tradable }
                 }
                 
-                let standartTriangulars = TriangularsCalculator.getTradeableAssetsTriangulars(from: tradeableSymbols)
+                let standartTriangulars = TriangularsCalculator.getParralelTradeableAssetsTriangulars(from: tradeableSymbols)
                 let standartTriangularsEndcodedData = try JSONEncoder().encode(standartTriangulars)
                 try standartTriangularsEndcodedData.write(to: stockExchange.standartTriangularsStorageURL)
-                try await app.caches.memory.set(StockExchange.binance.standartTriangularsMemoryKey, to: standartTriangulars)
+                try await app.caches.memory.set(stockExchange.standartTriangularsMemoryKey, to: standartTriangulars)
                 let duration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
+                
+                let stableTriangulars = TriangularsCalculator.getTradeableAssetsStableTriangulars(from: tradeableSymbols)
+                let stableTriangularsEndcodedData = try JSONEncoder().encode(stableTriangulars)
+                try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
+                try await app.caches.memory.set(stockExchange.stableTriangularsMemoryKey, to: stableTriangulars)
+                let stableDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
                 emailService.sendEmail(
                     subject: "[\(stockExchange)] [triangulars]",
-                    text: "StandartTriangulars: \(standartTriangulars.count) calculated in \(duration) seconds"
+                    text: "StandartTriangulars: \(standartTriangulars.count) - \(duration)s | StableTriangulars: \(stableTriangulars.count) - \(stableDuration)s"
                 )
             } catch {
                 print(error.localizedDescription)

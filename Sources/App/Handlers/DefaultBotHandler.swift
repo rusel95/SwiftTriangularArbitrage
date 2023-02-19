@@ -65,9 +65,8 @@ final class DefaultBotHandlers {
         Task {
             let standartTriangularsData = try Data(contentsOf: StockExchange.binance.standartTriangularsStorageURL)
             let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
-            
             try await app.caches.memory.set(StockExchange.binance.standartTriangularsMemoryKey, to: standartTriangulars)
-            print(standartTriangulars.count)
+            
             let tradeableSymbols = try await BinanceAPIService().getExchangeInfo()
                 .filter { $0.status == .trading && $0.isSpotTradingAllowed }
             

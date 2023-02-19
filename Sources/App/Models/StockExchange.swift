@@ -16,7 +16,7 @@ enum StockExchange: String, CaseIterable {
         switch self {
         case .binance:
 #if DEBUG
-            return 0.2
+            return 0.1
 #else
             return 0.3
 #endif
@@ -53,7 +53,7 @@ enum StockExchange: String, CaseIterable {
     var minuteToScheduleTriangularUpdater: ScheduleBuilder.Minute {
         switch self {
         case .binance:
-            return 0
+            return 47
         case .bybit:
             return 10
         case .huobi:
@@ -90,6 +90,10 @@ enum StockExchange: String, CaseIterable {
         case .gateio:
             return "GateIOStandartTriangularsMemoryKey"
         }
+    }
+    
+    var stableTriangularsMemoryKey: String {
+        "stable\(self.rawValue)MemoryKey"
     }
     
     var standartTriangularOpportunityDictKey: String {

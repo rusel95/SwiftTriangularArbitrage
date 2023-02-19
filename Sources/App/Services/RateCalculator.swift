@@ -484,7 +484,7 @@ final class RateCalculator {
         guard let pairAOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairA] ?? tradeableSymbolOrderbookDepths["\(aBase)\(aQuote)"] else {
             logger.critical("No Orderbook Depth \(triangular.pairA)")
             return nil
-            }
+        }
         
         guard let pairBOrderbookDepth = tradeableSymbolOrderbookDepths[triangular.pairB] ?? tradeableSymbolOrderbookDepths["\(bBase)\(bQuote)"] else {
             logger.critical("No Orderbook Depth \(triangular.pairB)")
@@ -496,36 +496,44 @@ final class RateCalculator {
             return nil
         }
         
-        guard let trade1ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairAOrderbookDepth.tradeableSymbol.baseAsset),
-              let trade2ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairBOrderbookDepth.tradeableSymbol.baseAsset),
-              let trade3ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairCOrderbookDepth.tradeableSymbol.baseAsset) else {
-            logger.critical("No OrderbookQuantity for \(triangular)")
+        guard let trade1ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairAOrderbookDepth.tradeableSymbol.baseAsset) else {
+            logger.critical("No OrderbookQuantity for \(pairAOrderbookDepth.tradeableSymbol.baseAsset)")
+            return nil
+        }
+        
+        guard let trade2ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairBOrderbookDepth.tradeableSymbol.baseAsset) else {
+            logger.critical("No OrderbookQuantity for \(pairBOrderbookDepth.tradeableSymbol.baseAsset)")
+            return nil
+        }
+        
+        guard let trade3ApproximateOrderbookQuantity = try? getApproximateMinimalPortion(for: pairCOrderbookDepth.tradeableSymbol.baseAsset) else {
+            logger.critical("No OrderbookQuantity for \(pairCOrderbookDepth.tradeableSymbol.baseAsset)")
             return nil
         }
         
         let aAsk = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade1ApproximateOrderbookQuantity * 100
+            amount: trade1ApproximateOrderbookQuantity * 10
         )
         let aBid = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade1ApproximateOrderbookQuantity * 100
+            amount: trade1ApproximateOrderbookQuantity * 10
         )
         let bAsk = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade2ApproximateOrderbookQuantity * 200
+            amount: trade2ApproximateOrderbookQuantity * 10
         )
         let bBid = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade2ApproximateOrderbookQuantity * 200
+            amount: trade2ApproximateOrderbookQuantity * 10
         )
         let cAsk = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade3ApproximateOrderbookQuantity * 300
+            amount: trade3ApproximateOrderbookQuantity * 10
         )
         let cBid = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade3ApproximateOrderbookQuantity * 300
+            amount: trade3ApproximateOrderbookQuantity * 10
         )
         
         // Set direction and loop through
