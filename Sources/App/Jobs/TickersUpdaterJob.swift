@@ -104,7 +104,7 @@ private extension TickersUpdaterJob {
                 to: tradedStandartTriangularsDict
             )
             standartFairResults
-                .filter { $0.profitPercent > -0.05 }
+                .filter { $0.profitPercent > 0.0 }
                 .forEach { fairResult in
                     print(fairResult.description)
                 }
@@ -197,8 +197,7 @@ private extension TickersUpdaterJob {
                         let tradedTriangularOpportunity = try await autoTradingService.handle(
                             stockExchange: stockExchange,
                             opportunity: opportunity,
-                            bookTickersDict: bookTickersDict,
-                            for: adminUserInfo
+                            bookTickersDict: bookTickersDict
                         )
                         let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \n\nUpdated at: \(Date().readableDescription)"
                         if let updateMessageId = opportunity.updateMessageId {
