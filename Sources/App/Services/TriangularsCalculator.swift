@@ -10,7 +10,6 @@ import Foundation
 struct TriangularsCalculator {
     
     private static let stableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
-    private static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "BETH", "ADA", "DOGE", "GALA", "MATIC", "LINA")
     
     // Every swap should be current tradeableAsset
     static func getParralelTradeableAssetsTriangulars(from tradeableSymbols: [TradeableSymbol]) -> [Triangular] {
@@ -21,7 +20,7 @@ struct TriangularsCalculator {
             let aBase: String = pairA.baseAsset
             let aQuote: String = pairA.quoteAsset
             
-            guard tradeableAssets.contains(aBase) && tradeableAssets.contains(aQuote) else {
+            guard Constants.tradeableAssets.contains(aBase) && Constants.tradeableAssets.contains(aQuote) else {
                 continue
             }
             
@@ -34,7 +33,7 @@ struct TriangularsCalculator {
                 
                 guard (aBase == bBase || aQuote == bBase) || (aBase == bQuote || aQuote == bQuote) else { continue }
                 
-                guard tradeableAssets.contains(bBase) && tradeableAssets.contains(bQuote) else {
+                guard Constants.tradeableAssets.contains(bBase) && Constants.tradeableAssets.contains(bQuote) else {
                     continue
                 }
                 
@@ -43,7 +42,7 @@ struct TriangularsCalculator {
                     let cBase: String = pairC.baseAsset
                     let cQuote: String = pairC.quoteAsset
                     
-                    guard tradeableAssets.contains(cBase) && tradeableAssets.contains(cQuote) else {
+                    guard Constants.tradeableAssets.contains(cBase) && Constants.tradeableAssets.contains(cQuote) else {
                         continue
                     }
                     
@@ -83,7 +82,7 @@ struct TriangularsCalculator {
             let aBase: String = pairA.baseAsset
             let aQuote: String = pairA.quoteAsset
             
-            guard tradeableAssets.contains(aBase) || tradeableAssets.contains(aQuote) else { break }
+            guard Constants.tradeableAssets.contains(aBase) || Constants.tradeableAssets.contains(aQuote) else { break }
             
             // Get Pair B - Find B pair where one coint matched
             for pairB in tradeableSymbols {
@@ -99,7 +98,7 @@ struct TriangularsCalculator {
                     let cBase: String = pairC.baseAsset
                     let cQuote: String = pairC.quoteAsset
                     
-                    guard tradeableAssets.contains(cBase) || tradeableAssets.contains(cQuote) else { break }
+                    guard Constants.tradeableAssets.contains(cBase) || Constants.tradeableAssets.contains(cQuote) else { break }
                     
                     // Count the number of matching C items
                     guard pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol else { continue }
@@ -136,7 +135,7 @@ struct TriangularsCalculator {
             let aBase: String = pairA.baseAsset
             let aQuote: String = pairA.quoteAsset
             
-            guard tradeableAssets.contains(aBase) || tradeableAssets.contains(aQuote) else { break }
+            guard Constants.tradeableAssets.contains(aBase) || Constants.tradeableAssets.contains(aQuote) else { break }
             
             guard (stableAssets.contains(aBase) && stableAssets.contains(aQuote) == false)
                     || (stableAssets.contains(aBase) == false && stableAssets.contains(aQuote)) else { continue }
@@ -158,7 +157,7 @@ struct TriangularsCalculator {
                     guard (stableAssets.contains(cBase) && cBase != aBase && cBase != aQuote)
                             || (stableAssets.contains(cQuote) && cQuote != aBase && cQuote != aQuote) else { continue }
                     
-                    guard tradeableAssets.contains(cBase) || tradeableAssets.contains(cQuote) else { break }
+                    guard Constants.tradeableAssets.contains(cBase) || Constants.tradeableAssets.contains(cQuote) else { break }
                     
                     // Count the number of matching C items
                     guard pairC.symbol != pairA.symbol && pairC.symbol != pairB.symbol else { continue }

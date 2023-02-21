@@ -10,8 +10,6 @@ import Vapor
 
 final class AutoTradingService {
     
-    private let allowedAssetsToTrade: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH")
-    
     private var bookTickersDict: [String: BookTicker] = [:]
     
     private var minimumQuantityMultipler: Double = {
