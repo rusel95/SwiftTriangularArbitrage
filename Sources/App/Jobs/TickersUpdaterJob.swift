@@ -194,11 +194,8 @@ private extension TickersUpdaterJob {
                     guard opportunity.autotradeCicle == .pending else { return (key, opportunity) }
                     
                     do {
-                        let tradedTriangularOpportunity = try await autoTradingService.handle(
-                            stockExchange: stockExchange,
-                            opportunity: opportunity,
-                            bookTickersDict: bookTickersDict
-                        )
+                        let tradedTriangularOpportunity = try await autoTradingService.parralelTrade(opportunity: opportunity, bookTickersDict: bookTickersDict)
+                        
                         let text = "[\(stockExchange.rawValue)] \(tradedTriangularOpportunity.tradingDescription) \n\nUpdated at: \(Date().readableDescription)"
                         if let updateMessageId = opportunity.updateMessageId {
                             let editParams: TGEditMessageTextParams = .init(
