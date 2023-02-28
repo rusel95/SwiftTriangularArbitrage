@@ -167,7 +167,7 @@ private extension TickersUpdaterJob {
                 to: tradedStableTriangularsDict
             )
             stableFairResults
-                .filter { $0.profitPercent > 0.0 }
+                .filter { $0.profitPercent > 0.1 }
                 .forEach { fairResult in
                     print(fairResult.description)
                 }

@@ -100,10 +100,19 @@ final class AutoTradingService {
                 opportunity.autotradeLog.append("\n\nTotal comission: ≈ \(totalComissionStableEquivalent.string(maxFractionDigits: 4)) USDT")
             }
          
-            let usedSwap0AssetCapitalStableEquivalent = try getApproximateStableEquivalent(asset: opportunity.firstSurfaceResult.swap0, assetQuantity: tradeResponses[0].usedCapital)
-            let resultingSwap0AssetStableEquivalent = try getApproximateStableEquivalent(asset: opportunity.firstSurfaceResult.swap0, assetQuantity: tradeResponses[2].resultingCapital)
+            let usedSwap0AssetCapitalStableEquivalent = try getApproximateStableEquivalent(
+                asset: opportunity.firstSurfaceResult.swap0,
+                assetQuantity: tradeResponses[0].usedCapital
+            )
+            let resultingSwap0AssetStableEquivalent = try getApproximateStableEquivalent(
+                asset: opportunity.firstSurfaceResult.swap0,
+                assetQuantity: tradeResponses[2].resultingCapital
+            )
             
-            let usedSwap1AssetCapitalStableEquivalent = try getApproximateStableEquivalent(asset: opportunity.firstSurfaceResult.swap1, assetQuantity: tradeResponses[1].usedCapital)
+            let usedSwap1AssetCapitalStableEquivalent = try getApproximateStableEquivalent(
+                asset: opportunity.firstSurfaceResult.swap1,
+                assetQuantity: tradeResponses[1].usedCapital
+            )
             let resultingSwap1AssetCapitalStableEquivalent = try getApproximateStableEquivalent(asset: opportunity.firstSurfaceResult.swap1, assetQuantity: tradeResponses[0].resultingCapital)
             
             let usedSwap2AssetCapitalStableEquivalent = try getApproximateStableEquivalent(asset: opportunity.firstSurfaceResult.swap2, assetQuantity: tradeResponses[2].usedCapital)

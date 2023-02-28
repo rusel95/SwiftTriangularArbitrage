@@ -11,7 +11,7 @@ struct Constants {
     
     static let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
-    static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "BETH", "ADA", "DOGE", "GALA", "MATIC")
+    static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "BETH", "ADA", "DOGE", "GALA")
     
     struct Binance {
         
