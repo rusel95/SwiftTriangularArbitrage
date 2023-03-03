@@ -54,6 +54,7 @@ final class DefaultBotHandlers {
     var lastSendDate: Date = Date()
     
     private let autoTradingService: AutoTradingService
+    private let emailService: EmailService
     
     // MARK: - METHODS
     
@@ -61,13 +62,16 @@ final class DefaultBotHandlers {
         self.bot = bot
         self.app = app
         self.autoTradingService = AutoTradingService(app: app)
+        self.emailService = EmailService(app: app)
         
         Task {
             let standartTriangularsData = try Data(contentsOf: StockExchange.binance.standartTriangularsStorageURL)
             let standartTriangulars = try JSONDecoder().decode([Triangular].self, from: standartTriangularsData)
             try await app.caches.memory.set(StockExchange.binance.standartTriangularsMemoryKey, to: standartTriangulars)
             
-            let tradeableSymbols = try await BinanceAPIService().getExchangeInfo()
+            let allSymbols =  try await BinanceAPIService().getExchangeInfo()
+            
+            let tradeableSymbols = allSymbols
                 .filter { $0.status == .trading && $0.isSpotTradingAllowed }
             
             self.symbolsToSubscribe = tradeableSymbols
@@ -122,9 +126,12 @@ final class DefaultBotHandlers {
                     ws.send(raw: Data(), opcode: .pong)
                 }
                 
-                ws.onClose.whenComplete { result in
-                    self.unsubscribedParams.append(symbol)
-                    print("closed", symbol, self.unsubscribedParams.count)
+                ws.onClose.whenComplete { [weak self] result in
+                    self?.unsubscribedParams.append(symbol)
+                    self?.emailService.sendEmail(
+                        subject: "[websocket] [close]",
+                        text: "closed \(symbol) \(self?.unsubscribedParams.count ?? 0)"
+                    )
                 }
             }
         }
