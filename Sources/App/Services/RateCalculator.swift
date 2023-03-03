@@ -510,29 +510,46 @@ final class RateCalculator {
             return nil
         }
         
+        guard let pairAVolumeMultipler = PriceChangeStatisticStorage.shared.tradingVolumeStableEquivalentDict[pairA] else {
+            logger.critical("No pairAVolumeMultipler for \(pairAOrderbookDepth.tradeableSymbol.symbol)")
+            return nil
+        }
+        
         let aAsk = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade1ApproximateOrderbookQuantity * 50
+            amount: trade1ApproximateOrderbookQuantity * pairAVolumeMultipler
         )
         let aBid = pairAOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade1ApproximateOrderbookQuantity * 50
+            amount: trade1ApproximateOrderbookQuantity * pairAVolumeMultipler
         )
+        
+        guard let pairBVolumeMultipler = PriceChangeStatisticStorage.shared.tradingVolumeStableEquivalentDict[pairB] else {
+            logger.critical("No pairBVolumeMultipler for \(pairBOrderbookDepth.tradeableSymbol.symbol)")
+            return nil
+        }
+        
         let bAsk = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade2ApproximateOrderbookQuantity * 50
+            amount: trade2ApproximateOrderbookQuantity * pairBVolumeMultipler
         )
         let bBid = pairBOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade2ApproximateOrderbookQuantity * 50
+            amount: trade2ApproximateOrderbookQuantity * pairBVolumeMultipler
         )
+        
+        guard let pairCVolumeMultipler = PriceChangeStatisticStorage.shared.tradingVolumeStableEquivalentDict[pairC] else {
+            logger.critical("No pairBVolumeMultipler for \(pairCOrderbookDepth.tradeableSymbol.symbol)")
+            return nil
+        }
+        
         let cAsk = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .quoteToBase,
-            amount: trade3ApproximateOrderbookQuantity * 50
+            amount: trade3ApproximateOrderbookQuantity * pairCVolumeMultipler
         )
         let cBid = pairCOrderbookDepth.orderbookDepth.getWeightedAveragePrice(
             for: .baseToQuote,
-            amount: trade3ApproximateOrderbookQuantity * 50
+            amount: trade3ApproximateOrderbookQuantity * pairCVolumeMultipler
         )
         
         // Set direction and loop through
@@ -869,7 +886,7 @@ private extension RateCalculator {
             asset: asset,
             assetQuantity: 1
         )
-        return minimumQuantityStableEquivalent / approximateStableEquivalent
+        return Constants.minimumQuantityStableEquivalent / approximateStableEquivalent
     }
     
     func getApproximateStableEquivalent(asset: String, assetQuantity: Double) throws -> Double {
