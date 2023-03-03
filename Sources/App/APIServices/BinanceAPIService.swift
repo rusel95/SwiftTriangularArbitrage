@@ -30,6 +30,22 @@ enum BinanceError: Error, LocalizedError {
     }
 }
 
+struct SymbolPriceChangeStatistic: Codable {
+    let symbol, priceChange, priceChangePercent, weightedAvgPrice: String
+    let prevClosePrice, lastPrice, lastQty, bidPrice: String
+    let bidQty, askPrice, askQty, openPrice: String
+    let highPrice, lowPrice, volume, quoteVolume: String
+    let openTime, closeTime, firstID, lastID: Int
+    let count: Int
+
+    enum CodingKeys: String, CodingKey {
+        case symbol, priceChange, priceChangePercent, weightedAvgPrice, prevClosePrice, lastPrice, lastQty, bidPrice, bidQty, askPrice, askQty, openPrice, highPrice, lowPrice, volume, quoteVolume, openTime, closeTime
+        case firstID = "firstId"
+        case lastID = "lastId"
+        case count
+    }
+}
+
 final class BinanceAPIService {
     
     // MARK: - STRUCTS
@@ -212,6 +228,12 @@ final class BinanceAPIService {
         let url: URL = URL(string: "https://api.binance.com/api/v3/depth?limit=\(limit)&symbol=\(symbol)")!
         let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
         return try JSONDecoder().decode(OrderbookDepth.self, from: data)
+    }
+    
+    func getPriceChangeStatistics() async throws -> [SymbolPriceChangeStatistic] {
+        let url: URL = URL(string: "https://api.binance.com/api/v3/ticker/24hr")!
+        let (data, _) = try await URLSession.shared.asyncData(from: URLRequest(url: url))
+        return try JSONDecoder().decode([SymbolPriceChangeStatistic].self, from: data)
     }
     
     func newOrder(
