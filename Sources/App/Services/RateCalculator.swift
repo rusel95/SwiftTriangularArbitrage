@@ -27,7 +27,6 @@ final class RateCalculator {
     private let binanceSymbolsWithoutComissions: Set<String> = Set(arrayLiteral: "BTCAUD", "BTCBIDR", "BTCBRL", "BTCBUSD", "BTCEUR", "BTCGBP", "BTCTRY", "BTCTUSD", "BTCUAH", "BTCUSDC", "BTCUSDP", "BTCUSDT")
     
     private let logger = Logger(label: "logger.artitrage.triangular")
-    private let minimumQuantityStableEquivalent: Double = 20
     
     func getSurfaceResults(
         stockExchange: StockExchange,

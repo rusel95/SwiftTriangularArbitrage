@@ -9,9 +9,11 @@ import Foundation
 
 struct Constants {
     
+    static let minimumQuantityStableEquivalent: Double = 20
+    
     static let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
-    static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "BETH", "ADA", "DOGE", "GALA")
+    static let tradeableAssets: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD", "BTC", "ETH", "BNB", "UAH", "TWT", "ADA", "DOGE", "GALA")
     
     struct Binance {
         

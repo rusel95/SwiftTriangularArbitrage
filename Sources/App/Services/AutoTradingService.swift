@@ -357,15 +357,6 @@ private extension AutoTradingService {
         return quantityToExequte
     }
     
-    func getDepth(for surfaceResult: SurfaceResult, limit: UInt) async throws -> TriangularOpportunityDepth {
-        async let pairADepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract1, limit: limit)
-        async let pairBDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract2, limit: limit)
-        async let pairCDepthData = BinanceAPIService.shared.getOrderbookDepth(symbol: surfaceResult.contract3, limit: limit)
-        
-        let (pairADepth, pairBDepth, pairCDepth) = try await (pairADepthData, pairBDepthData, pairCDepthData)
-        return TriangularOpportunityDepth(pairADepth: pairADepth, pairBDepth: pairBDepth, pairCDepth: pairCDepth)
-    }
-    
     func getApproximateMinimalAssetPortionToReceive(contract: String, asset: String) throws -> Double {
         let baseAsset = contract.starts(with: asset) ? asset : contract.replace(asset, "")
         return try getApproximateMinimalPortion(for: baseAsset)
