@@ -107,7 +107,7 @@ final class DefaultBotHandlers {
     
     func connectToWebSocket() {
         for symbol in symbolsToSubscribe {
-            let _ = WebSocket.connect(to: "wss://stream.binance.com:9443/ws/\(symbol.symbol.lowercased())@depth10@100ms", on: app.eventLoopGroup.next()) { ws in
+            let _ = WebSocket.connect(to: "wss://stream.binance.com:9443/ws/\(symbol.symbol.lowercased())@depth20@100ms", on: app.eventLoopGroup.next()) { ws in
                 print(symbol.symbol)
                 ws.onText { _, text in
                     guard let data = text.data(using: .utf8),
