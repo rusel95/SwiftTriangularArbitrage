@@ -30,7 +30,7 @@ final class PriceChangeStatisticStorage {
                 continue
             }
             
-            let approximateVolumeMultipler = approximateStableEquivalent / 24.0 / 60.0 / 60.0 / Constants.minimumQuantityStableEquivalent
+            let approximateVolumeMultipler = approximateStableEquivalent / 24.0 / 60.0 / 60.0
             tradingVolumeStableEquivalentDict[symbolPriceChangeStatistic.symbol] = approximateVolumeMultipler
         }
     }
