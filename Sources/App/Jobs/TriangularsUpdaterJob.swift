@@ -76,10 +76,13 @@ struct TriangularsUpdaterJob: ScheduledJob {
                 try stableTriangularsEndcodedData.write(to: stockExchange.stableTriangularsStorageURL)
                 try await app.caches.memory.set(stockExchange.stableTriangularsMemoryKey, to: stableTriangulars)
                 let stableDuration = String(format: "%.4f", CFAbsoluteTimeGetCurrent() - startTime)
-                emailService.sendEmail(
-                    subject: "[\(stockExchange)] [triangulars]",
-                    text: "StandartTriangulars: \(standartTriangulars.count) - \(duration)s | StableTriangulars: \(stableTriangulars.count) - \(stableDuration)s"
-                )
+                
+                if Calendar.current.component(.hour, from: Date()) == 0 {
+                    emailService.sendEmail(
+                        subject: "[\(stockExchange)] [triangulars]",
+                        text: "StandartTriangulars: \(standartTriangulars.count) - \(duration)s | StableTriangulars: \(stableTriangulars.count) - \(stableDuration)s"
+                    )
+                }
             } catch {
                 print(error.localizedDescription)
                 emailService.sendEmail(

@@ -9,7 +9,7 @@ import Foundation
 
 struct Constants {
     
-    static let minimumQuantityStableEquivalent: Double = 20
+    static let minimumQuantityStableEquivalent: Double = 50
     
     static let stablesSet: Set<String> = Set(arrayLiteral: "BUSD", "USDT", "USDC", "TUSD")
     
