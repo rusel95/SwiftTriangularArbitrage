@@ -20,11 +20,7 @@ final class AutoTradingService {
     private var bookTickersDict: [String: BookTicker] = [:]
     
     private var minimumQuantityMultipler: Double = {
-#if DEBUG
-        return 2
-#else
-        return 3
-#endif
+        return Constants.minimumQuantityStableEquivalent / 10.0
     }()
     
     private let minimumQuantityStableEquivalent: Double
@@ -37,7 +33,11 @@ final class AutoTradingService {
         self.app = app
         self.emailService = EmailService(app: app)
         
-        minimumQuantityStableEquivalent = 10.0 * minimumQuantityMultipler
+#if DEBUG
+        minimumQuantityStableEquivalent = 20
+#else
+        minimumQuantityStableEquivalent = Constants.minimumQuantityStableEquivalent
+#endif
         
         do {
             let jsonData = try Data(contentsOf: Constants.Binance.tradeableDictURL)
